@@ -1,0 +1,46 @@
+# GENERATED FILE - do not edit by hand.
+# Regenerate with: python modules/archipelago_wow/tools/generate_content.py
+
+LOCATIONS: dict[str, int] = {
+    "A Threat Within": 700000,
+    "Simple Letter": 700001,
+    "Consecrated Letter": 700002,
+    "Encrypted Letter": 700003,
+    "Hallowed Letter": 700004,
+    "Glyphic Letter": 700005,
+    "Tainted Letter": 700006,
+    "Eagan Peltskinner": 700007,
+    "Kobold Camp Cleanup": 700008,
+    "Wolves Across the Border": 700009,
+    "Investigate Echo Ridge": 700010,
+    "Brotherhood of Thieves": 700011,
+    "Milly Osworth": 700012,
+    "In Favor of the Light": 700013,
+    "Milly's Harvest": 700014,
+    "Grape Manifest": 700015,
+    "Bounty on Garrick Padfoot": 700016,
+    "Skirmish at Echo Ridge": 700017,
+    "Report to Goldshire": 700018,
+}
+
+ITEMS: dict[str, int] = {
+    "Worn Shortsword": 800000,
+    "Bent Staff": 800001,
+    "Worn Mace": 800002,
+    "Worn Axe": 800003,
+    "Recruit's Shirt": 800004,
+    "Recruit's Boots": 800005,
+    "OLDRecruit's Belt": 800006,
+    "OLDSquire's Belt": 800007,
+    "Squire's Boots": 800008,
+    "Squire's Shirt": 800009,
+    "OLDFootpad's Belt": 800010,
+    "Footpad's Shoes": 800011,
+    "Footpad's Shirt": 800012,
+    "OLDInitiate's Belt": 800013,
+    "Neophyte's Boots": 800014,
+    "Neophyte's Shirt": 800015,
+    "OLDNovice's Belt": 800016,
+    "Apprentice's Boots": 800017,
+    "OLDAcolyte's Belt": 800018,
+}
