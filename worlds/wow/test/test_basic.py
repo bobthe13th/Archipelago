@@ -20,6 +20,45 @@ class TestNorthshireGeneration(WoWTestBase):
         self.assertEqual(len(self.multiworld.itempool), 33)
 
 
+class TestCoreLoopAccessRules(WoWTestBase):
+    """Final-review fix: rules.py must attach real prerequisites to the
+    core-loop locations, matching the real C++ server's genuine
+    prerequisites, so the fill algorithm can no longer place a required
+    Progressive Level Cap copy on a milestone location that itself requires
+    already having that copy (which produced permanently unwinnable seeds
+    when rules.py's set_rules was a no-op)."""
+
+    def test_reach_level_10_needs_no_items(self) -> None:
+        # STARTING_LEVEL_CAP is 10, so this milestone must be reachable from
+        # an empty inventory.
+        self.assertTrue(self.can_reach_location("Reach Level 10"))
+
+    def test_reach_level_15_needs_exactly_one_progressive_level_cap(self) -> None:
+        self.assertFalse(self.can_reach_location("Reach Level 15"))
+        progressive_caps = self.get_items_by_name("Progressive Level Cap")
+        self.collect(progressive_caps[:1])
+        self.assertTrue(self.can_reach_location("Reach Level 15"))
+
+    def test_reach_level_60_needs_all_ten_progressive_level_caps(self) -> None:
+        progressive_caps = self.get_items_by_name("Progressive Level Cap")
+        self.collect(progressive_caps[:9])
+        self.assertFalse(self.can_reach_location("Reach Level 60"))
+        self.collect(progressive_caps[9:])
+        self.assertTrue(self.can_reach_location("Reach Level 60"))
+
+    def test_clear_ragefire_chasm_needs_its_instance_unlock(self) -> None:
+        self.assertFalse(self.can_reach_location("Clear Ragefire Chasm"))
+        unlock = self.get_items_by_name("Instance Unlock: Ragefire Chasm")
+        self.collect(unlock)
+        self.assertTrue(self.can_reach_location("Clear Ragefire Chasm"))
+
+    def test_clear_deadmines_needs_its_instance_unlock(self) -> None:
+        self.assertFalse(self.can_reach_location("Clear Deadmines"))
+        unlock = self.get_items_by_name("Instance Unlock: Deadmines")
+        self.collect(unlock)
+        self.assertTrue(self.can_reach_location("Clear Deadmines"))
+
+
 class TestSprintGoal(WoWTestBase):
     def test_sprint_goal_requires_all_progressive_level_caps(self) -> None:
         """Reaching the Sprint goal must require all 10 Progressive Level
