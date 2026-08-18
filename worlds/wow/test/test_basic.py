@@ -15,9 +15,24 @@ class TestNorthshireGeneration(WoWTestBase):
 
     def test_item_pool_matches_location_count(self) -> None:
         """As of M2.1, create_items always adds both M2's quest-item pool
-        (19) and the core-loop item pool (14): 33 total. There is no
-        per-mode item pool split yet -- Sprint is the only GameMode."""
-        self.assertEqual(len(self.multiworld.itempool), 33)
+        (19) and the core-loop item pool (14): 33 total. In M4 Task 5, 5
+        Progressive Riding gate items are added (38 total). Task 11 will
+        restore item=location parity by adding sink locations."""
+        # TODO(Task 11): restore 1:1 item=location parity when filler.yaml is added
+        self.assertEqual(len(self.multiworld.itempool), 38)
+
+
+class TestGatesItemPool(WoWTestBase):
+    def test_gates_items_are_in_the_pool(self) -> None:
+        for tier_name in (
+            "Progressive Riding: Apprentice",
+            "Progressive Riding: Journeyman",
+            "Progressive Riding: Expert",
+            "Progressive Riding: Artisan",
+            "Progressive Riding: Cold Weather Flying",
+        ):
+            self.assertEqual(len(self.get_items_by_name(tier_name)), 1)
+
 
 
 class TestCoreLoopAccessRules(WoWTestBase):
