@@ -8,6 +8,8 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Progressive Riding: Expert": (830002, 1),
     "Progressive Riding: Artisan": (830003, 1),
     "Progressive Riding: Cold Weather Flying": (830004, 1),
+    "Flight Unlock: Outland": (830005, 1),
+    "Flight Unlock: Northrend": (830006, 1),
 }
 
 FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
@@ -16,6 +18,8 @@ FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
     "Progressive Riding: Expert": "riding",
     "Progressive Riding: Artisan": "riding",
     "Progressive Riding: Cold Weather Flying": "riding",
+    "Flight Unlock: Outland": "flight",
+    "Flight Unlock: Northrend": "flight",
 }
 
 FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
@@ -24,4 +28,6 @@ FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
     "Progressive Riding: Expert": 3,
     "Progressive Riding: Artisan": 4,
     "Progressive Riding: Cold Weather Flying": 5,
+    "Flight Unlock: Outland": 1,
+    "Flight Unlock: Northrend": 2,
 }

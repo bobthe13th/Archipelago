@@ -15,11 +15,11 @@ class TestNorthshireGeneration(WoWTestBase):
 
     def test_item_pool_matches_location_count(self) -> None:
         """As of M2.1, create_items always adds both M2's quest-item pool
-        (19) and the core-loop item pool (14): 33 total. In M4 Task 5, 5
-        Progressive Riding gate items are added (38 total). Task 11 will
-        restore item=location parity by adding sink locations."""
+        (19) and the core-loop item pool (14): 33 total. In M4 Tasks 5-6,
+        7 gate items are added (riding x5, flight x2 = 40 total). Task 11
+        will restore item=location parity by adding sink locations."""
         # TODO(Task 11): restore 1:1 item=location parity when filler.yaml is added
-        self.assertEqual(len(self.multiworld.itempool), 38)
+        self.assertEqual(len(self.multiworld.itempool), 40)
 
 
 class TestGatesItemPool(WoWTestBase):
@@ -30,6 +30,8 @@ class TestGatesItemPool(WoWTestBase):
             "Progressive Riding: Expert",
             "Progressive Riding: Artisan",
             "Progressive Riding: Cold Weather Flying",
+            "Flight Unlock: Outland",
+            "Flight Unlock: Northrend",
         ):
             self.assertEqual(len(self.get_items_by_name(tier_name)), 1)
 
