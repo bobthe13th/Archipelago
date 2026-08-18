@@ -25,11 +25,22 @@ from . import core_loop_content_data
 def set_rules(world):
     starting_cap = core_loop_content_data.STARTING_LEVEL_CAP
     step = core_loop_content_data.LEVEL_CAP_STEP
+    # Death Knight characters start at level 55 via a path that bypasses the
+    # level-up hook (see locations.py's create_core_loop_locations docstring),
+    # so the 11 locations for level < 55 are physically unreachable for that
+    # class. Gating every one of them behind the SAME copy count as level 55
+    # (rather than each level's own smaller threshold) doesn't change what's
+    # needed to win a seed -- Progressive Level Cap copies are fungible, only
+    # the total held count matters (state.has doesn't track provenance) --
+    # but it guarantees any copy the fill algorithm places on one of those 11
+    # locations is logically redundant (obtainable only once nearly done),
+    # forcing every ESSENTIAL copy to land somewhere DK-reachable (the 19 M2
+    # quest locations, Reach Level 55/60, or either instance clear).
+    level_55_copies_needed = max(0, math.ceil((55 - starting_cap) / step))
     for level, _location_id in core_loop_content_data.LEVEL_LOCATIONS.items():
-        # Number of Progressive Level Cap copies that must already have been
-        # received in order for the character to be able to gain XP up to
-        # (and be able to turn in / trigger) this level's milestone check.
-        copies_needed = max(0, math.ceil((level - starting_cap) / step))
+        copies_needed = level_55_copies_needed if level <= 55 else max(
+            0, math.ceil((level - starting_cap) / step)
+        )
         location = world.get_location(f"Reach Level {level}")
         if copies_needed > 0:
             world.set_rule(

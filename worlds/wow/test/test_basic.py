@@ -28,17 +28,6 @@ class TestCoreLoopAccessRules(WoWTestBase):
     already having that copy (which produced permanently unwinnable seeds
     when rules.py's set_rules was a no-op)."""
 
-    def test_reach_level_10_needs_no_items(self) -> None:
-        # STARTING_LEVEL_CAP is 10, so this milestone must be reachable from
-        # an empty inventory.
-        self.assertTrue(self.can_reach_location("Reach Level 10"))
-
-    def test_reach_level_15_needs_exactly_one_progressive_level_cap(self) -> None:
-        self.assertFalse(self.can_reach_location("Reach Level 15"))
-        progressive_caps = self.get_items_by_name("Progressive Level Cap")
-        self.collect(progressive_caps[:1])
-        self.assertTrue(self.can_reach_location("Reach Level 15"))
-
     def test_reach_level_60_needs_all_ten_progressive_level_caps(self) -> None:
         progressive_caps = self.get_items_by_name("Progressive Level Cap")
         self.collect(progressive_caps[:9])
@@ -57,6 +46,24 @@ class TestCoreLoopAccessRules(WoWTestBase):
         unlock = self.get_items_by_name("Instance Unlock: Deadmines")
         self.collect(unlock)
         self.assertTrue(self.can_reach_location("Clear Deadmines"))
+
+    def test_reach_level_10_now_needs_full_dk_safe_requirement(self) -> None:
+        # Fix under test: every "Reach Level N" location for N < 55 must require
+        # the SAME copy count as "Reach Level 55" (9 copies), not its own smaller
+        # per-level threshold -- otherwise a required Progressive Level Cap copy
+        # could land on a Death Knight-unreachable location (levels 5-55 never
+        # fire their level-up hook for a DK, see rules.py's module docstring).
+        progressive_caps = self.get_items_by_name("Progressive Level Cap")
+        self.collect(progressive_caps[:8])
+        self.assertFalse(self.can_reach_location("Reach Level 10"))
+        self.collect(progressive_caps[8:9])
+        self.assertTrue(self.can_reach_location("Reach Level 10"))
+
+    def test_reach_level_55_and_below_share_the_same_threshold(self) -> None:
+        progressive_caps = self.get_items_by_name("Progressive Level Cap")
+        self.collect(progressive_caps[:9])
+        for level in (10, 15, 20, 25, 30, 35, 40, 45, 50, 55):
+            self.assertTrue(self.can_reach_location(f"Reach Level {level}"))
 
 
 class TestSprintGoal(WoWTestBase):
