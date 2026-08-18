@@ -38,8 +38,23 @@ class MaxOptionalLocations(Range):
     default = 300
 
 
+class DeliveryPolicy(Choice):
+    """How Archipelago-granted items reach you. This never affects what
+    items exist or what's required to win -- see design spec §7. Resolved
+    once at generation into slot_data; the module reads it at startup, not
+    from any rule."""
+    display_name = "Item Delivery Policy"
+    option_everyone_receives = 0
+    option_shared_cache_npc = 1
+    option_auction_house = 2
+    option_first_to_claim = 3
+    default = 0
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
     check_density: CheckDensity
     max_optional_locations: MaxOptionalLocations
+    delivery_policy: DeliveryPolicy
+
