@@ -192,6 +192,53 @@ class LethalTrapsEnabled(Toggle):
     default = False
 
 
+class DeathLinkSend(Toggle):
+    """When on, a player-caused death on your WoW realm broadcasts a
+    DeathLink Bounce to the rest of the multiworld (spec §11). Independent
+    of death_link_receive -- you can send without receiving, or vice versa.
+    Never read by any rule. The connected worldserver must also have
+    Archipelago.DeathLinkSendEnabled set to match -- this module has no way
+    to read this option from the AP server itself, same manual-sync
+    requirement as delivery_policy/catch_up_policy/the gate toggles above."""
+    display_name = "DeathLink: Send"
+    default = False
+
+
+class DeathLinkReceive(Toggle):
+    """When on, an incoming DeathLink Bounce from the multiworld kills every
+    online player on your WoW realm (spec §11). Never read by any rule. The
+    connected worldserver must also have Archipelago.DeathLinkReceiveEnabled
+    set to match -- same manual-sync requirement as death_link_send."""
+    display_name = "DeathLink: Receive"
+    default = False
+
+
+class DeathLinkSendCooldown(Range):
+    """Only used when death_link_send is on: minimum seconds between two
+    outgoing DeathLink sends -- prevents a raid wipe (many players dying
+    within the same few seconds) from spamming the multiworld with one
+    Bounce per player (spec §11). Mirrored to
+    Archipelago.DeathLinkSendCooldownSeconds in the worldserver's .conf --
+    same manual-sync requirement as death_link_send."""
+    display_name = "DeathLink Send Cooldown (seconds)"
+    range_start = 1
+    range_end = 60
+    default = 15
+
+
+class DeathLinkReceiveCooldown(Range):
+    """Only used when death_link_receive is on: minimum seconds between two
+    incoming DeathLink kills being applied -- prevents a cascade where
+    several other slots' deaths arrive in a burst and repeatedly re-kill
+    your realm's players (spec §11). Mirrored to
+    Archipelago.DeathLinkReceiveCooldownSeconds in the worldserver's .conf --
+    same manual-sync requirement as death_link_receive."""
+    display_name = "DeathLink Receive Cooldown (seconds)"
+    range_start = 1
+    range_end = 60
+    default = 15
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -208,4 +255,8 @@ class WoWOptions(PerGameCommonOptions):
     trap_percentage_of_filler: TrapPercentageOfFiller
     trap_distribution_mode: TrapDistributionMode
     lethal_traps_enabled: LethalTrapsEnabled
+    death_link_send: DeathLinkSend
+    death_link_receive: DeathLinkReceive
+    death_link_send_cooldown: DeathLinkSendCooldown
+    death_link_receive_cooldown: DeathLinkReceiveCooldown
 
