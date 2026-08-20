@@ -1,7 +1,8 @@
 from worlds.AutoWorld import World
 from .items import WoWItem, create_item_pool, create_core_loop_item_pool, create_gates_item_pool, create_trap_item_pool
 from .regions import create_regions
-from .rules import set_rules, set_completion_rule
+from .rules import set_rules
+from . import goals
 from .content_data import LOCATIONS, ITEMS
 from . import core_loop_content_data
 from . import gates_content_data
@@ -46,6 +47,14 @@ class WoWWorld(World):
         **{name: loc_id for name, loc_id in filler_content_data.LOCATIONS.items()},
     }
 
+    def generate_early(self) -> None:
+        # Task 22: a bad game_mode/option combination must fail generation
+        # loudly here, before create_regions/create_items/set_rules ever run
+        # (spec Sec5.3's "fail generation with a clear message" requirement) --
+        # every GameMode value beyond Sprint currently raises OptionError
+        # naming which M4 task builds it, until that task lands.
+        goals.validate(self)
+
     def create_regions(self) -> None:
         create_regions(self)
 
@@ -57,5 +66,5 @@ class WoWWorld(World):
 
     def set_rules(self) -> None:
         set_rules(self)
-        set_completion_rule(self)
+        goals.set_completion_rule_for_mode(self)
 

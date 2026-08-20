@@ -5,12 +5,26 @@ from Options import Choice, PerGameCommonOptions, Range, Toggle
 
 
 class GameMode(Choice):
-    """Which game mode to generate for. Sprint (reach level 60) is the only
-    mode implemented so far -- the spec's other modes (Key Hunt, Classic,
-    Burning Crusade, Wrath, Completionist, Artisan, Collector, Achievement
-    Hunt) are explicitly Milestone 4 scope."""
+    """Which game mode to generate for (spec Sec5.4). Sprint (reach level 60)
+    is the only mode with real completion logic as of Task 22 -- every other
+    value here is reserved for a specific M4 task (see docs/m4-plan.md
+    Group 6) and currently fails generation immediately with an OptionError
+    naming which task builds it, rather than silently falling back to
+    Sprint's behavior. Selecting one of these before its task lands is a
+    configuration mistake the world should catch loudly, not paper over."""
     display_name = "Game Mode"
     option_sprint = 0
+    option_key_hunt = 1
+    option_classic = 2
+    option_burning_crusade = 3
+    option_wrath = 4
+    option_completionist = 5
+    option_artisan = 6
+    option_collector = 7
+    option_achievement_hunt = 8
+    option_gladiator = 9
+    option_explorer = 10
+    option_fishing_quest = 11
     default = 0
 
 

@@ -58,14 +58,3 @@ def set_rules(world):
         world.get_location("Clear Deadmines"),
         lambda state: state.has("Instance Unlock: Deadmines", world.player),
     )
-
-
-def set_completion_rule(world):
-    # Sprint: reach level 60, which (per this milestone's fixed content
-    # table) requires having received all 10 Progressive Level Cap copies --
-    # starting cap 10, +5 each, 10 copies reaches exactly 60.
-    world.set_completion_rule(
-        lambda state: state.has(
-            "Progressive Level Cap", world.player, core_loop_content_data.ITEMS["Progressive Level Cap"][1]
-        )
-    )
