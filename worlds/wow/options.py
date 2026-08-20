@@ -55,6 +55,24 @@ class DeliveryPolicy(Choice):
     default = 0
 
 
+class AuctionHouseCostTier(Choice):
+    """Only used when delivery_policy is auction_house: the buyout price
+    band for listed items (spec §7.1). "varied" mirrors the module's
+    "Random" conf value -- picks uniformly among the other four tiers per
+    listing; named differently here because AP's Choice options reserve
+    the literal name "random" for its own random-value-selection feature.
+    Never read by any rule. The connected worldserver must also have
+    Archipelago.AuctionHouseCostTier set to match -- same manual-sync
+    requirement as delivery_policy."""
+    display_name = "Auction House Cost Tier"
+    option_free = 0
+    option_cheap = 1
+    option_market = 2
+    option_expensive = 3
+    option_varied = 4
+    default = 2
+
+
 class ProficiencyGating(Toggle):
     """When on, armor and weapon proficiencies (Plate/Mail/Leather armor;
     Two-Handed Swords/Axes/Maces/Staves/Wands) are locked behind Archipelago
@@ -130,6 +148,7 @@ class WoWOptions(PerGameCommonOptions):
     check_density: CheckDensity
     max_optional_locations: MaxOptionalLocations
     delivery_policy: DeliveryPolicy
+    auction_house_cost_tier: AuctionHouseCostTier
     proficiency_gating: ProficiencyGating
     access_gating: AccessGating
     character_unlock_gating: CharacterUnlockGating
