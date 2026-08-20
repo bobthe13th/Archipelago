@@ -94,6 +94,36 @@ class CharacterUnlockGating(Toggle):
     default = False
 
 
+class CatchUpPolicy(Choice):
+    """How a brand-new character catches up on WoW items the realm has
+    already received (spec §7.2). Every delivered item is logged once
+    regardless of delivery_policy, but historically only reached one
+    designated character (everyone_receives' delivery character); every
+    other character starts with none of it. Never read by any rule. The
+    connected worldserver must also have Archipelago.CatchUpPolicy set to
+    match -- same manual-sync requirement as delivery_policy and the gate
+    toggles above. "Nothing" is the safe default (no behavior change from
+    before this option existed)."""
+    display_name = "New Character Catch-Up Policy"
+    option_all_mailed_on_login = 0
+    option_nothing = 1
+    option_percent_per_level = 2
+    option_level_scaled_bundle = 3
+    default = 1
+
+
+class CatchUpPercentPerLevel(Range):
+    """Only used when catch_up_policy is percent_per_level: what percentage
+    of the realm's total delivery history is granted to a character on each
+    level-up, until they're fully caught up. Mirrored to
+    Archipelago.CatchUpPercentPerLevel in the worldserver's .conf -- same
+    manual-sync requirement as catch_up_policy."""
+    display_name = "Catch-Up Percent Per Level"
+    range_start = 1
+    range_end = 100
+    default = 10
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -103,4 +133,6 @@ class WoWOptions(PerGameCommonOptions):
     proficiency_gating: ProficiencyGating
     access_gating: AccessGating
     character_unlock_gating: CharacterUnlockGating
+    catch_up_policy: CatchUpPolicy
+    catch_up_percent_per_level: CatchUpPercentPerLevel
 
