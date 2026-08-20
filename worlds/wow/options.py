@@ -40,9 +40,13 @@ class MaxOptionalLocations(Range):
 
 class DeliveryPolicy(Choice):
     """How Archipelago-granted items reach you. This never affects what
-    items exist or what's required to win -- see design spec §7. Resolved
-    once at generation into slot_data; the module reads it at startup, not
-    from any rule."""
+    items exist or what's required to win -- see design spec §7; never read
+    by any rule. The connected worldserver must also have
+    Archipelago.DeliveryPolicy set to match -- this module has no way to
+    read this option from the AP server itself, same manual-sync
+    requirement as proficiency_gating/access_gating/character_unlock_gating
+    (see the module's conf.dist for the matching warning, including the
+    auction_house + access_gating softlock it refuses to combine)."""
     display_name = "Item Delivery Policy"
     option_everyone_receives = 0
     option_shared_cache_npc = 1
