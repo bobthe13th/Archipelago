@@ -28,6 +28,25 @@ class GameMode(Choice):
     default = 0
 
 
+class InstanceClearMode(Choice):
+    """How much of a boss-roster-tracked raid (Task 23: Molten Core, Sunwell
+    Plateau, Icecrown Citadel) must die before its instance-clear check
+    fires. "all_bosses" (default, the fuller experience) requires every
+    boss configured for that raid to die at least once, in any order, across
+    however many attempts it takes. "final_boss_only" fires the instant the
+    raid's own final boss dies, matching how the two M2 dungeons (Ragefire
+    Chasm, Deadmines) already behave -- those two dungeons are unaffected by
+    this option either way, since they carry no boss roster to track. The
+    connected worldserver must have Archipelago.InstanceClearMode set to
+    match -- this module has no way to read this option from the AP server
+    itself, same manual-sync requirement as delivery_policy/
+    combo_unlocks_scope above."""
+    display_name = "Instance Clear Mode"
+    option_all_bosses = 0
+    option_final_boss_only = 1
+    default = 0
+
+
 class CheckDensity(Range):
     """Global check density (0-100). Controls how many rows are sampled from
     each enabled optional location category. 0 disables every optional
@@ -347,4 +366,5 @@ class WoWOptions(PerGameCommonOptions):
     spirit_healer_variant: SpiritHealerVariant
     combo_unlocks_scope: ComboUnlocksScope
     starting_choice: StartingChoice
+    instance_clear_mode: InstanceClearMode
 

@@ -3,6 +3,7 @@ from .items import WoWItem, create_item_pool, create_core_loop_item_pool, create
 from .regions import create_regions
 from .rules import set_rules
 from . import goals
+from . import slot_data
 from .content_data import LOCATIONS, ITEMS
 from . import core_loop_content_data
 from . import gates_content_data
@@ -42,8 +43,10 @@ class WoWWorld(World):
     location_name_to_id = {
         **{name: loc_id for name, loc_id in LOCATIONS.items()},
         **{f"Reach Level {level}": loc_id for level, loc_id in core_loop_content_data.LEVEL_LOCATIONS.items()},
-        "Clear Ragefire Chasm": core_loop_content_data.INSTANCE_CLEAR_LOCATIONS["ragefire_chasm"],
-        "Clear Deadmines": core_loop_content_data.INSTANCE_CLEAR_LOCATIONS["deadmines"],
+        **{
+            core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES[instance_key]: loc_id
+            for instance_key, loc_id in core_loop_content_data.INSTANCE_CLEAR_LOCATIONS.items()
+        },
         **{name: loc_id for name, loc_id in filler_content_data.LOCATIONS.items()},
     }
 
@@ -67,4 +70,7 @@ class WoWWorld(World):
     def set_rules(self) -> None:
         set_rules(self)
         goals.set_completion_rule_for_mode(self)
+
+    def fill_slot_data(self):
+        return slot_data.build_slot_data(self)
 

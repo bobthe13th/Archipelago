@@ -17,10 +17,11 @@ class TestNorthshireGeneration(WoWTestBase):
 
     def test_default_item_pool_size(self) -> None:
         """As of M2.1, create_items always adds both M2's quest-item pool
-        (19) and the core-loop item pool (14): 33 total. In M4 Tasks 5-6,
-        7 gate items are added unconditionally (riding x5, flight x2 = 40
-        total). Every other Group 1 gate item (Tasks 7/8/10, 27 of them) is
-        option-gated and off by default, so it's absent from this count --
+        (19) and the core-loop item pool (14 as of M2.1, grown to 17 by Task
+        23's three new raid Instance Unlock items): 36 total. In M4 Tasks
+        5-6, 7 gate items are added unconditionally (riding x5, flight x2 =
+        43 total). Every other Group 1 gate item (Tasks 7/8/10, 27 of them)
+        is option-gated and off by default, so it's absent from this count --
         see each option's TestXItemsPooledWhenOptionOn class for the
         option-on pool. Formerly named test_item_pool_matches_location_count
         when this number needed to equal the location count exactly; Task 11
@@ -28,7 +29,7 @@ class TestNorthshireGeneration(WoWTestBase):
         test_item_pool_matches_location_count_exactly below (and
         locations.py's create_filler_locations) for how parity is now
         maintained dynamically instead of via a fixed number."""
-        self.assertEqual(len(self.multiworld.itempool), 40)
+        self.assertEqual(len(self.multiworld.itempool), 43)
 
     def test_item_pool_matches_location_count_exactly(self) -> None:
         """Task 11: AP's generation pipeline has no generic step that pads a
@@ -284,7 +285,9 @@ class TestSprintGoal(WoWTestBase):
 
     def test_core_loop_item_pool_matches_location_count(self) -> None:
         core_loop_item_count = sum(count for _, count in core_loop_content_data.ITEMS.values())
-        core_loop_location_count = 12 + 2  # 12 level milestones + 2 instance clears
+        # 12 level milestones + 5 instance clears (Ragefire Chasm, Deadmines,
+        # and Task 23's Molten Core/Sunwell Plateau/Icecrown Citadel).
+        core_loop_location_count = 12 + 5
         self.assertEqual(core_loop_item_count, core_loop_location_count)
 
 

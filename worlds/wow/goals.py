@@ -54,14 +54,47 @@ def _not_yet_implemented(mode_name: str):
     return _raise
 
 
-# GameMode.value -> bare option name, for every mode besides Sprint (0).
-# Mirrors options.py's GameMode option_* attributes exactly -- keep both in
-# sync when a Group 6 task gives one of these a real implementation.
+# Task 23 (Tier 1): Classic/Burning Crusade/Wrath each gate on exactly one
+# of the three raids that task added to core_loop.yaml -- Molten Core is
+# Classic's own final raid, Sunwell Plateau is Burning Crusade's, Icecrown
+# Citadel is Wrath's. Sharing one _validate_instance_clear_mode/
+# _set_completion_rule_instance_clear pair rather than writing three nearly
+# identical functions -- the only thing that varies per mode is which
+# instance_key/display name to check.
+_TIER1_RAID_INSTANCE_KEYS = {
+    2: ("molten_core", "Molten Core"),  # classic
+    3: ("sunwell_plateau", "Sunwell Plateau"),  # burning_crusade
+    4: ("icecrown_citadel", "Icecrown Citadel"),  # wrath
+}
+
+
+def _validate_raid_instance_clear(instance_key: str, display_name: str):
+    def _validate(world) -> None:
+        # Mostly a placeholder for future dependency growth (per this task's
+        # own Step 6 note) -- true today as long as core_loop.yaml's Task 23
+        # rows exist, which create_regions always adds unconditionally (this
+        # instance-clear location is not subject to check_density sampling).
+        if instance_key not in core_loop_content_data.INSTANCE_CLEAR_LOCATIONS:
+            raise OptionError(
+                f"WoW: game_mode requires the '{display_name}' instance-clear "
+                f"location, but it is missing from core_loop.yaml."
+            )
+    return _validate
+
+
+def _set_completion_rule_raid_instance_clear(instance_key: str, display_name: str):
+    def _set_rule(world) -> None:
+        world.set_completion_rule(
+            lambda state: state.has(f"Instance Unlock: {display_name}", world.player)
+        )
+    return _set_rule
+
+
+# GameMode.value -> bare option name, for every mode without real content
+# yet. Mirrors options.py's GameMode option_* attributes exactly -- keep
+# both in sync when a Group 6 task gives one of these a real implementation.
 _NOT_YET_IMPLEMENTED_MODE_NAMES = {
     1: "key_hunt",
-    2: "classic",
-    3: "burning_crusade",
-    4: "wrath",
     5: "completionist",
     6: "artisan",
     7: "collector",
@@ -73,10 +106,18 @@ _NOT_YET_IMPLEMENTED_MODE_NAMES = {
 
 _VALIDATORS = {
     0: _validate_sprint,
+    **{
+        value: _validate_raid_instance_clear(instance_key, display_name)
+        for value, (instance_key, display_name) in _TIER1_RAID_INSTANCE_KEYS.items()
+    },
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
 }
 
 _COMPLETION_RULES = {
     0: _set_completion_rule_sprint,
+    **{
+        value: _set_completion_rule_raid_instance_clear(instance_key, display_name)
+        for value, (instance_key, display_name) in _TIER1_RAID_INSTANCE_KEYS.items()
+    },
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
 }

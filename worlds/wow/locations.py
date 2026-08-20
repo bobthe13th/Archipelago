@@ -44,7 +44,7 @@ def create_core_loop_locations(world, region) -> list:
     for level, location_id in core_loop_content_data.LEVEL_LOCATIONS.items():
         locations.append(WoWLocation(world.player, f"Reach Level {level}", location_id, region))
     for instance_key, location_id in core_loop_content_data.INSTANCE_CLEAR_LOCATIONS.items():
-        name = "Clear Ragefire Chasm" if instance_key == "ragefire_chasm" else "Clear Deadmines"
+        name = core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES[instance_key]
         locations.append(WoWLocation(world.player, name, location_id, region))
     return locations
 
