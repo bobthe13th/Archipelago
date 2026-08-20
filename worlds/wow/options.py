@@ -239,6 +239,33 @@ class DeathLinkReceiveCooldown(Range):
     default = 15
 
 
+class SpiritHealerVariant(Choice):
+    """Which of resurrection sickness and spirit-healer durability loss are
+    suppressed when resurrecting (spec §11's spirit-healer options).
+    "vanilla" applies both penalties normally; "no_res_sickness" and
+    "no_durability_loss" each suppress exactly one; "neither" suppresses
+    both (read as "neither penalty applies", not "neither is suppressed" --
+    the spec names this option "neither" without pinning the reading, so
+    this is a resolved interpretation, not a literal spec quote). Applies
+    realm-wide to every resurrection, not narrowly to the spirit-healer NPC
+    only -- this AzerothCore checkout's veto hook for resurrection sickness
+    (OnPlayerResurrect) has no way to distinguish which resurrection source
+    triggered it, and the durability-loss suppression is a worldserver-wide
+    rate override (RATE_DURABILITY_LOSS_ON_SPIRIT_RESURRECT), not a per-call
+    choice -- both are correct scope for this architecture anyway, since one
+    WoW realm is one AP slot (spec's core commitment), not a per-character
+    choice. Never read by any rule. The connected worldserver must also have
+    Archipelago.SpiritHealerVariant set to match -- this module has no way to
+    read this option from the AP server itself, same manual-sync requirement
+    as delivery_policy/catch_up_policy above."""
+    display_name = "Spirit Healer Variant"
+    option_vanilla = 0
+    option_no_res_sickness = 1
+    option_no_durability_loss = 2
+    option_neither = 3
+    default = 0
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -259,4 +286,5 @@ class WoWOptions(PerGameCommonOptions):
     death_link_receive: DeathLinkReceive
     death_link_send_cooldown: DeathLinkSendCooldown
     death_link_receive_cooldown: DeathLinkReceiveCooldown
+    spirit_healer_variant: SpiritHealerVariant
 
