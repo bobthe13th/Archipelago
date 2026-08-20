@@ -47,6 +47,22 @@ class InstanceClearMode(Choice):
     default = 0
 
 
+class CompletionistExpansion(Choice):
+    """Only relevant when game_mode is completionist (Task 24). Which
+    expansion's instance-clear locations Completionist requires -- vanilla
+    (Ragefire Chasm, Deadmines, Molten Core), tbc (Sunwell Plateau), or
+    wotlk (Icecrown Citadel), per core_loop.yaml's own `expansion:` tag on
+    each row. Completionist's completion rule is unaffected by
+    InstanceClearMode -- it checks the same "Instance Unlock" items every
+    other raid completion rule checks, regardless of which granularity
+    produced the underlying location check."""
+    display_name = "Completionist Expansion"
+    option_vanilla = 0
+    option_tbc = 1
+    option_wotlk = 2
+    default = 0
+
+
 class CheckDensity(Range):
     """Global check density (0-100). Controls how many rows are sampled from
     each enabled optional location category. 0 disables every optional
@@ -367,4 +383,5 @@ class WoWOptions(PerGameCommonOptions):
     combo_unlocks_scope: ComboUnlocksScope
     starting_choice: StartingChoice
     instance_clear_mode: InstanceClearMode
+    completionist_expansion: CompletionistExpansion
 

@@ -65,3 +65,14 @@ INSTANCE_BOSS_ENTRIES: dict[str, list[int]] = {
     "sunwell_plateau": [24892, 24882, 25038, 25165, 25166, 25840, 25315],
     "icecrown_citadel": [36612, 36855, 37813, 36626, 36627, 36678, 37972, 37973, 37970, 37955, 36853, 36597],
 }
+
+# Task 24 (Completionist mode): every instance_key with an `expansion:`
+# field on its location row, grouped by that expansion. A row with no
+# `expansion:` field (none exist as of Task 24, but the loader's schema
+# still treats it as optional -- see core_loop.yaml's own header comment)
+# is simply absent from every list here, not present under a None/empty key.
+INSTANCES_BY_EXPANSION: dict[str, list[str]] = {
+    "vanilla": ["ragefire_chasm", "deadmines", "molten_core"],
+    "tbc": ["sunwell_plateau"],
+    "wotlk": ["icecrown_citadel"],
+}

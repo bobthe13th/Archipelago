@@ -67,6 +67,42 @@ class TestWrathMode(WoWTestBase):
         self.assertTrue(self.multiworld.completion_condition[self.player](state))
 
 
+class TestCompletionistModeVanilla(WoWTestBase):
+    """Task 24: Completionist/vanilla requires all THREE vanilla instance
+    unlocks at once (Ragefire Chasm, Deadmines, Molten Core) -- the one mode
+    so far whose completion rule needs more than a single item."""
+    options = {"game_mode": "completionist", "completionist_expansion": "vanilla"}
+
+    def test_completion_requires_all_three_vanilla_unlocks(self) -> None:
+        state = self.multiworld.state
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+        self.collect_by_name("Instance Unlock: Ragefire Chasm")
+        self.collect_by_name("Instance Unlock: Deadmines")
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+        self.collect_by_name("Instance Unlock: Molten Core")
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+
+class TestCompletionistModeTbc(WoWTestBase):
+    options = {"game_mode": "completionist", "completionist_expansion": "tbc"}
+
+    def test_completion_requires_sunwell_plateau_unlock(self) -> None:
+        state = self.multiworld.state
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+        self.collect_by_name("Instance Unlock: Sunwell Plateau")
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+
+class TestCompletionistModeWotlk(WoWTestBase):
+    options = {"game_mode": "completionist", "completionist_expansion": "wotlk"}
+
+    def test_completion_requires_icecrown_citadel_unlock(self) -> None:
+        state = self.multiworld.state
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+        self.collect_by_name("Instance Unlock: Icecrown Citadel")
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+
 class TestInstanceClearModeFinalBossOnly(WoWTestBase):
     """Smoke test: the option's non-default value is selectable and doesn't
     change generation-time logic at all -- InstanceClearMode only affects

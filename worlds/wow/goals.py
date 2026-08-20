@@ -54,6 +54,18 @@ def _not_yet_implemented(mode_name: str):
     return _raise
 
 
+# Every instance_key core_loop.yaml defines, mapped to the display name its
+# "Instance Unlock: <name>" item uses -- shared by Task 23's Tier-1 modes
+# below and Task 24's Completionist mode, rather than each re-deriving it
+# from instance_key via an ad-hoc string transform.
+_INSTANCE_KEY_DISPLAY_NAMES = {
+    "ragefire_chasm": "Ragefire Chasm",
+    "deadmines": "Deadmines",
+    "molten_core": "Molten Core",
+    "sunwell_plateau": "Sunwell Plateau",
+    "icecrown_citadel": "Icecrown Citadel",
+}
+
 # Task 23 (Tier 1): Classic/Burning Crusade/Wrath each gate on exactly one
 # of the three raids that task added to core_loop.yaml -- Molten Core is
 # Classic's own final raid, Sunwell Plateau is Burning Crusade's, Icecrown
@@ -62,9 +74,9 @@ def _not_yet_implemented(mode_name: str):
 # identical functions -- the only thing that varies per mode is which
 # instance_key/display name to check.
 _TIER1_RAID_INSTANCE_KEYS = {
-    2: ("molten_core", "Molten Core"),  # classic
-    3: ("sunwell_plateau", "Sunwell Plateau"),  # burning_crusade
-    4: ("icecrown_citadel", "Icecrown Citadel"),  # wrath
+    2: "molten_core",  # classic
+    3: "sunwell_plateau",  # burning_crusade
+    4: "icecrown_citadel",  # wrath
 }
 
 
@@ -82,7 +94,9 @@ def _validate_raid_instance_clear(instance_key: str, display_name: str):
     return _validate
 
 
-def _set_completion_rule_raid_instance_clear(instance_key: str, display_name: str):
+def _set_completion_rule_raid_instance_clear(instance_key: str):
+    display_name = _INSTANCE_KEY_DISPLAY_NAMES[instance_key]
+
     def _set_rule(world) -> None:
         world.set_completion_rule(
             lambda state: state.has(f"Instance Unlock: {display_name}", world.player)
@@ -90,12 +104,37 @@ def _set_completion_rule_raid_instance_clear(instance_key: str, display_name: st
     return _set_rule
 
 
+# Task 24 (Completionist mode, design spec Sec5.4): requires clearing every
+# instance_clear location tagged with the chosen expansion
+# (completionist_expansion option -- vanilla/tbc/wotlk). Unlike Tier-1's
+# single-raid modes, this can require more than one Instance Unlock item at
+# once (vanilla currently has three: Ragefire Chasm, Deadmines, Molten
+# Core), so it uses state.has_all rather than a single state.has.
+def _validate_completionist(world) -> None:
+    expansion = world.options.completionist_expansion.current_key
+    instance_keys = core_loop_content_data.INSTANCES_BY_EXPANSION.get(expansion, [])
+    if not instance_keys:
+        raise OptionError(
+            f"WoW: game_mode 'completionist' with completionist_expansion "
+            f"'{expansion}' has no instance-clear locations tagged with "
+            f"that expansion in core_loop.yaml."
+        )
+
+
+def _set_completion_rule_completionist(world) -> None:
+    expansion = world.options.completionist_expansion.current_key
+    instance_keys = core_loop_content_data.INSTANCES_BY_EXPANSION[expansion]
+    item_names = {f"Instance Unlock: {_INSTANCE_KEY_DISPLAY_NAMES[key]}" for key in instance_keys}
+    world.set_completion_rule(
+        lambda state: state.has_all(item_names, world.player)
+    )
+
+
 # GameMode.value -> bare option name, for every mode without real content
 # yet. Mirrors options.py's GameMode option_* attributes exactly -- keep
 # both in sync when a Group 6 task gives one of these a real implementation.
 _NOT_YET_IMPLEMENTED_MODE_NAMES = {
     1: "key_hunt",
-    5: "completionist",
     6: "artisan",
     7: "collector",
     8: "achievement_hunt",
@@ -106,18 +145,16 @@ _NOT_YET_IMPLEMENTED_MODE_NAMES = {
 
 _VALIDATORS = {
     0: _validate_sprint,
-    **{
-        value: _validate_raid_instance_clear(instance_key, display_name)
-        for value, (instance_key, display_name) in _TIER1_RAID_INSTANCE_KEYS.items()
-    },
+    **{value: _validate_raid_instance_clear(instance_key, _INSTANCE_KEY_DISPLAY_NAMES[instance_key])
+       for value, instance_key in _TIER1_RAID_INSTANCE_KEYS.items()},
+    5: _validate_completionist,
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
 }
 
 _COMPLETION_RULES = {
     0: _set_completion_rule_sprint,
-    **{
-        value: _set_completion_rule_raid_instance_clear(instance_key, display_name)
-        for value, (instance_key, display_name) in _TIER1_RAID_INSTANCE_KEYS.items()
-    },
+    **{value: _set_completion_rule_raid_instance_clear(instance_key)
+       for value, instance_key in _TIER1_RAID_INSTANCE_KEYS.items()},
+    5: _set_completion_rule_completionist,
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
 }
