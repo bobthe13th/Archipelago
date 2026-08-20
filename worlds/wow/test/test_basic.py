@@ -52,8 +52,9 @@ _PROFICIENCY_ITEM_NAMES = (
 
 
 class _SkipFillUntilTask11Mixin:
-    """Shared by both proficiency-gating option classes below. NOT a
-    TestCase itself (plain mixin, combined via multiple inheritance below)
+    """Shared by every option-gated-item test class below (proficiency and
+    access gating). NOT a TestCase itself (plain mixin, combined via
+    multiple inheritance below)
     so pytest's unittest collection doesn't also run it standalone. A
     non-empty `options` dict makes WorldTestBase actually run its default
     tests (see run_default_tests), including test_fill -- which fails today
@@ -83,6 +84,29 @@ class TestProficiencyItemsPooledWhenOptionOn(_SkipFillUntilTask11Mixin, WoWTestB
 
     def test_proficiency_items_present_when_option_is_on(self) -> None:
         for name in _PROFICIENCY_ITEM_NAMES:
+            self.assertEqual(len(self.get_items_by_name(name)), 1)
+
+
+_ACCESS_ITEM_NAMES = (
+    "Auction House Access",
+    "Hearthstone Access",
+    "Mailbox Access",
+)
+
+
+class TestAccessItemsPooledWhenOptionOff(_SkipFillUntilTask11Mixin, WoWTestBase):
+    options = {"access_gating": False}
+
+    def test_access_items_absent_when_option_is_off(self) -> None:
+        for name in _ACCESS_ITEM_NAMES:
+            self.assertEqual(len(self.get_items_by_name(name)), 0)
+
+
+class TestAccessItemsPooledWhenOptionOn(_SkipFillUntilTask11Mixin, WoWTestBase):
+    options = {"access_gating": True}
+
+    def test_access_items_present_when_option_is_on(self) -> None:
+        for name in _ACCESS_ITEM_NAMES:
             self.assertEqual(len(self.get_items_by_name(name)), 1)
 
 

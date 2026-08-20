@@ -64,6 +64,20 @@ class ProficiencyGating(Toggle):
     default = False
 
 
+class AccessGating(Toggle):
+    """When on, Auction House access, Hearthstone use, and sending mail are
+    locked behind Archipelago items instead of being free from the start
+    (spec §5.1 -- optional, off by default). Only 3 of the design's 5 access
+    types are implemented: this AzerothCore checkout has no suppression
+    hook for bank access or gathering (mining/herbalism/skinning), so those
+    two are not gated (see the module's content/gates.yaml for why). The
+    connected worldserver must also have Archipelago.AccessGating enabled
+    in its .conf to match -- same manual-sync requirement as
+    proficiency_gating above."""
+    display_name = "Access Gating"
+    default = False
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -71,4 +85,5 @@ class WoWOptions(PerGameCommonOptions):
     max_optional_locations: MaxOptionalLocations
     delivery_policy: DeliveryPolicy
     proficiency_gating: ProficiencyGating
+    access_gating: AccessGating
 

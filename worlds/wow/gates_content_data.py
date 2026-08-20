@@ -18,6 +18,9 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Weapon Proficiency: Maces": (830012, 1),
     "Weapon Proficiency: Staves": (830013, 1),
     "Weapon Proficiency: Wands": (830014, 1),
+    "Auction House Access": (830015, 1),
+    "Hearthstone Access": (830016, 1),
+    "Mailbox Access": (830017, 1),
 }
 
 FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
@@ -36,6 +39,9 @@ FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
     "Weapon Proficiency: Maces": "proficiency_weapon_mace",
     "Weapon Proficiency: Staves": "proficiency_weapon_staff",
     "Weapon Proficiency: Wands": "proficiency_weapon_wand",
+    "Auction House Access": "access_auction_house",
+    "Hearthstone Access": "access_hearth",
+    "Mailbox Access": "access_mailbox",
 }
 
 FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
@@ -54,4 +60,7 @@ FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
     "Weapon Proficiency: Maces": 1,
     "Weapon Proficiency: Staves": 1,
     "Weapon Proficiency: Wands": 1,
+    "Auction House Access": 1,
+    "Hearthstone Access": 1,
+    "Mailbox Access": 1,
 }

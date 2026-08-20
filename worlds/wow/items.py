@@ -32,6 +32,9 @@ def create_core_loop_item_pool(world) -> list:
 _OPTIONAL_ITEM_PREFIXES = [
     ("Armor Proficiency:", "proficiency_gating"),
     ("Weapon Proficiency:", "proficiency_gating"),
+    ("Auction House Access", "access_gating"),
+    ("Hearthstone Access", "access_gating"),
+    ("Mailbox Access", "access_gating"),
 ]
 
 
