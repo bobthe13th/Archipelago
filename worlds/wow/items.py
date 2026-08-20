@@ -35,6 +35,9 @@ _OPTIONAL_ITEM_PREFIXES = [
     ("Auction House Access", "access_gating"),
     ("Hearthstone Access", "access_gating"),
     ("Mailbox Access", "access_gating"),
+    ("Progressive Bank Bag Slot:", "character_unlock_gating"),
+    ("Talent Point Access", "character_unlock_gating"),
+    ("Dual Spec Unlock", "character_unlock_gating"),
 ]
 
 

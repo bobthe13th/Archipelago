@@ -110,6 +110,35 @@ class TestAccessItemsPooledWhenOptionOn(_SkipFillUntilTask11Mixin, WoWTestBase):
             self.assertEqual(len(self.get_items_by_name(name)), 1)
 
 
+_CHARACTER_UNLOCK_ITEM_NAMES = (
+    "Progressive Bank Bag Slot: Slot 1",
+    "Progressive Bank Bag Slot: Slot 2",
+    "Progressive Bank Bag Slot: Slot 3",
+    "Progressive Bank Bag Slot: Slot 4",
+    "Progressive Bank Bag Slot: Slot 5",
+    "Progressive Bank Bag Slot: Slot 6",
+    "Progressive Bank Bag Slot: Slot 7",
+    "Talent Point Access",
+    "Dual Spec Unlock",
+)
+
+
+class TestCharacterUnlockItemsPooledWhenOptionOff(_SkipFillUntilTask11Mixin, WoWTestBase):
+    options = {"character_unlock_gating": False}
+
+    def test_character_unlock_items_absent_when_option_is_off(self) -> None:
+        for name in _CHARACTER_UNLOCK_ITEM_NAMES:
+            self.assertEqual(len(self.get_items_by_name(name)), 0)
+
+
+class TestCharacterUnlockItemsPooledWhenOptionOn(_SkipFillUntilTask11Mixin, WoWTestBase):
+    options = {"character_unlock_gating": True}
+
+    def test_character_unlock_items_present_when_option_is_on(self) -> None:
+        for name in _CHARACTER_UNLOCK_ITEM_NAMES:
+            self.assertEqual(len(self.get_items_by_name(name)), 1)
+
+
 class TestCoreLoopAccessRules(WoWTestBase):
     """Final-review fix: rules.py must attach real prerequisites to the
     core-loop locations, matching the real C++ server's genuine

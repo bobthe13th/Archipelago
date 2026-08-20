@@ -78,6 +78,18 @@ class AccessGating(Toggle):
     default = False
 
 
+class CharacterUnlockGating(Toggle):
+    """When on, bank bag slots, spending talent points, and dual spec are
+    locked behind Archipelago items instead of being free/purchasable from
+    the start (spec §5.1 -- optional, off by default). Glyph Slot gating
+    (also named in the design) is not implemented by this module -- see
+    the module's content/gates.yaml for why. The connected worldserver must
+    also have Archipelago.CharacterUnlockGating enabled in its .conf to
+    match -- same manual-sync requirement as the other gate toggles."""
+    display_name = "Character Unlock Gating"
+    default = False
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -86,4 +98,5 @@ class WoWOptions(PerGameCommonOptions):
     delivery_policy: DeliveryPolicy
     proficiency_gating: ProficiencyGating
     access_gating: AccessGating
+    character_unlock_gating: CharacterUnlockGating
 

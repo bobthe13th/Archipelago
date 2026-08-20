@@ -21,6 +21,15 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Auction House Access": (830015, 1),
     "Hearthstone Access": (830016, 1),
     "Mailbox Access": (830017, 1),
+    "Progressive Bank Bag Slot: Slot 1": (830018, 1),
+    "Progressive Bank Bag Slot: Slot 2": (830019, 1),
+    "Progressive Bank Bag Slot: Slot 3": (830020, 1),
+    "Progressive Bank Bag Slot: Slot 4": (830021, 1),
+    "Progressive Bank Bag Slot: Slot 5": (830022, 1),
+    "Progressive Bank Bag Slot: Slot 6": (830023, 1),
+    "Progressive Bank Bag Slot: Slot 7": (830024, 1),
+    "Talent Point Access": (830025, 1),
+    "Dual Spec Unlock": (830026, 1),
 }
 
 FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
@@ -42,6 +51,15 @@ FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
     "Auction House Access": "access_auction_house",
     "Hearthstone Access": "access_hearth",
     "Mailbox Access": "access_mailbox",
+    "Progressive Bank Bag Slot: Slot 1": "bank_bag_slots",
+    "Progressive Bank Bag Slot: Slot 2": "bank_bag_slots",
+    "Progressive Bank Bag Slot: Slot 3": "bank_bag_slots",
+    "Progressive Bank Bag Slot: Slot 4": "bank_bag_slots",
+    "Progressive Bank Bag Slot: Slot 5": "bank_bag_slots",
+    "Progressive Bank Bag Slot: Slot 6": "bank_bag_slots",
+    "Progressive Bank Bag Slot: Slot 7": "bank_bag_slots",
+    "Talent Point Access": "access_talent_points",
+    "Dual Spec Unlock": "dual_spec",
 }
 
 FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
@@ -63,4 +81,13 @@ FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
     "Auction House Access": 1,
     "Hearthstone Access": 1,
     "Mailbox Access": 1,
+    "Progressive Bank Bag Slot: Slot 1": 1,
+    "Progressive Bank Bag Slot: Slot 2": 2,
+    "Progressive Bank Bag Slot: Slot 3": 3,
+    "Progressive Bank Bag Slot: Slot 4": 4,
+    "Progressive Bank Bag Slot: Slot 5": 5,
+    "Progressive Bank Bag Slot: Slot 6": 6,
+    "Progressive Bank Bag Slot: Slot 7": 7,
+    "Talent Point Access": 1,
+    "Dual Spec Unlock": 1,
 }
