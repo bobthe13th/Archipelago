@@ -10,6 +10,14 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Progressive Riding: Cold Weather Flying": (830004, 1),
     "Flight Unlock: Outland": (830005, 1),
     "Flight Unlock: Northrend": (830006, 1),
+    "Armor Proficiency: Plate": (830007, 1),
+    "Armor Proficiency: Mail": (830008, 1),
+    "Armor Proficiency: Leather": (830009, 1),
+    "Weapon Proficiency: Two-Handed Swords": (830010, 1),
+    "Weapon Proficiency: Axes": (830011, 1),
+    "Weapon Proficiency: Maces": (830012, 1),
+    "Weapon Proficiency: Staves": (830013, 1),
+    "Weapon Proficiency: Wands": (830014, 1),
 }
 
 FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
@@ -20,6 +28,14 @@ FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
     "Progressive Riding: Cold Weather Flying": "riding",
     "Flight Unlock: Outland": "flight",
     "Flight Unlock: Northrend": "flight",
+    "Armor Proficiency: Plate": "proficiency_armor_plate",
+    "Armor Proficiency: Mail": "proficiency_armor_mail",
+    "Armor Proficiency: Leather": "proficiency_armor_leather",
+    "Weapon Proficiency: Two-Handed Swords": "proficiency_weapon_2h_sword",
+    "Weapon Proficiency: Axes": "proficiency_weapon_axe",
+    "Weapon Proficiency: Maces": "proficiency_weapon_mace",
+    "Weapon Proficiency: Staves": "proficiency_weapon_staff",
+    "Weapon Proficiency: Wands": "proficiency_weapon_wand",
 }
 
 FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
@@ -30,4 +46,12 @@ FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
     "Progressive Riding: Cold Weather Flying": 5,
     "Flight Unlock: Outland": 1,
     "Flight Unlock: Northrend": 2,
+    "Armor Proficiency: Plate": 1,
+    "Armor Proficiency: Mail": 1,
+    "Armor Proficiency: Leather": 1,
+    "Weapon Proficiency: Two-Handed Swords": 1,
+    "Weapon Proficiency: Axes": 1,
+    "Weapon Proficiency: Maces": 1,
+    "Weapon Proficiency: Staves": 1,
+    "Weapon Proficiency: Wands": 1,
 }

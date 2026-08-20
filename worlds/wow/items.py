@@ -24,9 +24,23 @@ def create_core_loop_item_pool(world) -> list:
     return pool
 
 
+# (name prefix, WoWOptions field name) pairs identifying gates.yaml items
+# that belong to an optional gate family -- only pooled when the matching
+# toggle is on. Riding and Flight Unlock items match no prefix here, so they
+# fall through to the "always pooled" branch below (§5.1 treats them as
+# mandatory Pipeline A content, not an optional family).
+_OPTIONAL_ITEM_PREFIXES = [
+    ("Armor Proficiency:", "proficiency_gating"),
+    ("Weapon Proficiency:", "proficiency_gating"),
+]
+
+
 def create_gates_item_pool(world) -> list:
     pool = []
     for name, (item_id, count) in gates_content_data.ITEMS.items():
+        option_name = next((opt for prefix, opt in _OPTIONAL_ITEM_PREFIXES if name.startswith(prefix)), None)
+        if option_name is not None and not getattr(world.options, option_name):
+            continue
         for _ in range(count):
             pool.append(WoWItem(name, ItemClassification.progression, item_id, world.player))
     return pool

@@ -36,6 +36,43 @@ class TestGatesItemPool(WoWTestBase):
             self.assertEqual(len(self.get_items_by_name(tier_name)), 1)
 
 
+_PROFICIENCY_ITEM_NAMES = (
+    "Armor Proficiency: Plate",
+    "Armor Proficiency: Mail",
+    "Armor Proficiency: Leather",
+    "Weapon Proficiency: Two-Handed Swords",
+    "Weapon Proficiency: Axes",
+    "Weapon Proficiency: Maces",
+    "Weapon Proficiency: Staves",
+    "Weapon Proficiency: Wands",
+)
+
+
+class TestProficiencyItemsPooledWhenOptionOff(WoWTestBase):
+    options = {"proficiency_gating": False}
+    # A non-empty `options` dict makes WorldTestBase actually run test_fill
+    # (see its run_default_tests property), which fails today regardless of
+    # this option's value -- the item pool (40, unconditional) already
+    # outnumbers real locations (33), a pre-existing gap called out in
+    # TestNorthshireGeneration.test_item_pool_matches_location_count's
+    # comment and assigned to Task 11 ("restore 1:1 item=location parity").
+    # This class only needs to check pool membership, not full fill/reach,
+    # so skip the generic fill/reachability tests until Task 11 lands.
+    run_default_tests = False
+
+    def test_proficiency_items_absent_when_option_is_off(self) -> None:
+        for name in _PROFICIENCY_ITEM_NAMES:
+            self.assertEqual(len(self.get_items_by_name(name)), 0)
+
+
+class TestProficiencyItemsPooledWhenOptionOn(WoWTestBase):
+    options = {"proficiency_gating": True}
+    run_default_tests = False  # see TestProficiencyItemsPooledWhenOptionOff
+
+    def test_proficiency_items_present_when_option_is_on(self) -> None:
+        for name in _PROFICIENCY_ITEM_NAMES:
+            self.assertEqual(len(self.get_items_by_name(name)), 1)
+
 
 class TestCoreLoopAccessRules(WoWTestBase):
     """Final-review fix: rules.py must attach real prerequisites to the

@@ -1,7 +1,7 @@
 # Archipelago/worlds/wow/options.py
 from dataclasses import dataclass
 
-from Options import Choice, PerGameCommonOptions, Range
+from Options import Choice, PerGameCommonOptions, Range, Toggle
 
 
 class GameMode(Choice):
@@ -51,10 +51,24 @@ class DeliveryPolicy(Choice):
     default = 0
 
 
+class ProficiencyGating(Toggle):
+    """When on, armor and weapon proficiencies (Plate/Mail/Leather armor;
+    Two-Handed Swords/Axes/Maces/Staves/Wands) are locked behind Archipelago
+    items instead of being free at character creation (spec §5.1 -- large
+    class-feel impact, optional, off by default). The connected worldserver
+    must also have Archipelago.ProficiencyGating enabled in its .conf to
+    match -- this module has no way to read this option from the AP server
+    itself, so operator and seed must be kept in sync by hand (see the
+    module's conf.dist for the matching warning)."""
+    display_name = "Armor/Weapon Proficiency Gating"
+    default = False
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
     check_density: CheckDensity
     max_optional_locations: MaxOptionalLocations
     delivery_policy: DeliveryPolicy
+    proficiency_gating: ProficiencyGating
 
