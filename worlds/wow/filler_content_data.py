@@ -63,4 +63,6 @@ LOCATIONS: dict[str, int] = {
     "Filler Check 58": 740057,
     "Filler Check 59": 740058,
     "Filler Check 60": 740059,
+    "Filler Check 61": 740060,
+    "Filler Check 62": 740061,
 }

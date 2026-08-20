@@ -142,6 +142,50 @@ class TestCharacterUnlockItemsPooledWhenOptionOn(WoWTestBase):
             self.assertEqual(len(self.get_items_by_name(name)), 1)
 
 
+class TestComboUnlockItemsScopeOff(WoWTestBase):
+    options = {"combo_unlocks_scope": "off"}
+
+    def test_neither_combo_item_is_pooled(self) -> None:
+        self.assertEqual(len(self.get_items_by_name("TBC Combo Unlock")), 0)
+        self.assertEqual(len(self.get_items_by_name("WotLK Combo Unlock")), 0)
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
+class TestComboUnlockItemsScopeTbc(WoWTestBase):
+    options = {"combo_unlocks_scope": "tbc"}
+
+    def test_only_tbc_combo_item_is_pooled(self) -> None:
+        self.assertEqual(len(self.get_items_by_name("TBC Combo Unlock")), 1)
+        self.assertEqual(len(self.get_items_by_name("WotLK Combo Unlock")), 0)
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
+class TestComboUnlockItemsScopeWotlk(WoWTestBase):
+    options = {"combo_unlocks_scope": "wotlk"}
+
+    def test_only_wotlk_combo_item_is_pooled(self) -> None:
+        self.assertEqual(len(self.get_items_by_name("TBC Combo Unlock")), 0)
+        self.assertEqual(len(self.get_items_by_name("WotLK Combo Unlock")), 1)
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
+class TestComboUnlockItemsScopeBoth(WoWTestBase):
+    options = {"combo_unlocks_scope": "both"}
+
+    def test_both_combo_items_are_pooled(self) -> None:
+        self.assertEqual(len(self.get_items_by_name("TBC Combo Unlock")), 1)
+        self.assertEqual(len(self.get_items_by_name("WotLK Combo Unlock")), 1)
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
 class TestGateItemSphereZero(WoWTestBase):
     """§16's "gate-item sphere-0 test": no riding/proficiency/access/
     character-unlock gate may block any sphere-0 completion path. Turns
@@ -338,16 +382,19 @@ class TestTrapDistributionModeChaos(WoWTestBase):
 class TestTrapsAndGatesCombinedParity(WoWTestBase):
     """Task 17's parity extension to Task 11's mechanism: traps and gates
     are two independently-sized optional families sharing one filler
-    ceiling (content/filler.yaml's 60 rows). Stress-tests both at their
-    most extreme settings simultaneously -- if the combined
+    ceiling (content/filler.yaml's 62 rows, grown from 60 by Task 21's two
+    combo-unlock items). Stress-tests both at their most extreme settings
+    simultaneously (including combo_unlocks_scope: "both", the setting that
+    actually reaches the full 29-item gates worst case) -- if the combined
     count_enabled_gates_items() + count_enabled_trap_items() ever exceeds
-    60, or if the two counts are computed inconsistently between
+    62, or if the two counts are computed inconsistently between
     create_items and create_regions' create_filler_locations, this is
     where it would show up as a FillError."""
     options = {
         "proficiency_gating": True,
         "access_gating": True,
         "character_unlock_gating": True,
+        "combo_unlocks_scope": "both",
         "traps_enabled": True,
         "trap_percentage_of_filler": 100,
         "lethal_traps_enabled": True,

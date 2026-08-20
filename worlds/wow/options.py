@@ -266,6 +266,50 @@ class SpiritHealerVariant(Choice):
     default = 0
 
 
+class ComboUnlocksScope(Choice):
+    """Which race/class combos requiring an expansion (spec §5.5) start
+    locked behind an Archipelago item instead of being freely creatable.
+    "tbc" gates Blood Elf and Draenei (both races, not narrowed to their
+    class-restricted combos -- see the module's content/gates.yaml for why
+    per-combo granularity isn't attempted); "wotlk" gates Death Knight
+    (any race); "both" gates all three. Off by default (§18#5). Only the
+    expansion-tier gate is implemented, not every individual race/class
+    pairing -- unlocking every combo (e.g. Dwarf Paladin specifically)
+    would need the out-of-scope MPQ client patch per §5.5/§20.1. The
+    connected worldserver must also have Archipelago.ComboUnlocksScope set
+    to match -- this module has no way to read this option from the AP
+    server itself, same manual-sync requirement as delivery_policy/
+    catch_up_policy above."""
+    display_name = "Combo Unlocks Scope"
+    option_off = 0
+    option_tbc = 1
+    option_wotlk = 2
+    option_both = 3
+    default = 0
+
+
+class StartingChoice(Choice):
+    """How many race/class combos a new character can freely choose from
+    before any combo-unlock item is earned (spec §5.5's exact menu):
+    "one_choice_only" locks the account to whichever single combo is
+    chosen at generation; "one_horde_one_alliance" allows one pre-chosen
+    combo per faction; "one_class_one_horde_one_alliance" additionally
+    allows a second, different class as long as it's also one-per-faction.
+    This is pure itemization/config resolved once at generation -- the
+    module does not enforce it at runtime (there is no per-account
+    "which combo did you pick" state anywhere in this checkout to check
+    against), so it only affects `Fill`/spoiler-log bookkeeping in this
+    milestone, not an in-game restriction beyond what ComboUnlocksScope
+    itself already locks. Deliberately NOT mirrored to a worldserver.conf
+    key for that reason -- there is nothing on the module side that reads
+    it."""
+    display_name = "Starting Choice"
+    option_one_choice_only = 0
+    option_one_horde_one_alliance = 1
+    option_one_class_one_horde_one_alliance = 2
+    default = 0
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -287,4 +331,6 @@ class WoWOptions(PerGameCommonOptions):
     death_link_send_cooldown: DeathLinkSendCooldown
     death_link_receive_cooldown: DeathLinkReceiveCooldown
     spirit_healer_variant: SpiritHealerVariant
+    combo_unlocks_scope: ComboUnlocksScope
+    starting_choice: StartingChoice
 

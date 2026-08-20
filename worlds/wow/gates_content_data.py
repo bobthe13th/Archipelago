@@ -30,6 +30,8 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Progressive Bank Bag Slot: Slot 7": (830024, 1),
     "Talent Point Access": (830025, 1),
     "Dual Spec Unlock": (830026, 1),
+    "TBC Combo Unlock": (830027, 1),
+    "WotLK Combo Unlock": (830028, 1),
 }
 
 FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
@@ -60,6 +62,8 @@ FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
     "Progressive Bank Bag Slot: Slot 7": "bank_bag_slots",
     "Talent Point Access": "access_talent_points",
     "Dual Spec Unlock": "dual_spec",
+    "TBC Combo Unlock": "combo_unlock_tbc",
+    "WotLK Combo Unlock": "combo_unlock_wotlk",
 }
 
 FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
@@ -90,4 +94,6 @@ FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
     "Progressive Bank Bag Slot: Slot 7": 7,
     "Talent Point Access": 1,
     "Dual Spec Unlock": 1,
+    "TBC Combo Unlock": 1,
+    "WotLK Combo Unlock": 1,
 }

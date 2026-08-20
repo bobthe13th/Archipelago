@@ -44,6 +44,18 @@ _OPTIONAL_ITEM_PREFIXES = [
 
 
 def _is_gate_item_enabled(world, name: str) -> bool:
+    # Task 21 (design spec Sec5.5): combo_unlocks_scope is a 4-way Choice
+    # (off/tbc/wotlk/both), not a plain Toggle, so it can't go through
+    # _OPTIONAL_ITEM_PREFIXES's simple getattr-truthiness check -- that would
+    # incorrectly treat BOTH combo items as enabled the moment the option is
+    # anything other than "off", even for a seed that only scoped in one of
+    # the two. Each combo item checks its own matching scope value(s)
+    # directly instead.
+    if name == "TBC Combo Unlock":
+        return world.options.combo_unlocks_scope in ("tbc", "both")
+    if name == "WotLK Combo Unlock":
+        return world.options.combo_unlocks_scope in ("wotlk", "both")
+
     option_name = next((opt for prefix, opt in _OPTIONAL_ITEM_PREFIXES if name.startswith(prefix)), None)
     return option_name is None or bool(getattr(world.options, option_name))
 
