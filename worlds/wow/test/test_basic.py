@@ -1,5 +1,6 @@
 # Archipelago/worlds/wow/test/test_basic.py
 from .bases import WoWTestBase
+from .. import content_data
 from .. import core_loop_content_data
 
 
@@ -13,16 +14,37 @@ class TestNorthshireGeneration(WoWTestBase):
         (matches rules.py's no-op access rules for this milestone)."""
         self.assertTrue(len(self.multiworld.get_reachable_locations()) >= 19)
 
-    def test_item_pool_matches_location_count(self) -> None:
+    def test_default_item_pool_size(self) -> None:
         """As of M2.1, create_items always adds both M2's quest-item pool
         (19) and the core-loop item pool (14): 33 total. In M4 Tasks 5-6,
-        7 gate items are added (riding x5, flight x2 = 40 total). Task 7's
-        8 proficiency items are option-gated (proficiency_gating, default
-        off) and absent from this default-options count -- see
-        TestProficiencyItemsPooledWhenOptionOn for the option-on pool.
-        Task 11 will restore item=location parity by adding sink locations."""
-        # TODO(Task 11): restore 1:1 item=location parity when filler.yaml is added
+        7 gate items are added unconditionally (riding x5, flight x2 = 40
+        total). Every other Group 1 gate item (Tasks 7/8/10, 27 of them) is
+        option-gated and off by default, so it's absent from this count --
+        see each option's TestXItemsPooledWhenOptionOn class for the
+        option-on pool. Formerly named test_item_pool_matches_location_count
+        when this number needed to equal the location count exactly; Task 11
+        made that unnecessary to check here -- see
+        test_item_pool_matches_location_count_exactly below (and
+        locations.py's create_filler_locations) for how parity is now
+        maintained dynamically instead of via a fixed number."""
         self.assertEqual(len(self.multiworld.itempool), 40)
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        """Task 11: AP's generation pipeline has no generic step that pads a
+        short itempool to match location count (Main.py's only itempool<->
+        create_filler() interaction is a fixed-size 1:1 swap for
+        start_inventory_from_pool removals, not padding) -- confirmed
+        empirically, distribute_items_restrictive raises "Unable to fill all
+        locations" just as readily when locations exceed items as when items
+        exceed locations. So real 1:1 parity is required for every option
+        combination, not just "locations >= items". locations.py's
+        create_filler_locations achieves this dynamically: it slices
+        content/filler.yaml's 27 rows (the max possible, one per
+        gates_content_data.ITEMS entry) down to exactly
+        items.py's count_enabled_gates_items(world) for whatever options
+        this generation actually has -- see TestGateItemSphereZero (every
+        optional gate on) for the other end of that range."""
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
 
 
 class TestGatesItemPool(WoWTestBase):
@@ -51,27 +73,7 @@ _PROFICIENCY_ITEM_NAMES = (
 )
 
 
-class _SkipFillUntilTask11Mixin:
-    """Shared by every option-gated-item test class below (proficiency and
-    access gating). NOT a TestCase itself (plain mixin, combined via
-    multiple inheritance below)
-    so pytest's unittest collection doesn't also run it standalone. A
-    non-empty `options` dict makes WorldTestBase actually run its default
-    tests (see run_default_tests), including test_fill -- which fails today
-    regardless of this option's value, since the item pool (40,
-    unconditional) already outnumbers real locations (33), a pre-existing
-    gap called out in TestNorthshireGeneration.
-    test_item_pool_matches_location_count's comment and assigned to Task 11
-    ("restore 1:1 item=location parity"). Only test_fill is overridden here
-    -- test_all_state_can_reach_everything and test_empty_state_can_reach_
-    something don't call Fill at all, so they still give real reachability
-    coverage for the new gate items."""
-
-    def test_fill(self) -> None:
-        self.skipTest("item/location pool parity gap, tracked as Task 11")
-
-
-class TestProficiencyItemsPooledWhenOptionOff(_SkipFillUntilTask11Mixin, WoWTestBase):
+class TestProficiencyItemsPooledWhenOptionOff(WoWTestBase):
     options = {"proficiency_gating": False}
 
     def test_proficiency_items_absent_when_option_is_off(self) -> None:
@@ -79,7 +81,7 @@ class TestProficiencyItemsPooledWhenOptionOff(_SkipFillUntilTask11Mixin, WoWTest
             self.assertEqual(len(self.get_items_by_name(name)), 0)
 
 
-class TestProficiencyItemsPooledWhenOptionOn(_SkipFillUntilTask11Mixin, WoWTestBase):
+class TestProficiencyItemsPooledWhenOptionOn(WoWTestBase):
     options = {"proficiency_gating": True}
 
     def test_proficiency_items_present_when_option_is_on(self) -> None:
@@ -94,7 +96,7 @@ _ACCESS_ITEM_NAMES = (
 )
 
 
-class TestAccessItemsPooledWhenOptionOff(_SkipFillUntilTask11Mixin, WoWTestBase):
+class TestAccessItemsPooledWhenOptionOff(WoWTestBase):
     options = {"access_gating": False}
 
     def test_access_items_absent_when_option_is_off(self) -> None:
@@ -102,7 +104,7 @@ class TestAccessItemsPooledWhenOptionOff(_SkipFillUntilTask11Mixin, WoWTestBase)
             self.assertEqual(len(self.get_items_by_name(name)), 0)
 
 
-class TestAccessItemsPooledWhenOptionOn(_SkipFillUntilTask11Mixin, WoWTestBase):
+class TestAccessItemsPooledWhenOptionOn(WoWTestBase):
     options = {"access_gating": True}
 
     def test_access_items_present_when_option_is_on(self) -> None:
@@ -123,7 +125,7 @@ _CHARACTER_UNLOCK_ITEM_NAMES = (
 )
 
 
-class TestCharacterUnlockItemsPooledWhenOptionOff(_SkipFillUntilTask11Mixin, WoWTestBase):
+class TestCharacterUnlockItemsPooledWhenOptionOff(WoWTestBase):
     options = {"character_unlock_gating": False}
 
     def test_character_unlock_items_absent_when_option_is_off(self) -> None:
@@ -131,12 +133,42 @@ class TestCharacterUnlockItemsPooledWhenOptionOff(_SkipFillUntilTask11Mixin, WoW
             self.assertEqual(len(self.get_items_by_name(name)), 0)
 
 
-class TestCharacterUnlockItemsPooledWhenOptionOn(_SkipFillUntilTask11Mixin, WoWTestBase):
+class TestCharacterUnlockItemsPooledWhenOptionOn(WoWTestBase):
     options = {"character_unlock_gating": True}
 
     def test_character_unlock_items_present_when_option_is_on(self) -> None:
         for name in _CHARACTER_UNLOCK_ITEM_NAMES:
             self.assertEqual(len(self.get_items_by_name(name)), 1)
+
+
+class TestGateItemSphereZero(WoWTestBase):
+    """§16's "gate-item sphere-0 test": no riding/proficiency/access/
+    character-unlock gate may block any sphere-0 completion path. Turns
+    every optional gate family on (the maximal-restriction case) rather
+    than using default options -- with every gate off by default, a test
+    using default options couldn't actually prove any gate is sphere-0-safe,
+    since an off gate trivially blocks nothing. rules.py never calls
+    world.set_rule on any of the 19 quest locations (see rules.py's M2
+    comment) and no Group 1 task added one either, so this is a regression
+    guard against a future gate task accidentally doing so, not a fix for
+    a live bug."""
+
+    options = {
+        "proficiency_gating": True,
+        "access_gating": True,
+        "character_unlock_gating": True,
+    }
+
+    def test_all_quest_locations_reachable_with_zero_items(self) -> None:
+        for name in content_data.LOCATIONS:
+            self.assertTrue(self.can_reach_location(name))
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        """Same invariant as TestNorthshireGeneration's version of this
+        test, checked here at the other end of the option range (every
+        optional gate on) -- see that test's docstring for why exact parity
+        (not just locations >= items) is required."""
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
 
 
 class TestCoreLoopAccessRules(WoWTestBase):

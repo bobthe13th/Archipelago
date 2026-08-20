@@ -1,6 +1,6 @@
 # Archipelago/worlds/wow/regions.py
 from BaseClasses import Region
-from .locations import create_locations, create_core_loop_locations
+from .locations import create_locations, create_core_loop_locations, create_filler_locations
 
 
 def create_regions(world):
@@ -15,6 +15,7 @@ def create_regions(world):
 
     northshire.locations += create_locations(world, northshire)
     northshire.locations += create_core_loop_locations(world, northshire)
+    northshire.locations += create_filler_locations(world, northshire)
 
     menu.connect(northshire)
 

@@ -5,6 +5,7 @@ from .rules import set_rules, set_completion_rule
 from .content_data import LOCATIONS, ITEMS
 from . import core_loop_content_data
 from . import gates_content_data
+from . import filler_content_data
 from .options import WoWOptions
 
 
@@ -40,6 +41,7 @@ class WoWWorld(World):
         **{f"Reach Level {level}": loc_id for level, loc_id in core_loop_content_data.LEVEL_LOCATIONS.items()},
         "Clear Ragefire Chasm": core_loop_content_data.INSTANCE_CLEAR_LOCATIONS["ragefire_chasm"],
         "Clear Deadmines": core_loop_content_data.INSTANCE_CLEAR_LOCATIONS["deadmines"],
+        **{name: loc_id for name, loc_id in filler_content_data.LOCATIONS.items()},
     }
 
     def create_regions(self) -> None:
