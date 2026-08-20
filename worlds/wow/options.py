@@ -142,6 +142,56 @@ class CatchUpPercentPerLevel(Range):
     default = 10
 
 
+class TrapsEnabled(Toggle):
+    """When on, a percentage of the item pool becomes traps instead of
+    progression/filler items -- fun and/or lethal effects that fire on
+    receipt (spec §8's trap menu). Off by default per spec §18#5. Only 8 of
+    the design's 17 trap effects have a real implementation as of Task 17
+    -- see the module's content/traps.yaml for exactly which (the rest log
+    and safely no-op instead of crashing or silently pretending to have
+    applied something)."""
+    display_name = "Traps"
+    default = False
+
+
+class TrapPercentageOfFiller(Range):
+    """Only used when traps_enabled is on: what percentage of this seed's
+    baseline quest+core-loop location count (a fixed 33, independent of how
+    many traps/gates are actually enabled) becomes trap item copies.
+    Distinct from check_density (spec §8 specifies this as its own knob,
+    not the general density model)."""
+    display_name = "Trap Percentage of Filler"
+    range_start = 0
+    range_end = 100
+    default = 10
+
+
+class TrapDistributionMode(Choice):
+    """Only used when traps_enabled is on: how the total trap count (from
+    trap_percentage_of_filler) is split across the eligible trap effect
+    types. "uniform" spreads them as evenly as possible; "weighted" uses
+    each trap's own relative weight (its content-table ceiling count) so
+    some effects are proportionally more common than others; "chaos" picks
+    each individual copy's type independently at random, varying the split
+    generation to generation even for identical options. weighted is the
+    spec §18#5 default."""
+    display_name = "Trap Distribution Mode"
+    option_uniform = 0
+    option_weighted = 1
+    option_chaos = 2
+    default = 1
+
+
+class LethalTrapsEnabled(Toggle):
+    """Only used when traps_enabled is on: whether the lethal-tagged trap
+    subset (spawn-a-rare-on-you, floor-is-lava) is eligible to be sampled
+    at all. Off by default per spec §18#5 -- funny and lethal traps are not
+    mutually exclusive in the design, but lethal ones need an explicit
+    opt-in."""
+    display_name = "Lethal Traps"
+    default = False
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -154,4 +204,8 @@ class WoWOptions(PerGameCommonOptions):
     character_unlock_gating: CharacterUnlockGating
     catch_up_policy: CatchUpPolicy
     catch_up_percent_per_level: CatchUpPercentPerLevel
+    traps_enabled: TrapsEnabled
+    trap_percentage_of_filler: TrapPercentageOfFiller
+    trap_distribution_mode: TrapDistributionMode
+    lethal_traps_enabled: LethalTrapsEnabled
 

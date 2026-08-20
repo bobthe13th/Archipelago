@@ -1,8 +1,10 @@
 # Archipelago/worlds/wow/items.py
 from BaseClasses import Item, ItemClassification
+from . import content_data
 from .content_data import ITEMS
 from . import core_loop_content_data
 from . import gates_content_data
+from . import traps_content_data
 
 
 class WoWItem(Item):
@@ -71,5 +73,109 @@ def create_gates_item_pool(world) -> list:
             continue
         for _ in range(count):
             pool.append(WoWItem(name, ItemClassification.progression, item_id, world.player))
+    return pool
+
+
+# Task 17 (design spec §8): traps are pure filler-classification items with no
+# location of their own, exactly like gates-family items -- they need the
+# same item=location parity treatment Task 11 established
+# (count_enabled_gates_items above), just for a second, independently-sized
+# optional family. Kept as its own function rather than folded into
+# count_enabled_gates_items because traps have a genuinely different sizing
+# model (a percentage-of-baseline-content total, split across eligible trap
+# types by trap_distribution_mode) instead of "every enabled item's own
+# fixed count".
+def _eligible_trap_names(world) -> list[str]:
+    lethal_enabled = bool(world.options.lethal_traps_enabled)
+    return [
+        name
+        for name in traps_content_data.ITEMS
+        if lethal_enabled or not traps_content_data.LETHAL_BY_ITEM_NAME[name]
+    ]
+
+
+def _trap_baseline_location_count() -> int:
+    # The stable "real content" location count traps are sized as a
+    # percentage of -- quest + core-loop locations, which don't themselves
+    # grow when traps are enabled (unlike the gates family's own filler
+    # locations, which would make the baseline circular).
+    return (
+        len(content_data.LOCATIONS)
+        + len(core_loop_content_data.LEVEL_LOCATIONS)
+        + len(core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
+    )
+
+
+def count_enabled_trap_items(world) -> int:
+    """Total trap item copies create_trap_item_pool will actually pool for
+    this generation's options -- same role as count_enabled_gates_items
+    (Task 11) but for the traps family, sized independently. 0 when
+    traps_enabled is off or every eligible trap type has weight 0."""
+    if not world.options.traps_enabled:
+        return 0
+    if not _eligible_trap_names(world):
+        return 0
+    return max(0, round(_trap_baseline_location_count() * world.options.trap_percentage_of_filler / 100))
+
+
+def _distribute_trap_counts_uniform(eligible: list[str], total: int) -> dict[str, int]:
+    counts = {name: 0 for name in eligible}
+    for i in range(total):
+        counts[eligible[i % len(eligible)]] += 1
+    return counts
+
+
+def _distribute_trap_counts_weighted(eligible: list[str], total: int) -> dict[str, int]:
+    # Each trap's own traps.yaml `count` (its content-table ceiling) doubles
+    # as its relative weight here -- a trap declared with a higher ceiling is
+    # proportionally more likely to be the one sampled. Largest-remainder
+    # apportionment so the counts sum to EXACTLY total, not just
+    # approximately -- count_enabled_trap_items must be able to predict that
+    # exact total from options alone, without re-running this distribution,
+    # for locations.py's parity sizing to hold.
+    weights = [traps_content_data.ITEMS[name][1] for name in eligible]
+    total_weight = sum(weights)
+    if total_weight == 0:
+        return _distribute_trap_counts_uniform(eligible, total)
+    raw = [total * w / total_weight for w in weights]
+    counts_list = [int(r) for r in raw]
+    remainder = total - sum(counts_list)
+    order = sorted(range(len(eligible)), key=lambda i: raw[i] - counts_list[i], reverse=True)
+    for i in order[:remainder]:
+        counts_list[i] += 1
+    return {eligible[i]: counts_list[i] for i in range(len(eligible))}
+
+
+def _distribute_trap_counts_chaos(world, eligible: list[str], total: int) -> dict[str, int]:
+    # "Chaos": each of the total copies independently picks a uniformly
+    # random eligible trap type, so the split (unlike uniform/weighted)
+    # varies generation to generation even for the same options -- still
+    # sums to exactly total by construction, one pick at a time.
+    counts = {name: 0 for name in eligible}
+    for _ in range(total):
+        counts[world.random.choice(eligible)] += 1
+    return counts
+
+
+def create_trap_item_pool(world) -> list:
+    if not world.options.traps_enabled:
+        return []
+    eligible = _eligible_trap_names(world)
+    total = count_enabled_trap_items(world)
+    if total == 0 or not eligible:
+        return []
+
+    if world.options.trap_distribution_mode == "weighted":
+        counts = _distribute_trap_counts_weighted(eligible, total)
+    elif world.options.trap_distribution_mode == "chaos":
+        counts = _distribute_trap_counts_chaos(world, eligible, total)
+    else:
+        counts = _distribute_trap_counts_uniform(eligible, total)
+
+    pool = []
+    for name, count in counts.items():
+        item_id, _ceiling = traps_content_data.ITEMS[name]
+        for _ in range(count):
+            pool.append(WoWItem(name, ItemClassification.trap, item_id, world.player))
     return pool
 

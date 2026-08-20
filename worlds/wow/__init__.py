@@ -1,11 +1,12 @@
 from worlds.AutoWorld import World
-from .items import WoWItem, create_item_pool, create_core_loop_item_pool, create_gates_item_pool
+from .items import WoWItem, create_item_pool, create_core_loop_item_pool, create_gates_item_pool, create_trap_item_pool
 from .regions import create_regions
 from .rules import set_rules, set_completion_rule
 from .content_data import LOCATIONS, ITEMS
 from . import core_loop_content_data
 from . import gates_content_data
 from . import filler_content_data
+from . import traps_content_data
 from .options import WoWOptions
 
 
@@ -35,6 +36,7 @@ class WoWWorld(World):
         **{name: item_id for name, item_id in ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in core_loop_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in gates_content_data.ITEMS.items()},
+        **{name: item_id for name, (item_id, _count) in traps_content_data.ITEMS.items()},
     }
     location_name_to_id = {
         **{name: loc_id for name, loc_id in LOCATIONS.items()},
@@ -51,6 +53,7 @@ class WoWWorld(World):
         self.multiworld.itempool += create_item_pool(self)
         self.multiworld.itempool += create_core_loop_item_pool(self)
         self.multiworld.itempool += create_gates_item_pool(self)
+        self.multiworld.itempool += create_trap_item_pool(self)
 
     def set_rules(self) -> None:
         set_rules(self)

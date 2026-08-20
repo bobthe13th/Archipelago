@@ -3,7 +3,7 @@ from BaseClasses import Location
 from .content_data import LOCATIONS
 from . import core_loop_content_data
 from . import filler_content_data
-from .items import count_enabled_gates_items
+from .items import count_enabled_gates_items, count_enabled_trap_items
 
 
 class WoWLocation(Location):
@@ -51,21 +51,22 @@ def create_core_loop_locations(world, region) -> list:
 
 def create_filler_locations(world, region) -> list:
     # Sink locations restoring item=location parity after Group 1's gate
-    # items (Task 11): every gates-family item has no AP location of its
-    # own, so exactly one filler location is needed per gate item copy that
-    # count_enabled_gates_items finds pooled for this generation's options.
-    # Must match items.py's create_gates_item_pool's count exactly, not a
-    # fixed worst-case number -- AP's generation pipeline has no generic
-    # step that pads a short itempool to match location count, so every
-    # option combination needs true 1:1 parity, not just locations >= items
-    # (confirmed empirically: distribute_items_restrictive raises "Unable
-    # to fill all locations" when locations exceed items, the same as it
-    # raises when items exceed locations). This runs during create_regions,
-    # before create_items runs create_gates_item_pool (see gen_steps
-    # ordering) -- both sides derive their count from the same
-    # _is_gate_item_enabled check in items.py, which is what keeps them
-    # from drifting apart despite running at different pipeline stages.
-    needed = count_enabled_gates_items(world)
+    # items (Task 11) and Group 3's trap items (Task 17): neither family has
+    # an AP location of its own, so exactly one filler location is needed
+    # per gate-or-trap item copy pooled for this generation's options. Must
+    # match items.py's create_gates_item_pool + create_trap_item_pool count
+    # exactly, not a fixed worst-case number -- AP's generation pipeline has
+    # no generic step that pads a short itempool to match location count, so
+    # every option combination needs true 1:1 parity, not just locations >=
+    # items (confirmed empirically: distribute_items_restrictive raises
+    # "Unable to fill all locations" when locations exceed items, the same
+    # as it raises when items exceed locations). This runs during
+    # create_regions, before create_items runs create_gates_item_pool/
+    # create_trap_item_pool (see gen_steps ordering) -- all sides derive
+    # their counts from the same options each pool function reads, which is
+    # what keeps them from drifting apart despite running at different
+    # pipeline stages.
+    needed = count_enabled_gates_items(world) + count_enabled_trap_items(world)
     return [
         WoWLocation(world.player, name, location_id, region)
         for name, location_id in list(filler_content_data.LOCATIONS.items())[:needed]

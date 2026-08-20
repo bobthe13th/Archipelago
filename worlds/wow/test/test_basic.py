@@ -2,6 +2,7 @@
 from .bases import WoWTestBase
 from .. import content_data
 from .. import core_loop_content_data
+from .. import traps_content_data
 
 
 class TestDefault(WoWTestBase):
@@ -241,3 +242,123 @@ class TestSprintGoal(WoWTestBase):
         core_loop_item_count = sum(count for _, count in core_loop_content_data.ITEMS.values())
         core_loop_location_count = 12 + 2  # 12 level milestones + 2 instance clears
         self.assertEqual(core_loop_item_count, core_loop_location_count)
+
+
+_ALL_TRAP_ITEM_NAMES = tuple(traps_content_data.ITEMS)
+_LETHAL_TRAP_ITEM_NAMES = tuple(name for name in _ALL_TRAP_ITEM_NAMES if traps_content_data.LETHAL_BY_ITEM_NAME[name])
+_NON_LETHAL_TRAP_ITEM_NAMES = tuple(name for name in _ALL_TRAP_ITEM_NAMES if name not in _LETHAL_TRAP_ITEM_NAMES)
+
+
+class TestTrapItemsPooledWhenOptionOff(WoWTestBase):
+    options = {"traps_enabled": False}
+
+    def test_no_trap_items_in_pool(self) -> None:
+        for name in _ALL_TRAP_ITEM_NAMES:
+            self.assertEqual(len(self.get_items_by_name(name)), 0)
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
+class TestTrapItemsPooledWhenOptionOn(WoWTestBase):
+    options = {"traps_enabled": True, "trap_percentage_of_filler": 100, "lethal_traps_enabled": True}
+
+    def test_trap_item_total_matches_count_enabled_trap_items(self) -> None:
+        from .. import items as items_module
+        expected = items_module.count_enabled_trap_items(self.world)
+        actual = sum(len(self.get_items_by_name(name)) for name in _ALL_TRAP_ITEM_NAMES)
+        self.assertEqual(actual, expected)
+        self.assertGreater(expected, 0, "trap_percentage_of_filler=100 must produce a nonzero total")
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
+class TestLethalTrapsExcludedByDefault(WoWTestBase):
+    options = {"traps_enabled": True, "trap_percentage_of_filler": 100}
+
+    def test_no_lethal_trap_items_when_lethal_traps_enabled_is_off(self) -> None:
+        for name in _LETHAL_TRAP_ITEM_NAMES:
+            self.assertEqual(len(self.get_items_by_name(name)), 0)
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
+class TestTrapEligibility(WoWTestBase):
+    """Directly exercises items.py's eligibility/count helpers rather than
+    relying on random sampling to happen to produce (or omit) a lethal trap
+    -- with only 2 lethal item types among 17, a randomized distribution
+    test could pass or fail by chance depending on trap_percentage_of_filler
+    and world.random's seed, which would make this test flaky. Testing the
+    deterministic helpers directly avoids that."""
+    options = {"traps_enabled": True, "lethal_traps_enabled": True}
+
+    def test_lethal_traps_are_eligible_when_option_is_on(self) -> None:
+        from .. import items as items_module
+        eligible = items_module._eligible_trap_names(self.world)
+        for name in _LETHAL_TRAP_ITEM_NAMES:
+            self.assertIn(name, eligible)
+
+
+class TestTrapDistributionModeWeighted(WoWTestBase):
+    options = {"traps_enabled": True, "trap_percentage_of_filler": 100, "trap_distribution_mode": "weighted"}
+
+    def test_distribution_sums_to_the_predicted_total(self) -> None:
+        from .. import items as items_module
+        expected = items_module.count_enabled_trap_items(self.world)
+        actual = sum(len(self.get_items_by_name(name)) for name in _NON_LETHAL_TRAP_ITEM_NAMES)
+        self.assertEqual(actual, expected)
+
+
+class TestTrapDistributionModeUniform(WoWTestBase):
+    options = {"traps_enabled": True, "trap_percentage_of_filler": 100, "trap_distribution_mode": "uniform"}
+
+    def test_distribution_sums_to_the_predicted_total(self) -> None:
+        from .. import items as items_module
+        expected = items_module.count_enabled_trap_items(self.world)
+        actual = sum(len(self.get_items_by_name(name)) for name in _NON_LETHAL_TRAP_ITEM_NAMES)
+        self.assertEqual(actual, expected)
+
+    def test_spread_is_roughly_even_across_eligible_types(self) -> None:
+        counts = [len(self.get_items_by_name(name)) for name in _NON_LETHAL_TRAP_ITEM_NAMES]
+        self.assertLessEqual(max(counts) - min(counts), 1, "uniform distribution should differ by at most 1 between any two eligible types")
+
+
+class TestTrapDistributionModeChaos(WoWTestBase):
+    options = {"traps_enabled": True, "trap_percentage_of_filler": 100, "trap_distribution_mode": "chaos"}
+
+    def test_distribution_sums_to_the_predicted_total(self) -> None:
+        from .. import items as items_module
+        expected = items_module.count_enabled_trap_items(self.world)
+        actual = sum(len(self.get_items_by_name(name)) for name in _NON_LETHAL_TRAP_ITEM_NAMES)
+        self.assertEqual(actual, expected)
+
+
+class TestTrapsAndGatesCombinedParity(WoWTestBase):
+    """Task 17's parity extension to Task 11's mechanism: traps and gates
+    are two independently-sized optional families sharing one filler
+    ceiling (content/filler.yaml's 60 rows). Stress-tests both at their
+    most extreme settings simultaneously -- if the combined
+    count_enabled_gates_items() + count_enabled_trap_items() ever exceeds
+    60, or if the two counts are computed inconsistently between
+    create_items and create_regions' create_filler_locations, this is
+    where it would show up as a FillError."""
+    options = {
+        "proficiency_gating": True,
+        "access_gating": True,
+        "character_unlock_gating": True,
+        "traps_enabled": True,
+        "trap_percentage_of_filler": 100,
+        "lethal_traps_enabled": True,
+    }
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+    def test_all_quest_locations_still_reachable_with_zero_items(self) -> None:
+        # Traps carry no access rule and gate no location -- sphere-0 safety
+        # should be unaffected by traps_enabled, same guarantee
+        # TestGateItemSphereZero already covers for the gate family alone.
+        for name in content_data.LOCATIONS:
+            self.assertTrue(self.can_reach_location(name))
