@@ -16,8 +16,11 @@ class TestNorthshireGeneration(WoWTestBase):
     def test_item_pool_matches_location_count(self) -> None:
         """As of M2.1, create_items always adds both M2's quest-item pool
         (19) and the core-loop item pool (14): 33 total. In M4 Tasks 5-6,
-        7 gate items are added (riding x5, flight x2 = 40 total). Task 11
-        will restore item=location parity by adding sink locations."""
+        7 gate items are added (riding x5, flight x2 = 40 total). Task 7's
+        8 proficiency items are option-gated (proficiency_gating, default
+        off) and absent from this default-options count -- see
+        TestProficiencyItemsPooledWhenOptionOn for the option-on pool.
+        Task 11 will restore item=location parity by adding sink locations."""
         # TODO(Task 11): restore 1:1 item=location parity when filler.yaml is added
         self.assertEqual(len(self.multiworld.itempool), 40)
 
@@ -48,26 +51,35 @@ _PROFICIENCY_ITEM_NAMES = (
 )
 
 
-class TestProficiencyItemsPooledWhenOptionOff(WoWTestBase):
+class _SkipFillUntilTask11Mixin:
+    """Shared by both proficiency-gating option classes below. NOT a
+    TestCase itself (plain mixin, combined via multiple inheritance below)
+    so pytest's unittest collection doesn't also run it standalone. A
+    non-empty `options` dict makes WorldTestBase actually run its default
+    tests (see run_default_tests), including test_fill -- which fails today
+    regardless of this option's value, since the item pool (40,
+    unconditional) already outnumbers real locations (33), a pre-existing
+    gap called out in TestNorthshireGeneration.
+    test_item_pool_matches_location_count's comment and assigned to Task 11
+    ("restore 1:1 item=location parity"). Only test_fill is overridden here
+    -- test_all_state_can_reach_everything and test_empty_state_can_reach_
+    something don't call Fill at all, so they still give real reachability
+    coverage for the new gate items."""
+
+    def test_fill(self) -> None:
+        self.skipTest("item/location pool parity gap, tracked as Task 11")
+
+
+class TestProficiencyItemsPooledWhenOptionOff(_SkipFillUntilTask11Mixin, WoWTestBase):
     options = {"proficiency_gating": False}
-    # A non-empty `options` dict makes WorldTestBase actually run test_fill
-    # (see its run_default_tests property), which fails today regardless of
-    # this option's value -- the item pool (40, unconditional) already
-    # outnumbers real locations (33), a pre-existing gap called out in
-    # TestNorthshireGeneration.test_item_pool_matches_location_count's
-    # comment and assigned to Task 11 ("restore 1:1 item=location parity").
-    # This class only needs to check pool membership, not full fill/reach,
-    # so skip the generic fill/reachability tests until Task 11 lands.
-    run_default_tests = False
 
     def test_proficiency_items_absent_when_option_is_off(self) -> None:
         for name in _PROFICIENCY_ITEM_NAMES:
             self.assertEqual(len(self.get_items_by_name(name)), 0)
 
 
-class TestProficiencyItemsPooledWhenOptionOn(WoWTestBase):
+class TestProficiencyItemsPooledWhenOptionOn(_SkipFillUntilTask11Mixin, WoWTestBase):
     options = {"proficiency_gating": True}
-    run_default_tests = False  # see TestProficiencyItemsPooledWhenOptionOff
 
     def test_proficiency_items_present_when_option_is_on(self) -> None:
         for name in _PROFICIENCY_ITEM_NAMES:
