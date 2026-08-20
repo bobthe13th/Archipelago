@@ -17,6 +17,22 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Instance Unlock: Icecrown Citadel": (810007, 1),
 }
 
+# Every item whose delivery is realm_state/unlock_instance, keyed by its
+# own AP item id -- a generic map so a new instance_clear row's unlock item
+# needs zero additional C++/Python code to actually unlock anything (found
+# the hard way in Task 23: the 3 new raid unlock items were added to this
+# content table but never wired into ArchipelagoPlayerScript.cpp's delivery
+# dispatch, since that dispatch hardcoded only the original 2 dungeons'
+# item ids -- receiving those items did nothing at all in real play until
+# this generic map replaced the hardcoded blocks).
+INSTANCE_UNLOCK_ITEM_TO_KEY: dict[int, str] = {
+    810001: "ragefire_chasm",
+    810002: "deadmines",
+    810005: "molten_core",
+    810006: "sunwell_plateau",
+    810007: "icecrown_citadel",
+}
+
 LEVEL_LOCATIONS: dict[int, int] = {
     5: 710000,
     10: 710001,
