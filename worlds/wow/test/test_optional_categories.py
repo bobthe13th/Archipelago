@@ -7,15 +7,19 @@ from ..locations import _OPTIONAL_CATEGORIES, create_optional_category_locations
 class TestOptionalCategoryRegistry(WoWTestBase):
     options = {"game_mode": "sprint", "check_density": 100, "max_optional_locations": 5000}
 
-    def test_registry_holds_exactly_quest_rewards_after_group_1(self) -> None:
+    def test_registry_holds_exactly_quest_rewards_and_vendor_stock_after_group_1(self) -> None:
         # This test locked in the registry's SHAPE before Group 1 added its
-        # first real entry (previously asserted `_OPTIONAL_CATEGORIES == []`)
-        # -- Task 6 registers quest_rewards, so this is updated to len == 1,
-        # which was the point: it forces every new-family task to touch this
-        # file consciously rather than silently drifting.
-        self.assertEqual(len(_OPTIONAL_CATEGORIES), 1)
+        # first real entry (previously asserted `_OPTIONAL_CATEGORIES == []`,
+        # then updated to len == 1 when Task 6 registered quest_rewards) --
+        # Task 9 registers vendor_stock as the second entry, so this is
+        # updated to len == 2, which was the point: it forces every
+        # new-family task to touch this file consciously rather than
+        # silently drifting.
+        self.assertEqual(len(_OPTIONAL_CATEGORIES), 2)
         self.assertEqual(_OPTIONAL_CATEGORIES[0].key, "quest_rewards")
         self.assertEqual(_OPTIONAL_CATEGORIES[0].toggle_option, "include_quest_rewards")
+        self.assertEqual(_OPTIONAL_CATEGORIES[1].key, "vendor_stock")
+        self.assertEqual(_OPTIONAL_CATEGORIES[1].toggle_option, "include_vendor_stock")
 
     def test_sprint_mode_calls_sample_category_when_categories_exist(self) -> None:
         # Regression guard for the exact M4 bug this task fixes: Sprint mode

@@ -250,6 +250,39 @@ class TestGateItemSphereZeroWithQuestRewards(WoWTestBase):
         self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
 
 
+class TestGateItemSphereZeroWithVendorStock(WoWTestBase):
+    """M4.5 Task 9, plan Step 8: the same sphere-0 guard as
+    TestGateItemSphereZero above, but with include_vendor_stock also on --
+    Vendor Inventories' own locations are a disjoint pool from the 19
+    sphere-0 quest locations (Vendor Inventories carries no access rule at
+    all -- rules.py is untouched by this task -- and its location names are
+    all "Vendor: ..." keys in vendor_stock_content_data.LOCATIONS, never one
+    of the 19 M2 quest locations), so this is expected to pass trivially --
+    but per this plan's Global Constraints ("no new content may block
+    sphere-0 completion") that must be confirmed by a real, run test, not
+    assumed from the disjointness argument alone."""
+
+    options = {
+        "proficiency_gating": True,
+        "access_gating": True,
+        "character_unlock_gating": True,
+        "include_vendor_stock": True,
+    }
+
+    def test_all_quest_locations_reachable_with_zero_items(self) -> None:
+        for name in content_data.LOCATIONS:
+            self.assertTrue(self.can_reach_location(name))
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        """Same invariant as TestGateItemSphereZero's own version of this
+        test, checked here with include_vendor_stock also on -- this is
+        exactly the invariant items.py's row-index item-pooling fix (Task 3)
+        exists to protect, so it must be checked under the option
+        combination that actually exercises that code path, not just under
+        TestGateItemSphereZero's vendor-stock-off default."""
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
 class TestCoreLoopAccessRules(WoWTestBase):
     """Final-review fix: rules.py must attach real prerequisites to the
     core-loop locations, matching the real C++ server's genuine

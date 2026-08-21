@@ -12,6 +12,7 @@ from . import fish_content_data
 from . import professions_content_data
 from . import quest_rewards_content_data
 from . import rares_content_data
+from . import vendor_stock_content_data
 from .items import count_enabled_gates_items, count_enabled_trap_items
 
 
@@ -41,6 +42,14 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
     weight=100,
     locations_module=quest_rewards_content_data,
     items_module=quest_rewards_content_data,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="vendor_stock",
+    toggle_option="include_vendor_stock",
+    weight=10,
+    locations_module=vendor_stock_content_data,
+    items_module=vendor_stock_content_data,
 ))
 
 

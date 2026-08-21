@@ -440,6 +440,25 @@ class IncludeQuestRewards(Toggle):
     default = False
 
 
+class IncludeVendorStock(Toggle):
+    """When on, a density-sampled subset of real vendor inventory purchases
+    (M4.5's DB-extracted Vendor Inventories family) becomes part of the
+    location/item pool, available in EVERY game mode. Off by default. Unlike
+    Quest Rewards (weight 100), this category is registered with a lower
+    weight (10) in locations.py's _OPTIONAL_CATEGORIES: vendor_stock's real
+    row count (37,750) is roughly 10x Quest Rewards' (3,735), so an equal
+    weight would let Vendor Inventories alone consume nearly the entire
+    shared DensityBudget before Quest Rewards/Recipes/Trainer Spells get a
+    fair share when several categories are enabled together. No access rule
+    exists for these locations (unlike Quest Rewards' min-level gate) --
+    there is no reputation-gating data and no real region/zone graph in this
+    checkout to attach a rule to (M4.5 Repo-state finding #5), so vendor
+    purchases are unconditionally reachable once sampled, same as every
+    rare/fish/profession/collection location today."""
+    display_name = "Include Vendor Stock"
+    default = False
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -470,4 +489,5 @@ class WoWOptions(PerGameCommonOptions):
     artisan_primary_professions_required: ArtisanPrimaryProfessionsRequired
     collector_items_required: CollectorItemsRequired
     include_quest_rewards: IncludeQuestRewards
+    include_vendor_stock: IncludeVendorStock
 
