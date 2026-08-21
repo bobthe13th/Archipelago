@@ -1,14 +1,16 @@
 from worlds.AutoWorld import World
-from .items import WoWItem, create_item_pool, create_core_loop_item_pool, create_gates_item_pool, create_trap_item_pool, create_key_hunt_item_pool, create_fish_item_pool
+from .items import WoWItem, create_item_pool, create_core_loop_item_pool, create_gates_item_pool, create_trap_item_pool, create_key_hunt_item_pool, create_fish_item_pool, create_professions_item_pool, create_collections_item_pool
 from .regions import create_regions
 from .rules import set_rules
 from . import goals
 from . import slot_data
 from .content_data import LOCATIONS, ITEMS
+from . import collections_content_data
 from . import core_loop_content_data
 from . import fish_content_data
 from . import gates_content_data
 from . import filler_content_data
+from . import professions_content_data
 from . import rares_content_data
 from . import traps_content_data
 from .options import WoWOptions
@@ -43,6 +45,8 @@ class WoWWorld(World):
         **{name: item_id for name, (item_id, _count) in traps_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in rares_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in fish_content_data.ITEMS.items()},
+        **{name: item_id for name, (item_id, _count) in professions_content_data.ITEMS.items()},
+        **{name: item_id for name, (item_id, _count) in collections_content_data.ITEMS.items()},
     }
     location_name_to_id = {
         **{name: loc_id for name, loc_id in LOCATIONS.items()},
@@ -54,6 +58,8 @@ class WoWWorld(World):
         **{name: loc_id for name, loc_id in filler_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in rares_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in fish_content_data.LOCATIONS.items()},
+        **{name: loc_id for name, loc_id in professions_content_data.LOCATIONS.items()},
+        **{name: loc_id for name, loc_id in collections_content_data.LOCATIONS.items()},
     }
 
     def generate_early(self) -> None:
@@ -74,6 +80,8 @@ class WoWWorld(World):
         self.multiworld.itempool += create_trap_item_pool(self)
         self.multiworld.itempool += create_key_hunt_item_pool(self)
         self.multiworld.itempool += create_fish_item_pool(self)
+        self.multiworld.itempool += create_professions_item_pool(self)
+        self.multiworld.itempool += create_collections_item_pool(self)
 
     def set_rules(self) -> None:
         set_rules(self)

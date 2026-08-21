@@ -26,19 +26,140 @@ class TestFishingQuestNotSampledByDensity(WoWTestBase):
             self.assertEqual(len(self.get_items_by_name(name)), 1)
 
 
-class TestArtisanNotYetImplemented(WoWTestBase):
+class TestGladiatorNotYetImplemented(WoWTestBase):
     """Every GameMode value without real content yet must still raise
     OptionError -- this is the regression guard for Task 22's "land both in
     the same commit" requirement (a new GameMode value must never become
-    silently selectable before its own task lands). key_hunt used to be
-    covered by this same test (Task 22-24), but Task 25 gave it real content,
-    so this now uses artisan (still Group 6 Tier 3, unimplemented) instead."""
+    silently selectable before its own task lands). key_hunt (Task 22-24),
+    artisan, then collector (Task 27) previously covered this same test in
+    turn, each swapped out once its own task gave it real content -- this
+    now uses gladiator, the one remaining not-yet-implemented Tier-3 mode."""
     run_default_tests = False
     auto_construct = False
+    options = {"game_mode": "gladiator"}
+
+    def test_gladiator_fails_generation(self) -> None:
+        self.assertRaises(OptionError, self.world_setup)
+
+
+class TestAchievementHuntNotBuildable(WoWTestBase):
+    """achievement_hunt and explorer are a DIFFERENT deferral category from
+    the above -- Task 27's own research found this checkout's
+    data/sql/base/db_world/*_dbc.sql tables (achievement_dbc,
+    achievement_criteria_dbc, areatable_dbc, ...) are empty stub schemas
+    with zero real data, and no binary .dbc client files exist in the repo
+    either, so there is no real achievement/subzone name data anywhere to
+    build a "full roster" from -- matching Task 9's earlier "not buildable"
+    finding for continent/city/zone gates. This must keep failing even
+    after every OTHER Tier-3 mode has real content, unlike
+    TestCollectorNotYetImplemented above."""
+    run_default_tests = False
+    auto_construct = False
+    options = {"game_mode": "achievement_hunt"}
+
+    def test_achievement_hunt_fails_generation(self) -> None:
+        self.assertRaises(OptionError, self.world_setup)
+
+
+class TestExplorerNotBuildable(WoWTestBase):
+    run_default_tests = False
+    auto_construct = False
+    options = {"game_mode": "explorer"}
+
+    def test_explorer_fails_generation(self) -> None:
+        self.assertRaises(OptionError, self.world_setup)
+
+
+class TestArtisanDefaultOptionsGenerate(WoWTestBase):
+    """Task 27: selecting artisan with every other option left at default
+    must actually generate."""
     options = {"game_mode": "artisan"}
 
-    def test_artisan_fails_generation(self) -> None:
-        self.assertRaises(OptionError, self.world_setup)
+    def test_generates_successfully(self) -> None:
+        self.assertTrue(self.constructed)
+
+
+class TestArtisanItemLocationParity(WoWTestBase):
+    options = {"game_mode": "artisan"}
+
+    def test_all_84_locations_and_items_exist(self) -> None:
+        profession_locations = [loc for loc in self.multiworld.get_locations() if loc.name.startswith("Profession:")]
+        self.assertEqual(len(profession_locations), 84)
+        from .. import professions_content_data
+        for name in professions_content_data.ITEMS:
+            self.assertEqual(len(self.get_items_by_name(name)), 1)
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
+class TestArtisanCompletionRequiresSecondariesAndPrimaries(WoWTestBase):
+    """Completion needs all 3 secondary professions AND N of the 11 primary
+    professions -- either alone must not be enough."""
+    options = {"game_mode": "artisan", "artisan_primary_professions_required": 2}
+
+    def test_secondaries_alone_is_not_enough(self) -> None:
+        state = self.multiworld.state
+        self.collect_by_name("Skill Milestone: First Aid 450")
+        self.collect_by_name("Skill Milestone: Cooking 450")
+        self.collect_by_name("Skill Milestone: Fishing 450")
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+
+    def test_two_primaries_alone_is_not_enough(self) -> None:
+        state = self.multiworld.state
+        self.collect_by_name("Skill Milestone: Alchemy 450")
+        self.collect_by_name("Skill Milestone: Blacksmithing 450")
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+
+    def test_all_secondaries_plus_two_primaries_completes(self) -> None:
+        state = self.multiworld.state
+        self.collect_by_name("Skill Milestone: First Aid 450")
+        self.collect_by_name("Skill Milestone: Cooking 450")
+        self.collect_by_name("Skill Milestone: Fishing 450")
+        self.collect_by_name("Skill Milestone: Alchemy 450")
+        self.collect_by_name("Skill Milestone: Blacksmithing 450")
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+
+class TestCollectorDefaultOptionsGenerate(WoWTestBase):
+    """Task 27: selecting collector with every other option left at default
+    must actually generate."""
+    options = {"game_mode": "collector"}
+
+    def test_generates_successfully(self) -> None:
+        self.assertTrue(self.constructed)
+
+
+class TestCollectorItemLocationParity(WoWTestBase):
+    options = {"game_mode": "collector"}
+
+    def test_all_264_locations_and_items_exist(self) -> None:
+        collection_locations = [loc for loc in self.multiworld.get_locations() if loc.name.startswith("Learn ")]
+        self.assertEqual(len(collection_locations), 264)
+        from .. import collections_content_data
+        for name in collections_content_data.ITEMS:
+            self.assertEqual(len(self.get_items_by_name(name)), 1)
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
+class TestCollectorCompletionRequiresConfiguredThreshold(WoWTestBase):
+    """Completion needs at least collector_items_required distinct
+    mounts/pets received -- fewer than that must not be enough, and exactly
+    that many (any combination) must complete."""
+    options = {"game_mode": "collector", "collector_items_required": 2}
+
+    def test_one_item_is_not_enough(self) -> None:
+        state = self.multiworld.state
+        self.collect_by_name("Mount: Horn of the Timber Wolf")
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+
+    def test_two_items_completes(self) -> None:
+        state = self.multiworld.state
+        self.collect_by_name("Mount: Horn of the Timber Wolf")
+        self.collect_by_name("Pet: Cat Carrier (Bombay)")
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
 
 
 class TestKeyHuntDefaultOptionsGenerate(WoWTestBase):

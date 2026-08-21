@@ -1,10 +1,12 @@
 # Archipelago/worlds/wow/locations.py
 from BaseClasses import Location
 from .content_data import LOCATIONS
+from . import collections_content_data
 from . import core_loop_content_data
 from . import density
 from . import filler_content_data
 from . import fish_content_data
+from . import professions_content_data
 from . import rares_content_data
 from .items import count_enabled_gates_items, count_enabled_trap_items
 
@@ -123,4 +125,37 @@ def create_fish_locations(world, region) -> list:
     return [
         WoWLocation(world.player, name, location_id, region)
         for name, location_id in fish_content_data.LOCATIONS.items()
+    ]
+
+
+def create_professions_locations(world, region) -> list:
+    # Task 27 (Artisan): all 84 profession skill-milestone locations are
+    # created unconditionally whenever game_mode is artisan -- NOT
+    # density-sampled when this mode is active, same "gated on game_mode
+    # itself" shape as create_fish_locations. (professions.yaml's full
+    # roster becoming eligible for sample_category as an optional category
+    # in OTHER modes is a real cross-mode integration Task 27's own Step 3
+    # note anticipates, but is out of scope for landing Artisan mode itself
+    # -- no other mode's item pool references this family.)
+    if world.options.game_mode != "artisan":
+        return []
+    return [
+        WoWLocation(world.player, name, location_id, region)
+        for name, location_id in professions_content_data.LOCATIONS.items()
+    ]
+
+
+def create_collections_locations(world, region) -> list:
+    # Task 27 (Collector): all 264 "learn this mount/pet" locations are
+    # created unconditionally whenever game_mode is collector -- NOT
+    # density-sampled, same "gated on game_mode itself" shape as
+    # create_fish_locations/create_professions_locations. Unlike Artisan's
+    # completion (needs every location), Collector's completion rule only
+    # needs collector_items_required of the matching ITEMS to be received,
+    # but every location still exists so any of the 264 can drop a check.
+    if world.options.game_mode != "collector":
+        return []
+    return [
+        WoWLocation(world.player, name, location_id, region)
+        for name, location_id in collections_content_data.LOCATIONS.items()
     ]

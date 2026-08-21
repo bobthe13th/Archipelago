@@ -6,9 +6,11 @@ from __future__ import annotations
 
 from Options import OptionError
 
+from . import collections_content_data
 from . import core_loop_content_data
 from . import density
 from . import fish_content_data
+from . import professions_content_data
 from . import rares_content_data
 
 
@@ -53,6 +55,25 @@ def _not_yet_implemented(mode_name: str):
         raise OptionError(
             f"WoW: game_mode '{mode_name}' has no content yet in this repo -- "
             f"see docs/m4-plan.md Group 6 before enabling it."
+        )
+    return _raise
+
+
+# Task 27's own Step 1 research found that data/sql/base/db_world's
+# *_dbc.sql tables (achievement_dbc, achievement_criteria_dbc, areatable_dbc,
+# and several others) are empty stub schemas in this checkout -- zero data
+# rows -- and no binary .dbc client files exist in the repo either. This is
+# a DIFFERENT category of deferral from _not_yet_implemented above: it is
+# not that nobody has built this mode's content yet, it is that the real
+# achievement/area-name data this mode's "full roster" would need to be
+# extracted FROM does not exist anywhere in this checkout, matching Task 9's
+# earlier "not buildable" finding for continent/city/zone gates (verified,
+# not assumed) rather than a scheduling gap.
+def _not_buildable(mode_name: str, reason: str):
+    def _raise(world) -> None:
+        raise OptionError(
+            f"WoW: game_mode '{mode_name}' cannot be built in this checkout -- "
+            f"{reason} See docs/m4-plan.md Task 27's outcome note."
         )
     return _raise
 
@@ -194,15 +215,75 @@ def _set_completion_rule_fishing_quest(world) -> None:
     )
 
 
+# Task 27 (Artisan, Tier 3, design spec Sec5.4): completing the goal
+# requires all 3 secondary professions AND artisan_primary_professions_required
+# of the 11 primary professions to reach skill 450 -- not density-sampled
+# when artisan is the active mode (professions.yaml's own header comment).
+def _validate_artisan(world) -> None:
+    if not professions_content_data.LOCATIONS:
+        raise OptionError(
+            "WoW: game_mode 'artisan' has no profession skill-milestone locations in professions.yaml."
+        )
+
+
+def _set_completion_rule_artisan(world) -> None:
+    required = world.options.artisan_primary_professions_required.value
+    secondary_names = professions_content_data.SECONDARY_PROFESSION_MAX_ITEM_NAMES
+    primary_names = professions_content_data.PRIMARY_PROFESSION_MAX_ITEM_NAMES
+    world.set_completion_rule(
+        lambda state: (
+            state.has_all(secondary_names, world.player)
+            and state.has_from_list_unique(primary_names, world.player, required)
+        )
+    )
+
+
+# Task 27 (Collector, Tier 3, design spec Sec5.4): completing the goal
+# requires at least collector_items_required of the 264 "Mount: <name>" /
+# "Pet: <name>" items -- not density-sampled when collector is the active
+# mode (collections.yaml's own header comment), same "gated on game_mode
+# itself" shape as Artisan/Fishing Quest. Default (264, the full roster)
+# matches Fishing Quest's has_all-everything shape exactly, per the design
+# spec's own "every collectible mount AND every collectible pet" scope --
+# AP item delivery isn't gated by the mount/pet's original in-game drop
+# rarity, so (unlike Artisan's hard profession-slot constraint) there is no
+# mechanical reason the default should require fewer than all of them. The
+# option exists purely so a shorter Collector run is selectable per-seed,
+# using has_from_list_unique rather than has_all so a non-default,
+# lower-than-264 value still resolves correctly.
+def _validate_collector(world) -> None:
+    if not collections_content_data.LOCATIONS:
+        raise OptionError(
+            "WoW: game_mode 'collector' has no mount/pet locations in collections.yaml."
+        )
+
+
+def _set_completion_rule_collector(world) -> None:
+    required = world.options.collector_items_required.value
+    all_names = set(collections_content_data.ITEMS.keys())
+    world.set_completion_rule(
+        lambda state: state.has_from_list_unique(all_names, world.player, required)
+    )
+
+
 # GameMode.value -> bare option name, for every mode without real content
-# yet. Mirrors options.py's GameMode option_* attributes exactly -- keep
-# both in sync when a Group 6 task gives one of these a real implementation.
+# yet (scheduling gap, not a data-availability problem). Mirrors
+# options.py's GameMode option_* attributes exactly -- keep both in sync
+# when a Group 6 task gives one of these a real implementation.
 _NOT_YET_IMPLEMENTED_MODE_NAMES = {
-    6: "artisan",
-    7: "collector",
-    8: "achievement_hunt",
     9: "gladiator",
-    10: "explorer",
+}
+
+# GameMode.value -> (bare option name, reason) for modes whose "full roster"
+# cannot be extracted from any real data source in this checkout -- see
+# _not_buildable's own comment above.
+_NOT_BUILDABLE_MODES = {
+    8: ("achievement_hunt", "achievement_dbc.sql/achievement_criteria_dbc.sql (which would carry "
+        "Achievement.dbc/Achievement-Criteria.dbc data) are empty stub tables with zero real "
+        "achievement names/definitions, and no binary .dbc client files exist in this repo."),
+    10: ("explorer", "areatable_dbc.sql (which would carry AreaTable.dbc data) is an empty stub "
+         "table with zero real subzone names/definitions, and no binary .dbc client files exist "
+         "in this repo."),
 }
 
 _VALIDATORS = {
@@ -211,8 +292,11 @@ _VALIDATORS = {
     **{value: _validate_raid_instance_clear(instance_key, _INSTANCE_KEY_DISPLAY_NAMES[instance_key])
        for value, instance_key in _TIER1_RAID_INSTANCE_KEYS.items()},
     5: _validate_completionist,
+    6: _validate_artisan,
+    7: _validate_collector,
     11: _validate_fishing_quest,
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
+    **{value: _not_buildable(name, reason) for value, (name, reason) in _NOT_BUILDABLE_MODES.items()},
 }
 
 _COMPLETION_RULES = {
@@ -221,6 +305,9 @@ _COMPLETION_RULES = {
     **{value: _set_completion_rule_raid_instance_clear(instance_key)
        for value, instance_key in _TIER1_RAID_INSTANCE_KEYS.items()},
     5: _set_completion_rule_completionist,
+    6: _set_completion_rule_artisan,
+    7: _set_completion_rule_collector,
     11: _set_completion_rule_fishing_quest,
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
+    **{value: _not_buildable(name, reason) for value, (name, reason) in _NOT_BUILDABLE_MODES.items()},
 }

@@ -101,6 +101,38 @@ class KeyHuntInstancesRequired(Range):
     default = 1
 
 
+class ArtisanPrimaryProfessionsRequired(Range):
+    """Only relevant when game_mode is artisan (Task 27). How many of the 11
+    primary professions must reach skill 450 to complete the goal, alongside
+    all 3 secondary professions (First Aid, Cooking, Fishing) also reaching
+    450. Default 2 matches the realistic limit of primary professions a
+    single WotLK character can actively know at once -- see
+    professions.yaml's own KNOWN ACCEPTED LIMITATION comment for why a
+    higher value, while selectable, may require profession-swapping or
+    multiple characters to actually complete."""
+    display_name = "Artisan: Primary Professions Required"
+    range_start = 0
+    range_end = 11
+    default = 2
+
+
+class CollectorItemsRequired(Range):
+    """Only relevant when game_mode is collector (Task 27). How many of the
+    264 curated mounts/pets (collections.yaml) must have been received at
+    least once to complete the goal. Default 264 (the full roster) matches
+    the design spec's "every collectible mount AND every collectible pet"
+    scope exactly -- item delivery here is not gated by in-game drop rarity
+    (a received AP item is mailed directly, it does not need to actually
+    drop from its original source), so unlike Artisan's profession-slot
+    constraint there is no hard game-mechanic reason to require fewer than
+    all of them. Lower this only if a shorter Collector run is wanted for a
+    given seed."""
+    display_name = "Collector: Items Required"
+    range_start = 1
+    range_end = 264
+    default = 264
+
+
 class CheckDensity(Range):
     """Global check density (0-100). Controls how many rows are sampled from
     each enabled optional location category. 0 disables every optional
@@ -424,4 +456,6 @@ class WoWOptions(PerGameCommonOptions):
     completionist_expansion: CompletionistExpansion
     key_hunt_keys_required: KeyHuntKeysRequired
     key_hunt_instances_required: KeyHuntInstancesRequired
+    artisan_primary_professions_required: ArtisanPrimaryProfessionsRequired
+    collector_items_required: CollectorItemsRequired
 

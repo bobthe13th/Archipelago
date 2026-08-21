@@ -1,10 +1,12 @@
 # Archipelago/worlds/wow/items.py
 from BaseClasses import Item, ItemClassification
+from . import collections_content_data
 from . import content_data
 from .content_data import ITEMS
 from . import core_loop_content_data
 from . import fish_content_data
 from . import gates_content_data
+from . import professions_content_data
 from . import rares_content_data
 from . import traps_content_data
 
@@ -229,5 +231,34 @@ def create_fish_item_pool(world) -> list:
     return [
         WoWItem(name, ItemClassification.progression, item_id, world.player)
         for name, (item_id, _count) in fish_content_data.ITEMS.items()
+    ]
+
+
+# Task 27 (Artisan): all 84 "Skill Milestone: <name> <threshold>" items are
+# pooled unconditionally whenever game_mode is artisan, one copy each,
+# mirroring create_professions_locations' identical game_mode check and
+# count (not density-sampled when this mode is itself active).
+def create_professions_item_pool(world) -> list:
+    if world.options.game_mode != "artisan":
+        return []
+    return [
+        WoWItem(name, ItemClassification.progression, item_id, world.player)
+        for name, (item_id, _count) in professions_content_data.ITEMS.items()
+    ]
+
+
+# Task 27 (Collector): all 264 "Mount: <name>" / "Pet: <name>" items are
+# pooled unconditionally whenever game_mode is collector, one copy each,
+# mirroring create_professions_item_pool's identical game_mode check and
+# count (not density-sampled). Progression classification for the full
+# roster (not just collector_items_required's worth) matches Artisan's own
+# precedent -- which specific subset satisfies the threshold isn't fixed
+# ahead of time, so every item can potentially be needed for completion.
+def create_collections_item_pool(world) -> list:
+    if world.options.game_mode != "collector":
+        return []
+    return [
+        WoWItem(name, ItemClassification.progression, item_id, world.player)
+        for name, (item_id, _count) in collections_content_data.ITEMS.items()
     ]
 
