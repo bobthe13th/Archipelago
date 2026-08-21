@@ -8,6 +8,7 @@ from Options import OptionError
 
 from . import core_loop_content_data
 from . import density
+from . import fish_content_data
 from . import rares_content_data
 
 
@@ -173,6 +174,26 @@ def _set_completion_rule_key_hunt(world) -> None:
     )
 
 
+# Task 26 (Fishing Quest, Tier 2, design spec Sec5.4): completing the goal
+# requires ALL 46 "Fish: <name>" items -- the fish set is bounded/discrete
+# and NOT density-sampled (unlike Key Hunt's rares), so there is no
+# "satisfiable at this density" check analogous to Key Hunt's validator; the
+# validator here is a placeholder for future dependency growth, same shape
+# as _validate_raid_instance_clear.
+def _validate_fishing_quest(world) -> None:
+    if not fish_content_data.LOCATIONS:
+        raise OptionError(
+            "WoW: game_mode 'fishing_quest' has no fish-catch locations in fish.yaml."
+        )
+
+
+def _set_completion_rule_fishing_quest(world) -> None:
+    all_fish_names = set(fish_content_data.ITEMS.keys())
+    world.set_completion_rule(
+        lambda state: state.has_all(all_fish_names, world.player)
+    )
+
+
 # GameMode.value -> bare option name, for every mode without real content
 # yet. Mirrors options.py's GameMode option_* attributes exactly -- keep
 # both in sync when a Group 6 task gives one of these a real implementation.
@@ -182,7 +203,6 @@ _NOT_YET_IMPLEMENTED_MODE_NAMES = {
     8: "achievement_hunt",
     9: "gladiator",
     10: "explorer",
-    11: "fishing_quest",
 }
 
 _VALIDATORS = {
@@ -191,6 +211,7 @@ _VALIDATORS = {
     **{value: _validate_raid_instance_clear(instance_key, _INSTANCE_KEY_DISPLAY_NAMES[instance_key])
        for value, instance_key in _TIER1_RAID_INSTANCE_KEYS.items()},
     5: _validate_completionist,
+    11: _validate_fishing_quest,
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
 }
 
@@ -200,5 +221,6 @@ _COMPLETION_RULES = {
     **{value: _set_completion_rule_raid_instance_clear(instance_key)
        for value, instance_key in _TIER1_RAID_INSTANCE_KEYS.items()},
     5: _set_completion_rule_completionist,
+    11: _set_completion_rule_fishing_quest,
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
 }

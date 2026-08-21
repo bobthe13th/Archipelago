@@ -2,6 +2,7 @@
 import math
 
 from . import core_loop_content_data
+from . import fish_content_data
 
 
 # M2: all 19 Northshire/Goldshire locations are always accessible (no
@@ -58,3 +59,16 @@ def set_rules(world):
         world.get_location("Clear Deadmines"),
         lambda state: state.has("Instance Unlock: Deadmines", world.player),
     )
+
+    # Task 26 (Fishing Quest, spec Sec5.4): "fish-catch locations inherit
+    # normal regional access logic -- a Northrend-only fish requires
+    # Northrend Passage in logic". Only meaningful when game_mode is
+    # fishing_quest, since that's the only time fish.yaml's locations exist
+    # in the pool at all (create_fish_locations' own game_mode check) --
+    # world.get_location would KeyError for any other mode.
+    if world.options.game_mode == "fishing_quest":
+        for name in fish_content_data.NORTHREND_LOCATION_NAMES:
+            world.set_rule(
+                world.get_location(name),
+                lambda state: state.has("Northrend Passage", world.player),
+            )

@@ -4,6 +4,7 @@ from .content_data import LOCATIONS
 from . import core_loop_content_data
 from . import density
 from . import filler_content_data
+from . import fish_content_data
 from . import rares_content_data
 from .items import count_enabled_gates_items, count_enabled_trap_items
 
@@ -108,4 +109,18 @@ def create_rares_locations(world, region) -> list:
     return [
         WoWLocation(world.player, name, location_id, region)
         for name, location_id in sampled
+    ]
+
+
+def create_fish_locations(world, region) -> list:
+    # Task 26 (Fishing Quest): all 46 curated fish-catch locations are
+    # created unconditionally whenever game_mode is fishing_quest -- NOT
+    # density-sampled, unlike Key Hunt's rares (spec Sec5.4: "the set is
+    # bounded and discrete... sampling it would break the completion
+    # condition"). Same game_mode-gated-family shape rares.yaml established.
+    if world.options.game_mode != "fishing_quest":
+        return []
+    return [
+        WoWLocation(world.player, name, location_id, region)
+        for name, location_id in fish_content_data.LOCATIONS.items()
     ]

@@ -3,6 +3,7 @@ from BaseClasses import Item, ItemClassification
 from . import content_data
 from .content_data import ITEMS
 from . import core_loop_content_data
+from . import fish_content_data
 from . import gates_content_data
 from . import rares_content_data
 from . import traps_content_data
@@ -216,4 +217,17 @@ def create_key_hunt_item_pool(world) -> list:
         return []
     item_id, _ceiling = rares_content_data.ITEMS["Key Hunt: Key"]
     return [WoWItem("Key Hunt: Key", ItemClassification.progression, item_id, world.player) for _ in range(count)]
+
+
+# Task 26 (Fishing Quest): all 46 "Fish: <name>" items are pooled
+# unconditionally whenever game_mode is fishing_quest, one copy each,
+# mirroring create_fish_locations' identical game_mode check and count
+# (fish.yaml's locations/items are NOT density-sampled, unlike rares.yaml).
+def create_fish_item_pool(world) -> list:
+    if world.options.game_mode != "fishing_quest":
+        return []
+    return [
+        WoWItem(name, ItemClassification.progression, item_id, world.player)
+        for name, (item_id, _count) in fish_content_data.ITEMS.items()
+    ]
 

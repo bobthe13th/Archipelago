@@ -4,19 +4,26 @@ from Options import OptionError
 from .bases import WoWTestBase
 
 
-class TestGoalValidation(WoWTestBase):
-    run_default_tests = False
-    auto_construct = False
-    # NOTE: the test option value is the Choice's bare option name ("fishing_quest"),
-    # not the "option_"-prefixed class attribute name -- Choice.from_text (Options.py)
-    # strips that prefix when building cls.options, and compares the lowercased input
-    # directly against the stripped keys, confirmed empirically (an "option_"-prefixed
-    # value raises "Could not find option ... known options are sprint" even after this
-    # value existed).
+class TestFishingQuestNotSampledByDensity(WoWTestBase):
+    """Task 26: unlike Key Hunt's rares, fish.yaml is explicitly NOT
+    density-sampled (spec Sec5.4: "the set is bounded and discrete... which
+    makes it a tractable completion goal" -- sampling it would break the
+    completion condition). This test used to assert the OPPOSITE
+    (check_density: 0 fails generation) back when fishing_quest was still
+    not-yet-implemented (Task 22-25); now that it has real content, density
+    must have zero effect on it -- all 46 fish locations/items always exist
+    at any check_density, including 0."""
     options = {"game_mode": "fishing_quest", "check_density": 0}
 
-    def test_fishing_quest_at_zero_density_fails_generation(self) -> None:
-        self.assertRaises(OptionError, self.world_setup)
+    def test_generates_successfully_even_at_zero_density(self) -> None:
+        self.assertTrue(self.constructed)
+
+    def test_all_46_fish_locations_and_items_still_exist(self) -> None:
+        fish_locations = [loc for loc in self.multiworld.get_locations() if loc.name.startswith("Fish Catch:")]
+        self.assertEqual(len(fish_locations), 46)
+        from .. import fish_content_data
+        for name in fish_content_data.ITEMS:
+            self.assertEqual(len(self.get_items_by_name(name)), 1)
 
 
 class TestArtisanNotYetImplemented(WoWTestBase):
@@ -216,3 +223,43 @@ class TestInstanceClearModeFinalBossOnly(WoWTestBase):
         self.assertFalse(self.multiworld.completion_condition[self.player](state))
         self.collect_by_name("Instance Unlock: Molten Core")
         self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+
+class TestFishingQuestItemLocationParity(WoWTestBase):
+    options = {"game_mode": "fishing_quest"}
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
+class TestFishingQuestCompletionRequiresAllFortySixFish(WoWTestBase):
+    """Task 26: completion needs ALL 46 distinct "Fish: <name>" items --
+    collecting all but one must not be enough."""
+    options = {"game_mode": "fishing_quest"}
+
+    def test_all_but_one_is_not_enough(self) -> None:
+        from .. import fish_content_data
+        state = self.multiworld.state
+        names = list(fish_content_data.ITEMS.keys())
+        for name in names[:-1]:
+            self.collect_by_name(name)
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+        self.collect_by_name(names[-1])
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+
+class TestFishingQuestNorthrendAccessRule(WoWTestBase):
+    """Task 26 (spec Sec5.4): "fish-catch locations inherit normal regional
+    access logic -- a Northrend-only fish requires Northrend Passage in
+    logic." Mirrors TestCoreLoopAccessRules' pattern -- a Northrend-tagged
+    fish location must be unreachable without Northrend Passage, and a
+    non-Northrend one must not require it."""
+    options = {"game_mode": "fishing_quest"}
+
+    def test_northrend_fish_location_requires_northrend_passage(self) -> None:
+        self.assertFalse(self.can_reach_location("Fish Catch: Glacial Salmon"))
+        self.collect_by_name("Northrend Passage")
+        self.assertTrue(self.can_reach_location("Fish Catch: Glacial Salmon"))
+
+    def test_non_northrend_fish_location_does_not_require_northrend_passage(self) -> None:
+        self.assertTrue(self.can_reach_location("Fish Catch: Raw Longjaw Mud Snapper"))
