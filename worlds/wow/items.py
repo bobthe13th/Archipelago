@@ -265,13 +265,32 @@ def create_collections_item_pool(world) -> list:
 
 def create_optional_category_item_pool(world) -> list:
     # Mirrors create_optional_category_locations exactly: for each enabled
-    # category, pool one item per location NAME actually sampled (not the
-    # category's full candidate set) -- reads world's own sampled-location
-    # names back from world.multiworld.get_locations rather than re-sampling
+    # category, pool one item per location ACTUALLY sampled (not the
+    # category's full candidate set) -- reads world's own sampled locations
+    # back from world.multiworld.get_locations rather than re-sampling
     # (re-sampling here would consume world.random a second time and could
     # pick a DIFFERENT subset than what create_regions already placed,
     # exactly the bug count_enabled_rares_items' own docstring warns about
     # for Key Hunt).
+    #
+    # Pairing sampled locations to their reward item by ROW INDEX, not by
+    # string-matching the location name against the item name: every
+    # existing content family (Task 5's quest_rewards, plus the hand-rolled
+    # fish/professions/collections families already in this file) names its
+    # LOCATIONS and ITEMS entries with DIFFERENT prefixes for the same
+    # underlying row (e.g. quest_rewards_content_data: location
+    # "Quest: X Reward (#N)" vs item "Quest Reward: X (#N)" -- confirmed
+    # against the real generated file, not assumed). An earlier version of
+    # this function matched on `item_name in sampled_location_names`, which
+    # is vacuously false for every real family and would silently pool ZERO
+    # items for any enabled optional category, corrupting the 1:1 item/
+    # location parity test_item_pool_matches_location_count_exactly enforces
+    # for every option combination. LOCATIONS and ITEMS dicts are emitted by
+    # generate_content.py from the same ordered `locations:`/`items:` YAML
+    # lists, row-for-row, so index alignment is a real invariant of the
+    # compiler's output, not a name-based assumption -- guarded below so a
+    # future Group 2-4 family that breaks this alignment fails generation
+    # loudly instead of silently under-pooling.
     #
     # Imported here rather than at module level: locations.py already
     # imports count_enabled_gates_items/count_enabled_trap_items from this
@@ -287,14 +306,23 @@ def create_optional_category_item_pool(world) -> list:
     for category in _OPTIONAL_CATEGORIES:
         if not bool(getattr(world.options, category.toggle_option)) or category.items_module is None:
             continue
-        sampled_location_names = {
-            loc.name for loc in world.multiworld.get_locations(world.player)
-            if loc.name in category.locations_module.LOCATIONS
+        location_names = list(category.locations_module.LOCATIONS.keys())
+        item_rows = list(category.items_module.ITEMS.items())
+        if len(location_names) != len(item_rows):
+            raise ValueError(
+                f"optional category {category.key!r}: LOCATIONS ({len(location_names)} rows) and "
+                f"ITEMS ({len(item_rows)} rows) must be the same length and row-index-aligned -- "
+                f"see create_optional_category_item_pool's docstring for why this is required."
+            )
+        index_by_location_name = {name: i for i, name in enumerate(location_names)}
+        sampled_indices = {
+            index_by_location_name[loc.name]
+            for loc in world.multiworld.get_locations(world.player)
+            if loc.name in index_by_location_name
         }
-        for name, (item_id, count) in category.items_module.ITEMS.items():
-            if name not in sampled_location_names:
-                continue
+        for i in sampled_indices:
+            item_name, (item_id, count) = item_rows[i]
             for _ in range(count):
-                pool.append(WoWItem(name, ItemClassification.progression, item_id, world.player))
+                pool.append(WoWItem(item_name, ItemClassification.progression, item_id, world.player))
     return pool
 

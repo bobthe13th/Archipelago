@@ -11,6 +11,7 @@ from . import fish_content_data
 from . import gates_content_data
 from . import filler_content_data
 from . import professions_content_data
+from . import quest_rewards_content_data
 from . import rares_content_data
 from . import traps_content_data
 from .options import WoWOptions
@@ -47,6 +48,7 @@ class WoWWorld(World):
         **{name: item_id for name, (item_id, _count) in fish_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in professions_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in collections_content_data.ITEMS.items()},
+        **{name: item_id for name, (item_id, _count) in quest_rewards_content_data.ITEMS.items()},
     }
     location_name_to_id = {
         **{name: loc_id for name, loc_id in LOCATIONS.items()},
@@ -60,6 +62,7 @@ class WoWWorld(World):
         **{name: loc_id for name, loc_id in fish_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in professions_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in collections_content_data.LOCATIONS.items()},
+        **{name: loc_id for name, loc_id in quest_rewards_content_data.LOCATIONS.items()},
     }
 
     def generate_early(self) -> None:

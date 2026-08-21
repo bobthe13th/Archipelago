@@ -217,6 +217,39 @@ class TestGateItemSphereZero(WoWTestBase):
         self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
 
 
+class TestGateItemSphereZeroWithQuestRewards(WoWTestBase):
+    """M4.5 Task 6, plan Step 8: the same sphere-0 guard as
+    TestGateItemSphereZero above, but with include_quest_rewards also on --
+    Quest Rewards' own locations are a disjoint pool from the 19 sphere-0
+    quest locations (rules.py's Quest Rewards rule only ever calls
+    world.set_rule on locations whose name starts with "Quest: " AND is a
+    key in quest_rewards_content_data.LOCATIONS, never on the M2 quest
+    locations), so this is expected to pass trivially -- but per this plan's
+    Global Constraints ("no new content may block sphere-0 completion") that
+    must be confirmed by a real, run test, not assumed from the disjointness
+    argument alone."""
+
+    options = {
+        "proficiency_gating": True,
+        "access_gating": True,
+        "character_unlock_gating": True,
+        "include_quest_rewards": True,
+    }
+
+    def test_all_quest_locations_reachable_with_zero_items(self) -> None:
+        for name in content_data.LOCATIONS:
+            self.assertTrue(self.can_reach_location(name))
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        """Same invariant as TestGateItemSphereZero's own version of this
+        test, checked here with include_quest_rewards also on -- this is
+        exactly the invariant items.py's row-index item-pooling fix (Task 3)
+        exists to protect, so it must be checked under the option
+        combination that actually exercises that code path, not just under
+        TestGateItemSphereZero's quest-rewards-off default."""
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
 class TestCoreLoopAccessRules(WoWTestBase):
     """Final-review fix: rules.py must attach real prerequisites to the
     core-loop locations, matching the real C++ server's genuine

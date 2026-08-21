@@ -429,6 +429,17 @@ class StartingChoice(Choice):
     default = 0
 
 
+class IncludeQuestRewards(Toggle):
+    """When on, a density-sampled subset of real quest completion rewards
+    (M4.5's DB-extracted Quest Rewards family) becomes part of the
+    location/item pool, available in EVERY game mode -- not gated to one
+    owning mode, unlike Key Hunt's rares or Fishing Quest's fish. Off by
+    default (adds a large, real-data-derived pool most players haven't
+    opted into yet)."""
+    display_name = "Include Quest Rewards"
+    default = False
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -458,4 +469,5 @@ class WoWOptions(PerGameCommonOptions):
     key_hunt_instances_required: KeyHuntInstancesRequired
     artisan_primary_professions_required: ArtisanPrimaryProfessionsRequired
     collector_items_required: CollectorItemsRequired
+    include_quest_rewards: IncludeQuestRewards
 

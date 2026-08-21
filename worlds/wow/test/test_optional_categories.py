@@ -7,12 +7,15 @@ from ..locations import _OPTIONAL_CATEGORIES, create_optional_category_locations
 class TestOptionalCategoryRegistry(WoWTestBase):
     options = {"game_mode": "sprint", "check_density": 100, "max_optional_locations": 5000}
 
-    def test_registry_starts_empty_before_any_family_registers(self) -> None:
-        # This test locks in the registry's SHAPE before Group 1 adds its
-        # first real entry -- once quest_rewards registers, this assertion
-        # is expected to need updating to len == 1, which is the point:
-        # it forces every new-family task to touch this file consciously.
-        self.assertEqual(_OPTIONAL_CATEGORIES, [])
+    def test_registry_holds_exactly_quest_rewards_after_group_1(self) -> None:
+        # This test locked in the registry's SHAPE before Group 1 added its
+        # first real entry (previously asserted `_OPTIONAL_CATEGORIES == []`)
+        # -- Task 6 registers quest_rewards, so this is updated to len == 1,
+        # which was the point: it forces every new-family task to touch this
+        # file consciously rather than silently drifting.
+        self.assertEqual(len(_OPTIONAL_CATEGORIES), 1)
+        self.assertEqual(_OPTIONAL_CATEGORIES[0].key, "quest_rewards")
+        self.assertEqual(_OPTIONAL_CATEGORIES[0].toggle_option, "include_quest_rewards")
 
     def test_sprint_mode_calls_sample_category_when_categories_exist(self) -> None:
         # Regression guard for the exact M4 bug this task fixes: Sprint mode

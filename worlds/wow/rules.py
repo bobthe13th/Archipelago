@@ -3,6 +3,7 @@ import math
 
 from . import core_loop_content_data
 from . import fish_content_data
+from . import quest_rewards_content_data
 
 
 # M2: all 19 Northshire/Goldshire locations are always accessible (no
@@ -72,3 +73,40 @@ def set_rules(world):
                 world.get_location(name),
                 lambda state: state.has("Northrend Passage", world.player),
             )
+
+    # M4.5 Task 6 (Quest Rewards): reuses the EXACT same "copies_needed via
+    # Progressive Level Cap" math as the level-milestone loop above (this
+    # function's own lines 40-52), since a quest_reward's min_level is the
+    # identical underlying constraint -- can't turn in a quest that requires
+    # a level you haven't reached yet -- just applied to a different content
+    # family. Only meaningful when include_quest_rewards is on, since that's
+    # the only time quest_rewards_content_data's locations exist in the pool
+    # at all (locations.py's OptionalCategory registration).
+    #
+    # CLAMP (real defect found while implementing this task, not present in
+    # the brief's original snippet): content/quest_rewards.yaml is DB-derived
+    # and its raw min_level values run all the way up to 255 (TBC/Wrath-era
+    # quests and a few sentinel/placeholder rows), while Sprint mode's own
+    # item pool only ever contains a FIXED 10 "Progressive Level Cap" copies
+    # (core_loop_content_data.ITEMS["Progressive Level Cap"][1] -- the same
+    # count that caps out at level 60 for the "Reach Level 60"/Sprint-goal
+    # locations above). An unclamped copies_needed for a min_level=255 quest
+    # would demand more copies than exist anywhere in the pool, making that
+    # location permanently unreachable and failing generation outright
+    # (confirmed empirically: test_all_state_can_reach_everything and
+    # test_fill both failed before this clamp was added). Clamping to
+    # total_caps mirrors the DK-safe clamp already used for levels <= 55
+    # above -- once every copy is held, every quest_reward location must be
+    # reachable, regardless of how large its raw min_level is.
+    if world.options.include_quest_rewards:
+        total_caps = core_loop_content_data.ITEMS["Progressive Level Cap"][1]
+        for loc in world.multiworld.get_locations(world.player):
+            if not loc.name.startswith("Quest:") or loc.name not in quest_rewards_content_data.LOCATIONS:
+                continue
+            trigger = quest_rewards_content_data.TRIGGERS[loc.name]
+            copies_needed = min(total_caps, max(0, math.ceil((trigger["min_level"] - starting_cap) / step)))
+            if copies_needed > 0:
+                world.set_rule(
+                    loc,
+                    lambda state, count=copies_needed: state.has("Progressive Level Cap", world.player, count),
+                )

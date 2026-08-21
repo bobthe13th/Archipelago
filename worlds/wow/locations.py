@@ -10,6 +10,7 @@ from . import density
 from . import filler_content_data
 from . import fish_content_data
 from . import professions_content_data
+from . import quest_rewards_content_data
 from . import rares_content_data
 from .items import count_enabled_gates_items, count_enabled_trap_items
 
@@ -33,6 +34,14 @@ class OptionalCategory:
 
 
 _OPTIONAL_CATEGORIES: list[OptionalCategory] = []
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="quest_rewards",
+    toggle_option="include_quest_rewards",
+    weight=100,
+    locations_module=quest_rewards_content_data,
+    items_module=quest_rewards_content_data,
+))
 
 
 def create_optional_category_locations(world, region, budget: "density.DensityBudget") -> list:
