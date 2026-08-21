@@ -1,5 +1,5 @@
 from worlds.AutoWorld import World
-from .items import WoWItem, create_item_pool, create_core_loop_item_pool, create_gates_item_pool, create_trap_item_pool, create_key_hunt_item_pool, create_fish_item_pool, create_professions_item_pool, create_collections_item_pool
+from .items import WoWItem, create_item_pool, create_core_loop_item_pool, create_gates_item_pool, create_trap_item_pool, create_key_hunt_item_pool, create_fish_item_pool, create_professions_item_pool, create_collections_item_pool, create_optional_category_item_pool
 from .regions import create_regions
 from .rules import set_rules
 from . import goals
@@ -82,6 +82,7 @@ class WoWWorld(World):
         self.multiworld.itempool += create_fish_item_pool(self)
         self.multiworld.itempool += create_professions_item_pool(self)
         self.multiworld.itempool += create_collections_item_pool(self)
+        self.multiworld.itempool += create_optional_category_item_pool(self)
 
     def set_rules(self) -> None:
         set_rules(self)

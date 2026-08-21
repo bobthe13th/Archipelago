@@ -262,3 +262,39 @@ def create_collections_item_pool(world) -> list:
         for name, (item_id, _count) in collections_content_data.ITEMS.items()
     ]
 
+
+def create_optional_category_item_pool(world) -> list:
+    # Mirrors create_optional_category_locations exactly: for each enabled
+    # category, pool one item per location NAME actually sampled (not the
+    # category's full candidate set) -- reads world's own sampled-location
+    # names back from world.multiworld.get_locations rather than re-sampling
+    # (re-sampling here would consume world.random a second time and could
+    # pick a DIFFERENT subset than what create_regions already placed,
+    # exactly the bug count_enabled_rares_items' own docstring warns about
+    # for Key Hunt).
+    #
+    # Imported here rather than at module level: locations.py already
+    # imports count_enabled_gates_items/count_enabled_trap_items from this
+    # module at import time, so a module-level `from .locations import
+    # _OPTIONAL_CATEGORIES` here would create a circular import (confirmed:
+    # `python -c "import worlds.wow"` fails with "cannot import name
+    # 'count_enabled_gates_items' from partially initialized module" when
+    # this import is hoisted to the top of the file). Deferring it to call
+    # time avoids the cycle since both modules are fully loaded by then.
+    from .locations import _OPTIONAL_CATEGORIES
+
+    pool = []
+    for category in _OPTIONAL_CATEGORIES:
+        if not bool(getattr(world.options, category.toggle_option)) or category.items_module is None:
+            continue
+        sampled_location_names = {
+            loc.name for loc in world.multiworld.get_locations(world.player)
+            if loc.name in category.locations_module.LOCATIONS
+        }
+        for name, (item_id, count) in category.items_module.ITEMS.items():
+            if name not in sampled_location_names:
+                continue
+            for _ in range(count):
+                pool.append(WoWItem(name, ItemClassification.progression, item_id, world.player))
+    return pool
+

@@ -1,4 +1,7 @@
 # Archipelago/worlds/wow/locations.py
+from dataclasses import dataclass
+from typing import Optional
+
 from BaseClasses import Location
 from .content_data import LOCATIONS
 from . import collections_content_data
@@ -13,6 +16,35 @@ from .items import count_enabled_gates_items, count_enabled_trap_items
 
 class WoWLocation(Location):
     game = "World of Warcraft WotLK"
+
+
+@dataclass
+class OptionalCategory:
+    """One entry per DB-derived optional-location family available in EVERY
+    game mode (not gated to one owning mode, unlike rares/fish/professions/
+    collections -- see this plan's Repo-state findings #3 for why those four
+    are deliberately NOT migrated onto this registry). Groups 1-4 each
+    append exactly one entry here; nothing else needs to change per family."""
+    key: str
+    toggle_option: str  # WoWOptions field name, e.g. "include_quest_rewards"
+    weight: int  # category_weight passed to density.sample_category
+    locations_module: object  # exposes .LOCATIONS: dict[str, int]
+    items_module: Optional[object]  # exposes .ITEMS: dict[str, tuple[int, int]]; None if items live elsewhere
+
+
+_OPTIONAL_CATEGORIES: list[OptionalCategory] = []
+
+
+def create_optional_category_locations(world, region, budget: "density.DensityBudget") -> list:
+    created = []
+    for category in _OPTIONAL_CATEGORIES:
+        if not bool(getattr(world.options, category.toggle_option)):
+            continue
+        all_rows = list(category.locations_module.LOCATIONS.items())
+        sampled = density.sample_category(budget, category.weight, all_rows, world.random)
+        for name, location_id in sampled:
+            created.append(WoWLocation(world.player, name, location_id, region))
+    return created
 
 
 def create_locations(world, region) -> list:
