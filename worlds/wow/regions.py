@@ -1,6 +1,6 @@
 # Archipelago/worlds/wow/regions.py
 from BaseClasses import Region
-from .locations import create_locations, create_core_loop_locations, create_filler_locations
+from .locations import create_locations, create_core_loop_locations, create_filler_locations, create_rares_locations
 
 
 def create_regions(world):
@@ -15,6 +15,10 @@ def create_regions(world):
 
     northshire.locations += create_locations(world, northshire)
     northshire.locations += create_core_loop_locations(world, northshire)
+    # Must run before create_filler_locations/create_items -- it stashes the
+    # sampled rare count on `world` for items.py's create_key_hunt_item_pool
+    # to read later (see create_rares_locations' own comment for why).
+    northshire.locations += create_rares_locations(world, northshire)
     northshire.locations += create_filler_locations(world, northshire)
 
     menu.connect(northshire)

@@ -7,6 +7,8 @@ from __future__ import annotations
 from Options import OptionError
 
 from . import core_loop_content_data
+from . import density
+from . import rares_content_data
 
 
 def validate(world) -> None:
@@ -130,11 +132,51 @@ def _set_completion_rule_completionist(world) -> None:
     )
 
 
+# Task 25 (Key Hunt, Tier 2, design spec Sec5.4): completing the goal needs
+# BOTH key_hunt_keys_required "Key Hunt: Key" items AND
+# key_hunt_instances_required distinct raids/dungeons cleared -- the first
+# mode whose completion condition spans two independently-sized, unrelated
+# item families at once.
+def _validate_key_hunt(world) -> None:
+    # Reuses density.predict_sample_size (the same deterministic size math
+    # sample_category itself uses) rather than waiting for create_regions to
+    # have actually sampled rares.yaml's rows -- generate_early (where this
+    # runs) happens BEFORE create_regions in AP's generation lifecycle, so
+    # the real sampled count doesn't exist yet at this point.
+    budget = density.DensityBudget(
+        check_density=world.options.check_density.value,
+        hard_ceiling=world.options.max_optional_locations.value,
+    )
+    predicted = density.predict_sample_size(budget, category_weight=100, row_count=len(rares_content_data.LOCATIONS))
+    keys_required = world.options.key_hunt_keys_required.value
+    if predicted < keys_required:
+        raise OptionError(
+            f"WoW: game_mode 'key_hunt' with key_hunt_keys_required={keys_required} "
+            f"needs at least that many rares sampled into the pool, but "
+            f"check_density={world.options.check_density.value} / "
+            f"max_optional_locations={world.options.max_optional_locations.value} "
+            f"would only sample {predicted} of the {len(rares_content_data.LOCATIONS)} "
+            f"curated rares -- raise check_density/max_optional_locations or lower "
+            f"key_hunt_keys_required."
+        )
+
+
+def _set_completion_rule_key_hunt(world) -> None:
+    keys_required = world.options.key_hunt_keys_required.value
+    instances_required = world.options.key_hunt_instances_required.value
+    all_instance_unlock_names = {f"Instance Unlock: {name}" for name in _INSTANCE_KEY_DISPLAY_NAMES.values()}
+    world.set_completion_rule(
+        lambda state: (
+            state.has("Key Hunt: Key", world.player, keys_required)
+            and state.has_from_list_unique(all_instance_unlock_names, world.player, instances_required)
+        )
+    )
+
+
 # GameMode.value -> bare option name, for every mode without real content
 # yet. Mirrors options.py's GameMode option_* attributes exactly -- keep
 # both in sync when a Group 6 task gives one of these a real implementation.
 _NOT_YET_IMPLEMENTED_MODE_NAMES = {
-    1: "key_hunt",
     6: "artisan",
     7: "collector",
     8: "achievement_hunt",
@@ -145,6 +187,7 @@ _NOT_YET_IMPLEMENTED_MODE_NAMES = {
 
 _VALIDATORS = {
     0: _validate_sprint,
+    1: _validate_key_hunt,
     **{value: _validate_raid_instance_clear(instance_key, _INSTANCE_KEY_DISPLAY_NAMES[instance_key])
        for value, instance_key in _TIER1_RAID_INSTANCE_KEYS.items()},
     5: _validate_completionist,
@@ -153,6 +196,7 @@ _VALIDATORS = {
 
 _COMPLETION_RULES = {
     0: _set_completion_rule_sprint,
+    1: _set_completion_rule_key_hunt,
     **{value: _set_completion_rule_raid_instance_clear(instance_key)
        for value, instance_key in _TIER1_RAID_INSTANCE_KEYS.items()},
     5: _set_completion_rule_completionist,

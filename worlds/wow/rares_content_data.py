@@ -1,0 +1,50 @@
+# GENERATED FILE - do not edit by hand.
+# Regenerate with: python modules/archipelago_wow/tools/generate_content.py content/rares.yaml
+
+
+LOCATIONS: dict[str, int] = {
+    "Rare Kill: Lost Soul": 730000,
+    "Rare Kill: Snagglespear": 730001,
+    "Rare Kill: Morgaine the Sly": 730002,
+    "Rare Kill: Sister Hatelash": 730003,
+    "Rare Kill: Bjarn": 730004,
+    "Rare Kill: Grizlak": 730005,
+    "Rare Kill: Carnivous the Breaker": 730006,
+    "Rare Kill: Dr. Whitherlimb": 730007,
+    "Rare Kill: Engineer Whirleygig": 730008,
+    "Rare Kill: Magosh": 730009,
+    "Rare Kill: Taskmaster Whipfang": 730010,
+    "Rare Kill: Chatter": 730011,
+    "Rare Kill: Leech Widow": 730012,
+    "Rare Kill: Branch Snapper": 730013,
+    "Rare Kill: Kazon": 730014,
+    "Rare Kill: Brother Ravenoak": 730015,
+    "Rare Kill: Commander Felstrom": 730016,
+    "Rare Kill: Giggler": 730017,
+    "Rare Kill: Kovork": 730018,
+    "Rare Kill: Drogoth the Roamer": 730019,
+    "Rare Kill: Hayoc": 730020,
+    "Rare Kill: Brimgore": 730021,
+    "Rare Kill: Gilmorian": 730022,
+    "Rare Kill: Rumbler": 730023,
+    "Rare Kill: Faulty War Golem": 730024,
+    "Rare Kill: Antilus the Soarer": 730025,
+    "Rare Kill: Jalinde Summerdrake": 730026,
+    "Rare Kill: Antilos": 730027,
+    "Rare Kill: Lady Sesspira": 730028,
+    "Rare Kill: Olm the Wise": 730029,
+    "Rare Kill: Mezzir the Howler": 730030,
+    "Rare Kill: Gish the Unmoving": 730031,
+    "Rare Kill: Grubthor": 730032,
+    "Rare Kill: High General Abbendis": 730033,
+    "Rare Kill: Scarlet Executioner": 730034,
+    "Rare Kill: Foreman Jerris": 730035,
+    "Rare Kill: Goretooth": 730036,
+    "Rare Kill: Ambassador Jerrikar": 730037,
+    "Rare Kill: Tukemuth": 730038,
+    "Rare Kill: Gondria": 730039,
+}
+
+ITEMS: dict[str, tuple[int, int]] = {
+    "Key Hunt: Key": (830029, 40),
+}

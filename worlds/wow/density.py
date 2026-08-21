@@ -37,6 +37,23 @@ class DensityBudget:
         self._consumed += n
 
 
+def predict_sample_size(budget: DensityBudget, category_weight: int, row_count: int) -> int:
+    """The exact count sample_category will draw for a category of row_count
+    candidate rows, WITHOUT needing an rng or actually sampling -- the size
+    math is entirely deterministic (only which specific rows get picked
+    depends on rng). Exists so generation-time validation (Options.py's
+    OptionError, raised from World.generate_early -- see goals.py's
+    _validate_key_hunt, the first real caller) can check "is this
+    configuration even satisfiable" before create_regions has run
+    sample_category for real and populated a DensityBudget's consumed total.
+    Does NOT call budget.consume() -- a prediction, not a real draw."""
+    if budget.check_density == 0 or category_weight == 0 or row_count == 0:
+        return 0
+
+    wanted = math.ceil(row_count * (budget.check_density / 100) * (category_weight / 100))
+    return max(0, min(wanted, row_count, budget.remaining()))
+
+
 def sample_category(budget: DensityBudget, category_weight: int, all_rows: list, rng: random.Random) -> list:
     """Sample this category's rows per the shared budget's check_density and
     this category's own weight (0-100, proportional -- not normalized against
@@ -46,11 +63,7 @@ def sample_category(budget: DensityBudget, category_weight: int, all_rows: list,
     last few ceiling slots, never how many total rows come out for a given
     call sequence with the same rng draws consumed in the same order.
     """
-    if budget.check_density == 0 or category_weight == 0 or not all_rows:
-        return []
-
-    wanted = math.ceil(len(all_rows) * (budget.check_density / 100) * (category_weight / 100))
-    wanted = min(wanted, len(all_rows), budget.remaining())
+    wanted = predict_sample_size(budget, category_weight, len(all_rows))
     if wanted <= 0:
         return []
 

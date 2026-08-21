@@ -2,7 +2,9 @@
 from BaseClasses import Location
 from .content_data import LOCATIONS
 from . import core_loop_content_data
+from . import density
 from . import filler_content_data
+from . import rares_content_data
 from .items import count_enabled_gates_items, count_enabled_trap_items
 
 
@@ -70,4 +72,40 @@ def create_filler_locations(world, region) -> list:
     return [
         WoWLocation(world.player, name, location_id, region)
         for name, location_id in list(filler_content_data.LOCATIONS.items())[:needed]
+    ]
+
+
+def create_rares_locations(world, region) -> list:
+    # Task 25 (Key Hunt, Tier 2): the FIRST content family whose existence is
+    # gated on which game_mode is active, not an independent toggle option --
+    # rares.yaml's 40 curated rows only become real locations when game_mode
+    # is key_hunt, matching items.py's create_key_hunt_item_pool's identical
+    # game_mode check. Also the first real caller of Task 2's density.py
+    # module anywhere in this codebase (density.sample_category, weight 100
+    # since Key Hunt has no other optional category competing for the shared
+    # budget) -- per this task's own Interfaces note, rares are sampled like
+    # any other optional category, not hand-picked per generation.
+    #
+    # The sampled COUNT (not the specific rows) is stashed on `world` so
+    # items.py's create_key_hunt_item_pool, which runs later during
+    # create_items, pools EXACTLY this many "Key Hunt: Key" copies --
+    # re-sampling independently there (like count_enabled_gates_items/
+    # count_enabled_trap_items do, which are pure functions of options alone)
+    # is not possible here without double-consuming world.random and risking
+    # a different length if the shared DensityBudget's state ever depends on
+    # a second concurrently-sampled category in a later task.
+    world.key_hunt_sampled_rare_count = 0
+    if world.options.game_mode != "key_hunt":
+        return []
+
+    budget = density.DensityBudget(
+        check_density=world.options.check_density.value,
+        hard_ceiling=world.options.max_optional_locations.value,
+    )
+    all_rows = list(rares_content_data.LOCATIONS.items())
+    sampled = density.sample_category(budget, category_weight=100, all_rows=all_rows, rng=world.random)
+    world.key_hunt_sampled_rare_count = len(sampled)
+    return [
+        WoWLocation(world.player, name, location_id, region)
+        for name, location_id in sampled
     ]

@@ -1,5 +1,5 @@
 from worlds.AutoWorld import World
-from .items import WoWItem, create_item_pool, create_core_loop_item_pool, create_gates_item_pool, create_trap_item_pool
+from .items import WoWItem, create_item_pool, create_core_loop_item_pool, create_gates_item_pool, create_trap_item_pool, create_key_hunt_item_pool
 from .regions import create_regions
 from .rules import set_rules
 from . import goals
@@ -8,6 +8,7 @@ from .content_data import LOCATIONS, ITEMS
 from . import core_loop_content_data
 from . import gates_content_data
 from . import filler_content_data
+from . import rares_content_data
 from . import traps_content_data
 from .options import WoWOptions
 
@@ -39,6 +40,7 @@ class WoWWorld(World):
         **{name: item_id for name, (item_id, _count) in core_loop_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in gates_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in traps_content_data.ITEMS.items()},
+        **{name: item_id for name, (item_id, _count) in rares_content_data.ITEMS.items()},
     }
     location_name_to_id = {
         **{name: loc_id for name, loc_id in LOCATIONS.items()},
@@ -48,6 +50,7 @@ class WoWWorld(World):
             for instance_key, loc_id in core_loop_content_data.INSTANCE_CLEAR_LOCATIONS.items()
         },
         **{name: loc_id for name, loc_id in filler_content_data.LOCATIONS.items()},
+        **{name: loc_id for name, loc_id in rares_content_data.LOCATIONS.items()},
     }
 
     def generate_early(self) -> None:
@@ -66,6 +69,7 @@ class WoWWorld(World):
         self.multiworld.itempool += create_core_loop_item_pool(self)
         self.multiworld.itempool += create_gates_item_pool(self)
         self.multiworld.itempool += create_trap_item_pool(self)
+        self.multiworld.itempool += create_key_hunt_item_pool(self)
 
     def set_rules(self) -> None:
         set_rules(self)

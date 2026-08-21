@@ -63,6 +63,44 @@ class CompletionistExpansion(Choice):
     default = 0
 
 
+class KeyHuntKeysRequired(Range):
+    """Only relevant when game_mode is key_hunt (Task 25). How many "Key
+    Hunt: Key" items must be received to complete the goal, alongside
+    key_hunt_instances_required raids/dungeons also being cleared. Capped at
+    40 -- content/rares.yaml's curated roster and its matching item ceiling
+    (a future task widening that roster must widen this range_end to match,
+    the same coupling filler.yaml's own header comment documents for its
+    ceiling). The actual number of keys pooled in a given generation is
+    density-sampled (check_density), and can be LOWER than this value if
+    check_density/max_optional_locations constrain it below 40 -- a
+    key_hunt seed with a keys_required higher than what density sampling
+    actually pools would be uncompletable, which is exactly what this
+    task's goals.py validator exists to catch at generation time."""
+    display_name = "Key Hunt: Keys Required"
+    range_start = 1
+    range_end = 40
+    # 10, not some rounder-looking number: at the global CheckDensity default
+    # of 25, density.predict_sample_size(40 rows, weight 100) predicts
+    # exactly ceil(40 * 0.25) = 10 -- so key_hunt is satisfiable out of the
+    # box with every other option left at its own default, not an
+    # immediate OptionError. A higher default here would make "just pick
+    # key_hunt" alone fail generation, which is correct behavior for the
+    # validator to catch but a bad first-touch default.
+    default = 10
+
+
+class KeyHuntInstancesRequired(Range):
+    """Only relevant when game_mode is key_hunt (Task 25). How many of the 5
+    existing instance-clear raids/dungeons (Ragefire Chasm, Deadmines,
+    Molten Core, Sunwell Plateau, Icecrown Citadel) must also be cleared to
+    complete the goal, alongside key_hunt_keys_required keys. 0 makes Key
+    Hunt a pure key-collection goal with no instance requirement at all."""
+    display_name = "Key Hunt: Instances Required"
+    range_start = 0
+    range_end = 5
+    default = 1
+
+
 class CheckDensity(Range):
     """Global check density (0-100). Controls how many rows are sampled from
     each enabled optional location category. 0 disables every optional
@@ -384,4 +422,6 @@ class WoWOptions(PerGameCommonOptions):
     starting_choice: StartingChoice
     instance_clear_mode: InstanceClearMode
     completionist_expansion: CompletionistExpansion
+    key_hunt_keys_required: KeyHuntKeysRequired
+    key_hunt_instances_required: KeyHuntInstancesRequired
 

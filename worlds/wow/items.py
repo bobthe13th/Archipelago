@@ -4,6 +4,7 @@ from . import content_data
 from .content_data import ITEMS
 from . import core_loop_content_data
 from . import gates_content_data
+from . import rares_content_data
 from . import traps_content_data
 
 
@@ -190,4 +191,29 @@ def create_trap_item_pool(world) -> list:
         for _ in range(count):
             pool.append(WoWItem(name, ItemClassification.trap, item_id, world.player))
     return pool
+
+
+# Task 25 (Key Hunt, Tier 2): "Key Hunt: Key" is only pooled when game_mode
+# is key_hunt, and only as many copies as create_rares_locations (locations.py)
+# actually sampled -- rares_content_data.ITEMS["Key Hunt: Key"][1] (40) is a
+# ceiling/ceiling-only count, like traps_content_data's per-item ceilings, not
+# a literal always-pooled count like core_loop's Progressive Level Cap.
+def count_enabled_rares_items(world) -> int:
+    """Total "Key Hunt: Key" copies create_key_hunt_item_pool will pool for
+    this generation -- 0 unless game_mode is key_hunt, in which case it's
+    whatever create_rares_locations (locations.py, which runs first during
+    create_regions) sampled and stashed on `world`. Named to match
+    count_enabled_gates_items/count_enabled_trap_items's shape, but unlike
+    those two, this is NOT a pure function of options alone -- it depends on
+    create_regions having already run (always true by the time create_items
+    runs, in both real generation and the test harness's gen_steps order)."""
+    return getattr(world, "key_hunt_sampled_rare_count", 0)
+
+
+def create_key_hunt_item_pool(world) -> list:
+    count = count_enabled_rares_items(world)
+    if count == 0:
+        return []
+    item_id, _ceiling = rares_content_data.ITEMS["Key Hunt: Key"]
+    return [WoWItem("Key Hunt: Key", ItemClassification.progression, item_id, world.player) for _ in range(count)]
 
