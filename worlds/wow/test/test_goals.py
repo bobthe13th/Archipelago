@@ -26,14 +26,20 @@ class TestFishingQuestNotSampledByDensity(WoWTestBase):
             self.assertEqual(len(self.get_items_by_name(name)), 1)
 
 
-class TestGladiatorNotYetImplemented(WoWTestBase):
-    """Every GameMode value without real content yet must still raise
-    OptionError -- this is the regression guard for Task 22's "land both in
-    the same commit" requirement (a new GameMode value must never become
-    silently selectable before its own task lands). key_hunt (Task 22-24),
-    artisan, then collector (Task 27) previously covered this same test in
-    turn, each swapped out once its own task gave it real content -- this
-    now uses gladiator, the one remaining not-yet-implemented Tier-3 mode."""
+class TestGladiatorNotBuildable(WoWTestBase):
+    """Gladiator is a DIFFERENT deferral category from the not-yet-implemented
+    swap chain above (key_hunt -> artisan -> collector, each retired once its
+    own task shipped real content) -- Task 27's own hook research found
+    arena-rating tiers have no safe push hook (OnBeforeArenaTeamMemberUpdate
+    fires before the engine's own ArenaTeam::GetRatingMod computes the actual
+    rating change, so the post-match rating can't be predicted from that
+    hook without blindly reimplementing untestable internal engine math) and
+    battleground-objective events (flag captures, etc.) aren't exposed via
+    any generic ScriptMgr hook at all, only hardcoded inside each
+    Battleground subclass -- matching achievement_hunt/explorer's
+    not_buildable category (verified, not assumed) rather than a scheduling
+    gap. Resolved 2026-08-20 per explicit user direction: same hard-failure
+    treatment as achievement_hunt/explorer."""
     run_default_tests = False
     auto_construct = False
     options = {"game_mode": "gladiator"}

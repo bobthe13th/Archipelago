@@ -270,17 +270,33 @@ def _set_completion_rule_collector(world) -> None:
 # yet (scheduling gap, not a data-availability problem). Mirrors
 # options.py's GameMode option_* attributes exactly -- keep both in sync
 # when a Group 6 task gives one of these a real implementation.
-_NOT_YET_IMPLEMENTED_MODE_NAMES = {
-    9: "gladiator",
-}
+_NOT_YET_IMPLEMENTED_MODE_NAMES = {}
 
-# GameMode.value -> (bare option name, reason) for modes whose "full roster"
-# cannot be extracted from any real data source in this checkout -- see
-# _not_buildable's own comment above.
+# GameMode.value -> (bare option name, reason) for modes that cannot be
+# built in this checkout at all -- either because the "full roster" cannot
+# be extracted from any real data source (achievement_hunt/explorer's empty
+# DBC-stub tables), or because completion cannot be tracked via any real,
+# verified hook without either an invasive core-engine change (editing
+# Battleground subclass files directly, since BG objectives like flag
+# captures have no generic ScriptMgr hook) or reimplementing untestable
+# internal engine math blind (arena rating -- OnBeforeArenaTeamMemberUpdate
+# fires BEFORE the engine's own ArenaTeam::GetRatingMod computes the actual
+# rating change, so there is no safe way to predict the post-match rating
+# from that hook's own parameters). Resolved 2026-08-20, per explicit user
+# direction on the arena/BG research finding: gladiator gets the same
+# hard-failure treatment as achievement_hunt/explorer, rather than either
+# an invasive core-file diff or unverifiable formula reimplementation.
 _NOT_BUILDABLE_MODES = {
     8: ("achievement_hunt", "achievement_dbc.sql/achievement_criteria_dbc.sql (which would carry "
         "Achievement.dbc/Achievement-Criteria.dbc data) are empty stub tables with zero real "
         "achievement names/definitions, and no binary .dbc client files exist in this repo."),
+    9: ("gladiator", "arena-rating tiers have no safe push hook -- OnBeforeArenaTeamMemberUpdate "
+        "fires before ArenaTeam::GetRatingMod computes the actual rating change, so the post-match "
+        "personal rating cannot be predicted from that hook's own parameters without blindly "
+        "reimplementing untestable internal engine math -- and battleground-objective events "
+        "(e.g. flag captures) are not exposed via any generic ScriptMgr hook at all, only hardcoded "
+        "inside each Battleground subclass (WSG.cpp/AB.cpp/EOTS.cpp), a far more invasive change "
+        "than any other hook in this module."),
     10: ("explorer", "areatable_dbc.sql (which would carry AreaTable.dbc data) is an empty stub "
          "table with zero real subzone names/definitions, and no binary .dbc client files exist "
          "in this repo."),
