@@ -1,41 +1,50 @@
 import random
 import unittest
 
-from ..density import DensityBudget, sample_category
+from ..density import predict_sample_size, sample_category
 
 
-class TestDensityBudget(unittest.TestCase):
+class TestDensity(unittest.TestCase):
     def test_zero_density_samples_nothing(self) -> None:
-        budget = DensityBudget(check_density=0, hard_ceiling=1000)
-        rows = [{"name": f"Mob Kill {i}"} for i in range(500)]
+        rows = [f"Mob Kill {i}" for i in range(500)]
         rng = random.Random(1)
-        result = sample_category(budget, category_weight=50, all_rows=rows, rng=rng)
-        self.assertEqual(result, [])
+        self.assertEqual(sample_category(0, 100, rows, rng), [])
 
-    def test_full_density_full_weight_samples_everything_under_ceiling(self) -> None:
-        budget = DensityBudget(check_density=100, hard_ceiling=1000)
-        rows = [{"name": f"Rare Kill {i}"} for i in range(10)]
+    def test_full_density_full_weight_samples_everything(self) -> None:
+        rows = [f"Rare Kill {i}" for i in range(10)]
         rng = random.Random(1)
-        result = sample_category(budget, category_weight=100, all_rows=rows, rng=rng)
+        result = sample_category(100, 100, rows, rng)
         self.assertEqual(len(result), 10)
 
-    def test_hard_ceiling_caps_total_across_multiple_categories(self) -> None:
-        budget = DensityBudget(check_density=100, hard_ceiling=15)
-        rows_a = [{"name": f"A{i}"} for i in range(10)]
-        rows_b = [{"name": f"B{i}"} for i in range(10)]
-        rng = random.Random(1)
-        result_a = sample_category(budget, category_weight=100, all_rows=rows_a, rng=rng)
-        result_b = sample_category(budget, category_weight=100, all_rows=rows_b, rng=rng)
-        self.assertEqual(len(result_a) + len(result_b), 15)
+    def test_no_cross_category_ceiling_each_category_sampled_independently(self) -> None:
+        # Regression guard for the exact thing this task removes: two
+        # categories, each fully sampled at 100/100, must EACH come back
+        # full -- under the old DensityBudget(hard_ceiling=15) shape this
+        # would have clamped the combined total to 15 across both calls.
+        rows_a = [f"A{i}" for i in range(10)]
+        rows_b = [f"B{i}" for i in range(10)]
+        result_a = sample_category(100, 100, rows_a, random.Random(1))
+        result_b = sample_category(100, 100, rows_b, random.Random(1))
+        self.assertEqual(len(result_a), 10)
+        self.assertEqual(len(result_b), 10)
 
     def test_sampling_is_deterministic_given_the_same_rng_seed(self) -> None:
-        rows = [{"name": f"Mob Kill {i}"} for i in range(500)]
-        budget_1 = DensityBudget(check_density=40, hard_ceiling=1000)
-        budget_2 = DensityBudget(check_density=40, hard_ceiling=1000)
-        result_1 = sample_category(budget_1, category_weight=50, all_rows=rows, rng=random.Random(42))
-        result_2 = sample_category(budget_2, category_weight=50, all_rows=rows, rng=random.Random(42))
-        self.assertEqual([r["name"] for r in result_1], [r["name"] for r in result_2])
+        rows = [f"Mob Kill {i}" for i in range(500)]
+        result_1 = sample_category(40, 50, rows, random.Random(42))
+        result_2 = sample_category(40, 50, rows, random.Random(42))
+        self.assertEqual(result_1, result_2)
 
+    def test_predict_sample_size_matches_sample_category_count(self) -> None:
+        rows = [f"Row {i}" for i in range(37750)]
+        predicted = predict_sample_size(100, 10, len(rows))
+        sampled = sample_category(100, 10, rows, random.Random(7))
+        self.assertEqual(len(sampled), predicted)
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_predict_sample_size_zero_when_any_factor_zero(self) -> None:
+        self.assertEqual(predict_sample_size(0, 100, 1000), 0)
+        self.assertEqual(predict_sample_size(100, 0, 1000), 0)
+        self.assertEqual(predict_sample_size(100, 100, 0), 0)
+
+    def test_predict_sample_size_rounds_up(self) -> None:
+        # ceil(3 rows * 0.5 density * 1.0 weight) == 2, not 1
+        self.assertEqual(predict_sample_size(50, 100, 3), 2)
