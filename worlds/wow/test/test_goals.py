@@ -375,6 +375,18 @@ class TestFishingQuestCompletionRequiresAllFortySixFish(WoWTestBase):
         self.assertTrue(self.multiworld.completion_condition[self.player](state))
 
 
+class TestKeyHuntUnsatisfiableAfterCeilingRemoval(WoWTestBase):
+    run_default_tests = False
+    auto_construct = False
+    options = {"game_mode": "key_hunt", "check_density": 1, "key_hunt_keys_required": 40}
+
+    def test_key_hunt_unsatisfiable_keys_required_still_fails_after_ceiling_removal(self) -> None:
+        # ceil(40 rares * 0.01 density * 1.0 weight) == 1, far below the
+        # 40 keys required -- must still fail generation with no ceiling
+        # in the picture at all.
+        self.assertRaises(OptionError, self.world_setup)
+
+
 class TestFishingQuestNorthrendAccessRule(WoWTestBase):
     """Task 26 (spec Sec5.4): "fish-catch locations inherit normal regional
     access logic -- a Northrend-only fish requires Northrend Passage in

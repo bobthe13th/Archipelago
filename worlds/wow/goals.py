@@ -10,6 +10,7 @@ from . import collections_content_data
 from . import core_loop_content_data
 from . import density
 from . import fish_content_data
+from . import game_mode_profile
 from . import professions_content_data
 from . import rares_content_data
 
@@ -165,20 +166,17 @@ def _validate_key_hunt(world) -> None:
     # have actually sampled rares.yaml's rows -- generate_early (where this
     # runs) happens BEFORE create_regions in AP's generation lifecycle, so
     # the real sampled count doesn't exist yet at this point.
-    budget = density.DensityBudget(
-        check_density=world.options.check_density.value,
-        hard_ceiling=world.options.max_optional_locations.value,
+    predicted = density.predict_sample_size(
+        game_mode_profile.effective_check_density(world), category_weight=100, row_count=len(rares_content_data.LOCATIONS)
     )
-    predicted = density.predict_sample_size(budget, category_weight=100, row_count=len(rares_content_data.LOCATIONS))
     keys_required = world.options.key_hunt_keys_required.value
     if predicted < keys_required:
         raise OptionError(
             f"WoW: game_mode 'key_hunt' with key_hunt_keys_required={keys_required} "
             f"needs at least that many rares sampled into the pool, but "
-            f"check_density={world.options.check_density.value} / "
-            f"max_optional_locations={world.options.max_optional_locations.value} "
+            f"check_density={world.options.check_density.value} "
             f"would only sample {predicted} of the {len(rares_content_data.LOCATIONS)} "
-            f"curated rares -- raise check_density/max_optional_locations or lower "
+            f"curated rares -- raise check_density or lower "
             f"key_hunt_keys_required."
         )
 
