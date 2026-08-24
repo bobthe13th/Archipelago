@@ -4,7 +4,7 @@ from ..locations import _OPTIONAL_CATEGORIES, create_optional_category_locations
 
 
 class TestOptionalCategoryRegistry(WoWTestBase):
-    options = {"game_mode": "sprint", "check_density": 100, "max_optional_locations": 5000}
+    options = {"game_mode": "sprint", "check_density": 100}
 
     def test_registry_holds_exactly_quest_rewards_and_vendor_stock_after_group_1(self) -> None:
         # This test locked in the registry's SHAPE before Group 1 added its
@@ -89,7 +89,7 @@ class TestOptionalCategoryRegionsWiring(WoWTestBase):
     # accidental game_mode gate on the new call, or appending the sampled
     # locations to the wrong region -- would pass the entire suite.
     auto_construct = False
-    options = {"game_mode": "sprint", "check_density": 100, "max_optional_locations": 5000}
+    options = {"game_mode": "sprint", "check_density": 100}
 
     def test_registered_category_flows_through_create_regions(self) -> None:
         from .. import locations as locations_module

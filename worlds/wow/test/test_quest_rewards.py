@@ -35,11 +35,11 @@ class TestQuestRewardsRowAlignment(unittest.TestCase):
 
 
 class TestQuestRewardsRules(WoWTestBase):
-    # check_density: 100, max_optional_locations: 5000 against quest_rewards'
-    # 3,735 real rows guarantees every row -- including the specific
-    # min_level=20 location this test depends on -- is sampled into the
-    # pool, so this test doesn't depend on random sampling picking it.
-    options = {"game_mode": "sprint", "include_quest_rewards": True, "check_density": 100, "max_optional_locations": 5000}
+    # check_density: 100 against quest_rewards' 3,735 real rows guarantees
+    # every row -- including the specific min_level=20 location this test
+    # depends on -- is sampled into the pool, so this test doesn't depend on
+    # random sampling picking it.
+    options = {"game_mode": "sprint", "include_quest_rewards": True, "check_density": 100}
 
     # "Quest: Morbent Fel Reward (#55)" has trigger.min_level == 20 in the
     # real DB-extracted content/quest_rewards.yaml (quest_id 55). With
@@ -110,7 +110,6 @@ class TestQuestRewardsAvailableOutsideSprint(WoWTestBase):
         "game_mode": "key_hunt",
         "include_quest_rewards": True,
         "check_density": 100,
-        "max_optional_locations": 5000,
     }
 
     def test_quest_reward_locations_exist_in_key_hunt_mode(self) -> None:

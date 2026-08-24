@@ -41,14 +41,13 @@ class TestVendorStockHasNoRule(WoWTestBase):
     and no real region/zone graph in this checkout to attach an
     Access(NPC_Location)-style rule to. rules.py is untouched by this task,
     so every vendor_stock location must carry AP's own class default access
-    rule (Location.access_rule), never a real one. check_density: 100,
-    max_optional_locations: 5000 against vendor_stock's 37,750 real rows and
-    weight 10 samples ceil(37750 * 1.0 * 0.10) == 3775 rows (the weight is
-    the binding constraint here, not the 5000 ceiling, which is never
-    reached) -- still every one of those 3775 sampled locations is covered
-    by this test's loop, not just a hand-picked few."""
+    rule (Location.access_rule), never a real one. check_density: 100 against
+    vendor_stock's 37,750 real rows and weight 10 samples ceil(37750 * 1.0 *
+    0.10) == 3775 rows (the weight is the binding constraint) -- still every
+    one of those 3775 sampled locations is covered by this test's loop, not
+    just a hand-picked few."""
 
-    options = {"game_mode": "sprint", "include_vendor_stock": True, "check_density": 100, "max_optional_locations": 5000}
+    options = {"game_mode": "sprint", "include_vendor_stock": True, "check_density": 100}
 
     def test_all_vendor_stock_locations_have_no_access_rule(self) -> None:
         vendor_locations = [
@@ -78,7 +77,6 @@ class TestVendorStockAvailableOutsideSprint(WoWTestBase):
         "game_mode": "key_hunt",
         "include_vendor_stock": True,
         "check_density": 100,
-        "max_optional_locations": 5000,
     }
 
     def test_vendor_stock_locations_exist_in_key_hunt_mode(self) -> None:
@@ -99,7 +97,7 @@ class TestVendorStockItemPoolMatchesLocationCount(WoWTestBase):
     exactly the invariant items.py's row-index item-pooling fix (Task 3)
     exists to protect."""
 
-    options = {"game_mode": "sprint", "include_vendor_stock": True, "check_density": 100, "max_optional_locations": 5000}
+    options = {"game_mode": "sprint", "include_vendor_stock": True, "check_density": 100}
 
     def test_item_pool_matches_location_count_exactly(self) -> None:
         self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
