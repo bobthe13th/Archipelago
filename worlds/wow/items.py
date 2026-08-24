@@ -5,6 +5,7 @@ from . import content_data
 from .content_data import ITEMS
 from . import core_loop_content_data
 from . import fish_content_data
+from . import game_mode_profile
 from . import gates_content_data
 from . import professions_content_data
 from . import rares_content_data
@@ -304,7 +305,7 @@ def create_optional_category_item_pool(world) -> list:
 
     pool = []
     for category in _OPTIONAL_CATEGORIES:
-        if not bool(getattr(world.options, category.toggle_option)) or category.items_module is None:
+        if not game_mode_profile.is_category_eligible(world, category) or category.items_module is None:
             continue
         location_names = list(category.locations_module.LOCATIONS.keys())
         item_rows = list(category.items_module.ITEMS.items())
