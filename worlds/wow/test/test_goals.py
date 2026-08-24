@@ -474,32 +474,25 @@ class TestHundredPercentCompletionRuleStructure(WoWTestBase):
     fully-controlled fixture rather than this checkout's real quest_rewards/
     vendor_stock categories.
 
-    FORMERLY (see task-3-report.md's fix addendum for full detail): this
-    checkout's real optional categories could not be used to test
-    "collecting everything completes" end-to-end, because
-    world.optional_category_sampled_names was populated by locations.py's
-    create_optional_category_locations from category.locations_module.
-    LOCATIONS keys -- i.e. LOCATION names (e.g. "Quest: Kanrethad's Quest
-    Reward (#1)") -- while the actual pooled item for that same row has a
-    DIFFERENT name (e.g. "Quest Reward: Kanrethad's Quest (#1)"). That was a
-    real data-shape bug in Task 3's stash, now fixed by row-index-aligning
-    against category.items_module.ITEMS the same way items.py's
-    create_optional_category_item_pool already did -- WorldTestBase's
-    automatic beatable/fill checks (run_default_tests defaults to True,
-    no override needed here anymore) now pass for hundred_percent mode
-    using the real registered categories. This class still exercises the
-    lambda's structure directly against a hand-built name set below (rather
-    than only relying on the automatic checks), since that's a more
+    Historical note: world.optional_category_sampled_names originally held
+    LOCATION names (from locations.py's create_optional_category_locations),
+    not the ITEM names this rule's has_all(...) actually needs -- a real bug,
+    since fixed by row-index-aligning against category.items_module.ITEMS,
+    the same technique items.py's create_optional_category_item_pool already
+    used. WorldTestBase's automatic beatable/fill checks now pass for
+    hundred_percent mode against the real registered categories
+    (TestHundredPercentModeGeneratesAndRequiresAllLevelCaps covers that end
+    to end). This class additionally exercises the completion lambda's
+    structure directly against a hand-built name set below, as a more
     targeted regression guard for has_all's individual operands."""
     options = {"game_mode": "hundred_percent"}
 
-    def test_level_cap_and_instance_unlocks_alone_is_not_enough(self) -> None:
-        # Even with world.optional_category_sampled_names replaced by an
-        # empty set (isolating this assertion from the real-category name
-        # mismatch above), level cap x10 + all instance unlocks alone must
-        # still not be enough unless sampled_names is also empty --
-        # confirms has_all's other operand (remaining_names) really is
-        # being ANDed against the level-cap requirement, not ignored.
+    def test_level_cap_and_instance_unlocks_suffice_when_nothing_optional_sampled(self) -> None:
+        # With world.optional_category_sampled_names replaced by an empty
+        # set, level cap x10 + all instance unlocks alone ARE enough --
+        # confirms has_all's remaining_names operand correctly resolves to
+        # "nothing further required" when nothing was sampled, rather than
+        # e.g. failing on an empty has_all call.
         self.world.optional_category_sampled_names = set()
         goals.set_completion_rule_for_mode(self.world)
         state = self.multiworld.state
@@ -510,12 +503,10 @@ class TestHundredPercentCompletionRuleStructure(WoWTestBase):
 
     def test_missing_one_required_optional_category_name_blocks_completion(self) -> None:
         # Inject one fabricated "sampled" name that has no matching pooled
-        # item anywhere -- exactly the real-category situation confirmed
-        # above -- and confirm the completion rule correctly stays
-        # unsatisfied, proving has_all's sampled_names operand is load-
-        # bearing (not silently ignored) rather than asserting the
-        # (currently unreachable) positive "collect it and it completes"
-        # direction.
+        # item anywhere, and confirm the completion rule correctly stays
+        # unsatisfied -- proves has_all's sampled_names operand is load-
+        # bearing (not silently ignored), complementing the sibling test
+        # above which proves the "nothing extra required" case completes.
         self.world.optional_category_sampled_names = {"Nonexistent Optional Item"}
         goals.set_completion_rule_for_mode(self.world)
         state = self.multiworld.state

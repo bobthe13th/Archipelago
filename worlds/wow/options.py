@@ -141,8 +141,8 @@ class CollectorItemsRequired(Range):
 class CheckDensity(Range):
     """Global check density (0-100). Controls how many rows are sampled from
     each enabled optional location category. 0 disables every optional
-    category; 100 samples the maximum this seed's per-category weights and
-    hard ceiling allow. Level-ups and instance clears (the core loop) are
+    category; 100 samples the maximum this seed's per-category weights
+    allow. Level-ups and instance clears (the core loop) are
     never subject to this -- only optional categories route through it."""
     display_name = "Check Density"
     range_start = 0

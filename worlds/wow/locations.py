@@ -159,19 +159,20 @@ def create_rares_locations(world, region) -> list:
     # rares.yaml's 40 curated rows only become real locations when game_mode
     # is key_hunt, matching items.py's create_key_hunt_item_pool's identical
     # game_mode check. Also the first real caller of Task 2's density.py
-    # module anywhere in this codebase (density.sample_category, weight 100
-    # since Key Hunt has no other optional category competing for the shared
-    # budget) -- per this task's own Interfaces note, rares are sampled like
-    # any other optional category, not hand-picked per generation.
+    # module anywhere in this codebase (density.sample_category, weight 100)
+    # -- per this task's own Interfaces note, rares are sampled like any
+    # other optional category, not hand-picked per generation. (As of M4.6,
+    # every category -- including this one -- samples independently at its
+    # own weight/density; there is no shared cross-category ceiling to
+    # compete for.)
     #
     # The sampled COUNT (not the specific rows) is stashed on `world` so
     # items.py's create_key_hunt_item_pool, which runs later during
     # create_items, pools EXACTLY this many "Key Hunt: Key" copies --
     # re-sampling independently there (like count_enabled_gates_items/
     # count_enabled_trap_items do, which are pure functions of options alone)
-    # is not possible here without double-consuming world.random and risking
-    # a different length if the shared DensityBudget's state ever depends on
-    # a second concurrently-sampled category in a later task.
+    # is not possible here without double-consuming world.random and
+    # risking a different result.
     world.key_hunt_sampled_rare_count = 0
     if world.options.game_mode != "key_hunt":
         return []

@@ -265,7 +265,7 @@ def _set_completion_rule_collector(world) -> None:
     )
 
 
-# Task 28 (100% mode, design spec Sec5.4): completing the goal requires
+# M4.6 Task 7 (100% mode, M4.6 design spec Sec3): completing the goal requires
 # collecting literally everything -- all 10 Progressive Level Cap copies,
 # every Instance Unlock item, and every optional-category item this seed
 # actually sampled. Only meaningful when at least one OptionalCategory is
