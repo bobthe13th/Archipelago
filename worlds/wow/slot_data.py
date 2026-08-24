@@ -13,6 +13,7 @@ from __future__ import annotations
 def build_slot_data(world) -> dict:
     data: dict = {}
     _add_instance_clear_mode(world, data)
+    _add_ap_item_display_data(world, data)
     return data
 
 
@@ -24,3 +25,30 @@ def _add_instance_clear_mode(world, data: dict) -> None:
     # operator must still mirror this by hand via
     # Archipelago.InstanceClearMode until that gap is closed.
     data["instance_clear_mode"] = world.options.instance_clear_mode.current_key
+
+
+def _add_ap_item_display_data(world, data: dict) -> None:
+    """M4.7: for every one of this world's OWN locations that has a real
+    item placed (location.item is set once fill runs, which it always is by
+    the time fill_slot_data() is called), record the real owning player's
+    name, the real item's name, and its classification flags. This is the
+    generation-time equivalent of "ship a patch file" for a game whose
+    client stays completely stock (docs/guides/player-guide.md) -- the
+    C++ module reads this back out of the Connected message's slot_data at
+    connect time (Task 5) rather than rediscovering it over the network.
+    Every location in this world is included, not just Quest Rewards/Vendor
+    Inventories -- the C++ side only ever looks up ids it already knows are
+    AP-tagged (its own trigger registry, Task 1), so extra entries here are
+    harmless and this stays correct automatically as new families
+    (M4.10's sanity categories) start tagging their own locations too."""
+    display: dict[int, dict] = {}
+    for location in world.multiworld.get_locations(world.player):
+        if location.address is None or location.item is None:
+            continue
+        item = location.item
+        player_name = world.multiworld.get_player_name(item.player)
+        display[location.address] = {
+            "name": f"{player_name}'s {item.name}",
+            "flags": int(item.classification),
+        }
+    data["ap_item_display"] = display
