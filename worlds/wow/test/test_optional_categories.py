@@ -1,5 +1,4 @@
 # Archipelago/worlds/wow/test/test_optional_categories.py
-from .. import density
 from .bases import WoWTestBase
 from ..locations import _OPTIONAL_CATEGORIES, create_optional_category_locations
 
@@ -22,10 +21,6 @@ class TestOptionalCategoryRegistry(WoWTestBase):
         self.assertEqual(_OPTIONAL_CATEGORIES[1].toggle_option, "include_vendor_stock")
 
     def test_sprint_mode_calls_sample_category_when_categories_exist(self) -> None:
-        # Regression guard for the exact M4 bug this task fixes: Sprint mode
-        # must be able to pull SOME locations through the density budget,
-        # once at least one category is registered. Uses a fake in-test
-        # category rather than waiting for Group 1's real one to land.
         from .. import locations as locations_module
 
         class _FakeLocationsModule:
@@ -37,18 +32,41 @@ class TestOptionalCategoryRegistry(WoWTestBase):
         )
         locations_module._OPTIONAL_CATEGORIES.append(fake_category)
         try:
-            # NOTE: WorldTestBase.setUp() already called self.world_setup()
-            # once (auto_construct defaults True) before this test method
-            # runs -- self.world/self.multiworld are already populated by
-            # then; world_setup() itself returns None, it doesn't hand back
-            # a World. Do not call self.world_setup() again here.
             world = self.world
-            budget = density.DensityBudget(check_density=100, hard_ceiling=5000)
             region = self.multiworld.get_region("Northshire", world.player)
-            created = create_optional_category_locations(world, region, budget)
+            created = create_optional_category_locations(world, region)
             self.assertEqual(len(created), 3)  # ceil(3 * 1.0 * 1.0) == 3, all sampled
         finally:
             locations_module._OPTIONAL_CATEGORIES.remove(fake_category)
+
+    def test_hundred_percent_mode_stashes_sampled_names_on_world(self) -> None:
+        from .. import locations as locations_module
+
+        class _FakeLocationsModule:
+            LOCATIONS = {"Fake Loc A": 999900, "Fake Loc B": 999901}
+
+        fake_category = locations_module.OptionalCategory(
+            key="fake", toggle_option="include_quest_rewards", weight=100,
+            locations_module=_FakeLocationsModule, items_module=None,
+        )
+        # Swap the registry to hold ONLY the fake category for this test's
+        # duration: force_all_categories (100% mode) makes EVERY registered
+        # category eligible regardless of its toggle option, so the two
+        # already-registered real categories (quest_rewards, vendor_stock)
+        # would otherwise also get sampled and pollute the stashed-names
+        # assertion below with real content-table rows.
+        original_categories = locations_module._OPTIONAL_CATEGORIES
+        locations_module._OPTIONAL_CATEGORIES = [fake_category]
+        try:
+            world = self.world
+            world.options.game_mode.value = 12  # hundred_percent
+            region = self.multiworld.get_region("Northshire", world.player)
+            create_optional_category_locations(world, region)
+            self.assertEqual(world.optional_category_sampled_names, {"Fake Loc A", "Fake Loc B"})
+        finally:
+            locations_module._OPTIONAL_CATEGORIES = original_categories
+            if hasattr(world, "optional_category_sampled_names"):
+                del world.optional_category_sampled_names
 
 
 class TestOptionalCategoryRegionsWiring(WoWTestBase):

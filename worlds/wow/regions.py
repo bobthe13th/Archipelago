@@ -1,6 +1,5 @@
 # Archipelago/worlds/wow/regions.py
 from BaseClasses import Region
-from . import density
 from .locations import create_locations, create_core_loop_locations, create_filler_locations, create_rares_locations, create_fish_locations, create_professions_locations, create_collections_locations, create_optional_category_locations
 
 
@@ -28,11 +27,7 @@ def create_regions(world):
     # game mode, unlike the four families above which are each gated to one
     # owning mode. Empty until a Group 1-4 family task registers into
     # locations._OPTIONAL_CATEGORIES.
-    budget = density.DensityBudget(
-        check_density=world.options.check_density.value,
-        hard_ceiling=world.options.max_optional_locations.value,
-    )
-    northshire.locations += create_optional_category_locations(world, northshire, budget)
+    northshire.locations += create_optional_category_locations(world, northshire)
 
     northshire.locations += create_filler_locations(world, northshire)
 

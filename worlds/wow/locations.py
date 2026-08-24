@@ -9,6 +9,7 @@ from . import core_loop_content_data
 from . import density
 from . import filler_content_data
 from . import fish_content_data
+from . import game_mode_profile
 from . import professions_content_data
 from . import quest_rewards_content_data
 from . import rares_content_data
@@ -53,15 +54,22 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
 ))
 
 
-def create_optional_category_locations(world, region, budget: "density.DensityBudget") -> list:
+def create_optional_category_locations(world, region) -> list:
     created = []
+    profile = game_mode_profile.get_profile(world.options.game_mode.value)
+    if profile.force_all_categories and not hasattr(world, "optional_category_sampled_names"):
+        world.optional_category_sampled_names = set()
     for category in _OPTIONAL_CATEGORIES:
-        if not bool(getattr(world.options, category.toggle_option)):
+        if not game_mode_profile.is_category_eligible(world, category):
             continue
         all_rows = list(category.locations_module.LOCATIONS.items())
-        sampled = density.sample_category(budget, category.weight, all_rows, world.random)
+        sampled = density.sample_category(
+            game_mode_profile.effective_check_density(world), category.weight, all_rows, world.random,
+        )
         for name, location_id in sampled:
             created.append(WoWLocation(world.player, name, location_id, region))
+            if profile.force_all_categories:
+                world.optional_category_sampled_names.add(name)
     return created
 
 
@@ -151,12 +159,10 @@ def create_rares_locations(world, region) -> list:
     if world.options.game_mode != "key_hunt":
         return []
 
-    budget = density.DensityBudget(
-        check_density=world.options.check_density.value,
-        hard_ceiling=world.options.max_optional_locations.value,
-    )
     all_rows = list(rares_content_data.LOCATIONS.items())
-    sampled = density.sample_category(budget, category_weight=100, all_rows=all_rows, rng=world.random)
+    sampled = density.sample_category(
+        game_mode_profile.effective_check_density(world), category_weight=100, all_rows=all_rows, rng=world.random,
+    )
     world.key_hunt_sampled_rare_count = len(sampled)
     return [
         WoWLocation(world.player, name, location_id, region)
