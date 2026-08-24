@@ -11,7 +11,10 @@ class GameMode(Choice):
     Group 6) and currently fails generation immediately with an OptionError
     naming which task builds it, rather than silently falling back to
     Sprint's behavior. Selecting one of these before its task lands is a
-    configuration mistake the world should catch loudly, not paper over."""
+    configuration mistake the world should catch loudly, not paper over.
+    Modes: sprint=0, key_hunt=1, classic=2, burning_crusade=3, wrath=4,
+    completionist=5, artisan=6, collector=7, achievement_hunt=8,
+    gladiator=9, explorer=10, fishing_quest=11, hundred_percent=12."""
     display_name = "Game Mode"
     option_sprint = 0
     option_key_hunt = 1
@@ -25,6 +28,7 @@ class GameMode(Choice):
     option_gladiator = 9
     option_explorer = 10
     option_fishing_quest = 11
+    option_hundred_percent = 12
     default = 0
 
 
@@ -72,7 +76,7 @@ class KeyHuntKeysRequired(Range):
     the same coupling filler.yaml's own header comment documents for its
     ceiling). The actual number of keys pooled in a given generation is
     density-sampled (check_density), and can be LOWER than this value if
-    check_density/max_optional_locations constrain it below 40 -- a
+    check_density constrains the sampled rare count below 40 -- a
     key_hunt seed with a keys_required higher than what density sampling
     actually pools would be uncompletable, which is exactly what this
     task's goals.py validator exists to catch at generation time."""
