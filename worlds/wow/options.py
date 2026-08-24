@@ -12,9 +12,10 @@ class GameMode(Choice):
     naming which task builds it, rather than silently falling back to
     Sprint's behavior. Selecting one of these before its task lands is a
     configuration mistake the world should catch loudly, not paper over.
-    Modes: sprint=0, key_hunt=1, classic=2, burning_crusade=3, wrath=4,
-    completionist=5, artisan=6, collector=7, achievement_hunt=8,
-    gladiator=9, explorer=10, fishing_quest=11, hundred_percent=12."""
+    hundred_percent: one-click theoretical maximum -- forces every optional
+    category on at effective check_density 100, ignoring check_density and
+    every include_* toggle. A true one-click maximum, not a
+    default-but-overridable convenience."""
     display_name = "Game Mode"
     option_sprint = 0
     option_key_hunt = 1
