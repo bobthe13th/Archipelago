@@ -45,9 +45,17 @@ class TestOptionalCategoryRegistry(WoWTestBase):
         class _FakeLocationsModule:
             LOCATIONS = {"Fake Loc A": 999900, "Fake Loc B": 999901}
 
+        # Row-index-aligned with _FakeLocationsModule.LOCATIONS, using a
+        # DIFFERENT name per row -- mirrors every real optional category
+        # (e.g. quest_rewards: location "Quest: X Reward" vs item "Quest
+        # Reward: X"), so this test actually exercises the item-name lookup
+        # rather than accidentally passing if location/item names matched.
+        class _FakeItemsModule:
+            ITEMS = {"Fake Item A": (999800, 1), "Fake Item B": (999801, 1)}
+
         fake_category = locations_module.OptionalCategory(
             key="fake", toggle_option="include_quest_rewards", weight=100,
-            locations_module=_FakeLocationsModule, items_module=None,
+            locations_module=_FakeLocationsModule, items_module=_FakeItemsModule,
         )
         # Swap the registry to hold ONLY the fake category for this test's
         # duration: force_all_categories (100% mode) makes EVERY registered
@@ -62,7 +70,7 @@ class TestOptionalCategoryRegistry(WoWTestBase):
             world.options.game_mode.value = 12  # hundred_percent
             region = self.multiworld.get_region("Northshire", world.player)
             create_optional_category_locations(world, region)
-            self.assertEqual(world.optional_category_sampled_names, {"Fake Loc A", "Fake Loc B"})
+            self.assertEqual(world.optional_category_sampled_names, {"Fake Item A", "Fake Item B"})
         finally:
             locations_module._OPTIONAL_CATEGORIES = original_categories
             if hasattr(world, "optional_category_sampled_names"):

@@ -66,10 +66,27 @@ def create_optional_category_locations(world, region) -> list:
         sampled = density.sample_category(
             game_mode_profile.effective_check_density(world), category.weight, all_rows, world.random,
         )
+        # 100%'s stash needs to end up holding ITEM names, not location
+        # names -- goals.py's hundred_percent completion rule checks
+        # state.has_all(...) against the pooled ITEM, and every real
+        # optional category names its LOCATIONS/ITEMS rows with DIFFERENT
+        # prefixes for the same underlying row (e.g. quest_rewards_content_
+        # data: location "Quest: X Reward (#N)" vs item "Quest Reward: X
+        # (#N)" -- same trap items.py's create_optional_category_item_pool
+        # docstring documents and guards against). Pair by ROW INDEX against
+        # category.items_module.ITEMS, matching that function's technique,
+        # rather than storing the location name directly. Categories with no
+        # items_module (nothing pooled) are skipped -- there's no item name
+        # to require in that case.
+        item_rows = list(category.items_module.ITEMS.items()) if category.items_module is not None else None
+        row_index_by_location_name = (
+            {name: i for i, (name, _) in enumerate(all_rows)} if item_rows is not None else None
+        )
         for name, location_id in sampled:
             created.append(WoWLocation(world.player, name, location_id, region))
-            if profile.force_all_categories:
-                world.optional_category_sampled_names.add(name)
+            if profile.force_all_categories and item_rows is not None:
+                item_name = item_rows[row_index_by_location_name[name]][0]
+                world.optional_category_sampled_names.add(item_name)
     return created
 
 

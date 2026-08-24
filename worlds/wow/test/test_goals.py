@@ -436,19 +436,16 @@ class TestHundredPercentModeGeneratesAndRequiresAllLevelCaps(WoWTestBase):
     enough (mirrors Key Hunt's/Artisan's own "neither alone is enough"
     shape from TestKeyHuntCompletionRequiresKeysAndInstances above).
 
-    run_default_tests = False: WorldTestBase's own automatic
-    test_all_state_can_reach_everything/test_fill checks (which run for
-    every WoWTestBase subclass unless explicitly disabled) both fail for
-    hundred_percent mode today, even with every item in the game
-    collected -- see TestHundredPercentCompletionRuleStructure's docstring
-    below for the verified root cause (a real, pre-existing data-shape
-    mismatch between what Task 3's locations.py populates into
-    world.optional_category_sampled_names and what this task's
-    state.has_all check needs). Disabled here rather than left to fail the
-    suite, since fixing the root cause means touching locations.py, which
-    is out of this task's scope."""
+    run_default_tests defaults to True here (no override): WorldTestBase's
+    own automatic test_all_state_can_reach_everything/test_fill checks now
+    pass for hundred_percent mode -- they previously failed even with every
+    item collected due to a real data-shape bug in Task 3's locations.py
+    (world.optional_category_sampled_names was populated with LOCATION
+    names instead of the paired ITEM names state.has_all actually needs to
+    check for), now fixed by row-index-aligning the stash against
+    category.items_module.ITEMS the same way items.py's
+    create_optional_category_item_pool already did."""
     options = {"game_mode": "hundred_percent"}
-    run_default_tests = False
 
     def test_generates_successfully_with_registered_optional_categories(self) -> None:
         self.assertTrue(self.constructed)
@@ -477,36 +474,24 @@ class TestHundredPercentCompletionRuleStructure(WoWTestBase):
     fully-controlled fixture rather than this checkout's real quest_rewards/
     vendor_stock categories.
 
-    IMPORTANT FINDING (see task-7-report.md for full detail): this
-    checkout's real optional categories cannot be used to test "collecting
-    everything completes" end-to-end. world.optional_category_sampled_names
-    is populated by locations.py's create_optional_category_locations from
-    category.locations_module.LOCATIONS keys -- i.e. LOCATION names (e.g.
-    "Quest: Kanrethad's Quest Reward (#1)"). But the actual pooled item for
-    that same row has a DIFFERENT name (e.g. "Quest Reward: Kanrethad's
-    Quest (#1)") -- confirmed against quest_rewards_content_data.py and
-    vendor_stock_content_data.py directly, and matches items.py's own
-    create_optional_category_item_pool docstring, which explicitly warns
-    every existing optional-category family uses different LOCATIONS/ITEMS
-    name prefixes for the same row and pairs them by row index, not by
-    name. That means state.has_all(world.optional_category_sampled_names,
-    ...) checks for items using LOCATION-shaped names that are never
-    actually placed in the pool under those names, so the "all optional
-    items collected" branch of the brief's exact completion lambda can
-    never actually become true for either of this checkout's real
-    categories. This is a pre-existing data-shape mismatch between what
-    Task 3 populates and what a state.has_all check needs (out of scope
-    for this task to fix -- goals.py's production code matches the task-7
-    brief exactly), so this test exercises the lambda's structure directly
-    against a hand-built name set instead of asserting a real end-to-end
-    "collect everything -> completes" transition, which would fail today
-    for reasons outside this function's own logic.
-
-    run_default_tests = False for the same reason as the class above:
-    WorldTestBase's automatic beatable/fill checks fail against this
-    checkout's real optional categories due to the same root cause."""
+    FORMERLY (see task-3-report.md's fix addendum for full detail): this
+    checkout's real optional categories could not be used to test
+    "collecting everything completes" end-to-end, because
+    world.optional_category_sampled_names was populated by locations.py's
+    create_optional_category_locations from category.locations_module.
+    LOCATIONS keys -- i.e. LOCATION names (e.g. "Quest: Kanrethad's Quest
+    Reward (#1)") -- while the actual pooled item for that same row has a
+    DIFFERENT name (e.g. "Quest Reward: Kanrethad's Quest (#1)"). That was a
+    real data-shape bug in Task 3's stash, now fixed by row-index-aligning
+    against category.items_module.ITEMS the same way items.py's
+    create_optional_category_item_pool already did -- WorldTestBase's
+    automatic beatable/fill checks (run_default_tests defaults to True,
+    no override needed here anymore) now pass for hundred_percent mode
+    using the real registered categories. This class still exercises the
+    lambda's structure directly against a hand-built name set below (rather
+    than only relying on the automatic checks), since that's a more
+    targeted regression guard for has_all's individual operands."""
     options = {"game_mode": "hundred_percent"}
-    run_default_tests = False
 
     def test_level_cap_and_instance_unlocks_alone_is_not_enough(self) -> None:
         # Even with world.optional_category_sampled_names replaced by an
