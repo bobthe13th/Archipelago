@@ -13,6 +13,7 @@ from . import fish_content_data
 from . import game_mode_profile
 from . import professions_content_data
 from . import rares_content_data
+from .locations import _OPTIONAL_CATEGORIES
 
 
 def validate(world) -> None:
@@ -264,6 +265,34 @@ def _set_completion_rule_collector(world) -> None:
     )
 
 
+# Task 28 (100% mode, design spec Sec5.4): completing the goal requires
+# collecting literally everything -- all 10 Progressive Level Cap copies,
+# every Instance Unlock item, and every optional-category item this seed
+# actually sampled. Only meaningful when at least one OptionalCategory is
+# registered (locations.py's _OPTIONAL_CATEGORIES) -- with zero registered,
+# "100%" would be indistinguishable from Sprint's own completion condition.
+def _validate_hundred_percent(world) -> None:
+    if not _OPTIONAL_CATEGORIES:
+        raise OptionError(
+            "WoW: game_mode 'hundred_percent' requires at least one optional "
+            "category to be registered in this build -- none are (see "
+            "locations.OptionalCategory registrations)."
+        )
+
+
+def _set_completion_rule_hundred_percent(world) -> None:
+    level_cap_copies = core_loop_content_data.ITEMS["Progressive Level Cap"][1]
+    instance_unlock_names = {
+        f"Instance Unlock: {name}" for name in _INSTANCE_KEY_DISPLAY_NAMES.values()
+    }
+    sampled_names = getattr(world, "optional_category_sampled_names", set())
+    remaining_names = instance_unlock_names | sampled_names
+    world.set_completion_rule(
+        lambda state: state.has("Progressive Level Cap", world.player, level_cap_copies)
+        and state.has_all(remaining_names, world.player)
+    )
+
+
 # GameMode.value -> bare option name, for every mode without real content
 # yet (scheduling gap, not a data-availability problem). Mirrors
 # options.py's GameMode option_* attributes exactly -- keep both in sync
@@ -309,6 +338,7 @@ _VALIDATORS = {
     6: _validate_artisan,
     7: _validate_collector,
     11: _validate_fishing_quest,
+    12: _validate_hundred_percent,  # option_hundred_percent
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
     **{value: _not_buildable(name, reason) for value, (name, reason) in _NOT_BUILDABLE_MODES.items()},
 }
@@ -322,6 +352,7 @@ _COMPLETION_RULES = {
     6: _set_completion_rule_artisan,
     7: _set_completion_rule_collector,
     11: _set_completion_rule_fishing_quest,
+    12: _set_completion_rule_hundred_percent,  # option_hundred_percent
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
     **{value: _not_buildable(name, reason) for value, (name, reason) in _NOT_BUILDABLE_MODES.items()},
 }
