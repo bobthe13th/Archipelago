@@ -150,18 +150,6 @@ class CheckDensity(Range):
     default = 25
 
 
-class MaxOptionalLocations(Range):
-    """Hard ceiling on the total number of optional-category locations added
-    to the pool in one generation, regardless of check_density or how many
-    optional categories are enabled. Exists so a maximalist combination of
-    high density + many enabled categories can't bloat the datapackage or
-    generation time unboundedly."""
-    display_name = "Max Optional Locations"
-    range_start = 0
-    range_end = 5000
-    default = 300
-
-
 class DeliveryPolicy(Choice):
     """How Archipelago-granted items reach you. This never affects what
     items exist or what's required to win -- see design spec §7; never read
@@ -468,7 +456,6 @@ class IncludeVendorStock(Toggle):
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
     check_density: CheckDensity
-    max_optional_locations: MaxOptionalLocations
     delivery_policy: DeliveryPolicy
     auction_house_cost_tier: AuctionHouseCostTier
     proficiency_gating: ProficiencyGating
