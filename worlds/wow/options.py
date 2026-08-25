@@ -463,7 +463,16 @@ class VendorCheckRepeatBehavior(Choice):
     filler_consumable grants a fixed generic filler item instead. Read
     directly from slot_data at connect (Finding #10's first real consumer) --
     unlike most of this module's options, this one does NOT need a manual
-    Archipelago.conf mirror."""
+    Archipelago.conf mirror.
+    Two caveats not obvious from the names above (M4.7 final review, Finding
+    I7): gold_conversion is NOT a fair trade -- the player is still charged
+    the real item's full BuyPrice (times any reputation discount) to make
+    the repeat purchase, and only refunded the item's (typically much lower)
+    SellPrice, a guaranteed net loss of roughly 75-80% of the price paid.
+    vanilla_item and filler_consumable each grant exactly 1 unit of the item
+    regardless of the quantity actually purchased, and neither of those two
+    (nor gold_conversion beyond its partial SellPrice refund) refunds the
+    gold charged for the purchase."""
     display_name = "Vendor Check Repeat Behavior"
     option_suppress_entirely = 0
     option_vanilla_item = 1

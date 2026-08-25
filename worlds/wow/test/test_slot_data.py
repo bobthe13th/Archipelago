@@ -1,6 +1,7 @@
 import unittest
 from types import SimpleNamespace
 
+from .. import locations as locations_module
 from .. import slot_data as slot_data_module
 from BaseClasses import ItemClassification
 
@@ -13,16 +14,47 @@ class _FakeItem:
 
 
 class _FakeLocation:
-    def __init__(self, address, item) -> None:
+    def __init__(self, name, address, item) -> None:
+        self.name = name
         self.address = address
         self.item = item
 
 
+class _FakeFamilyLocationsModule:
+    LOCATIONS = {"Quest: Fake Reward (#1)": 2000000}
+
+
+class _FakeVendorLocationsModule:
+    LOCATIONS = {"Vendor: Fake NPC - Fake Item (#1)": 2500000}
+
+
 class TestAddApItemDisplayData(unittest.TestCase):
+    def setUp(self) -> None:
+        # Finding I3: _add_ap_item_display_data now only includes locations
+        # whose name is registered under the quest_rewards/vendor_stock
+        # OptionalCategory entries -- swap the registry for this test's
+        # duration so it exercises the real filtering logic against a small,
+        # controlled set of names instead of the full 41k-row real content
+        # tables. Restored in tearDown regardless of test outcome.
+        self._original_categories = locations_module._OPTIONAL_CATEGORIES
+        locations_module._OPTIONAL_CATEGORIES = [
+            locations_module.OptionalCategory(
+                key="quest_rewards", toggle_option="include_quest_rewards", weight=100,
+                locations_module=_FakeFamilyLocationsModule, items_module=None,
+            ),
+            locations_module.OptionalCategory(
+                key="vendor_stock", toggle_option="include_vendor_stock", weight=10,
+                locations_module=_FakeVendorLocationsModule, items_module=None,
+            ),
+        ]
+
+    def tearDown(self) -> None:
+        locations_module._OPTIONAL_CATEGORIES = self._original_categories
+
     def test_builds_one_entry_per_ap_item_family_location(self) -> None:
         locations = [
-            _FakeLocation(2000000, _FakeItem("Sword of Might", player=2, classification=ItemClassification.progression)),
-            _FakeLocation(1000001, _FakeItem("Minor Heal Potion", player=1, classification=ItemClassification.filler)),
+            _FakeLocation("Quest: Fake Reward (#1)", 2000000, _FakeItem("Sword of Might", player=2, classification=ItemClassification.progression)),
+            _FakeLocation("Vendor: Fake NPC - Fake Item (#1)", 2500000, _FakeItem("Minor Heal Potion", player=1, classification=ItemClassification.filler)),
         ]
         world = SimpleNamespace(
             player=1,
@@ -37,14 +69,14 @@ class TestAddApItemDisplayData(unittest.TestCase):
             data["ap_item_display"],
             {
                 2000000: {"name": "Alice's Sword of Might", "flags": int(ItemClassification.progression)},
-                1000001: {"name": "Tester's Minor Heal Potion", "flags": int(ItemClassification.filler)},
+                2500000: {"name": "Tester's Minor Heal Potion", "flags": int(ItemClassification.filler)},
             },
         )
 
     def test_skips_locations_with_no_item_or_no_address(self) -> None:
         locations = [
-            _FakeLocation(None, _FakeItem("Unplaced", player=1, classification=ItemClassification.filler)),
-            _FakeLocation(1000002, None),
+            _FakeLocation("Quest: Fake Reward (#1)", None, _FakeItem("Unplaced", player=1, classification=ItemClassification.filler)),
+            _FakeLocation("Vendor: Fake NPC - Fake Item (#1)", 2500000, None),
         ]
         world = SimpleNamespace(
             player=1,
@@ -53,6 +85,26 @@ class TestAddApItemDisplayData(unittest.TestCase):
         data: dict = {}
         slot_data_module._add_ap_item_display_data(world, data)
         self.assertEqual(data["ap_item_display"], {})
+
+    def test_excludes_locations_outside_quest_rewards_and_vendor_stock(self) -> None:
+        # Finding I3's actual regression target: a location that has a real
+        # item placed and a real address, but does NOT belong to either
+        # registered family (e.g. a core-loop level-up location) must be
+        # excluded, not included "harmlessly" as the pre-fix code did.
+        locations = [
+            _FakeLocation("Reach Level 10", 900010, _FakeItem("Progressive Level Cap", player=1, classification=ItemClassification.progression)),
+            _FakeLocation("Quest: Fake Reward (#1)", 2000000, _FakeItem("Sword of Might", player=1, classification=ItemClassification.progression)),
+        ]
+        world = SimpleNamespace(
+            player=1,
+            multiworld=SimpleNamespace(get_locations=lambda player: locations, get_player_name=lambda p: "Tester"),
+        )
+        data: dict = {}
+        slot_data_module._add_ap_item_display_data(world, data)
+        self.assertEqual(
+            data["ap_item_display"],
+            {2000000: {"name": "Tester's Sword of Might", "flags": int(ItemClassification.progression)}},
+        )
 
 
 class TestAddVendorCheckRepeatBehavior(unittest.TestCase):
