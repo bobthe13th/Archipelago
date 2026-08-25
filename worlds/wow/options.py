@@ -472,7 +472,16 @@ class VendorCheckRepeatBehavior(Choice):
     vanilla_item and filler_consumable each grant exactly 1 unit of the item
     regardless of the quantity actually purchased, and neither of those two
     (nor gold_conversion beyond its partial SellPrice refund) refunds the
-    gold charged for the purchase."""
+    gold charged for the purchase.
+    KNOWN LIMITATION (as of the vendor maxcount=1 stock-limit change): vanilla_item,
+    gold_conversion, and filler_consumable currently have NO EFFECT for Vendor
+    Inventories locations -- the vendor's own native stock limit (maxcount=1) now
+    refuses a second purchase attempt before this module's interception hook can
+    ever run, so only suppress_entirely's behavior (a no-op) is actually reachable
+    in practice. This is an unintended interaction between two separately-built
+    features, not a deliberate design choice, and is tracked for a real fix
+    (conditionally applying the stock limit only when this option is
+    suppress_entirely) in a future pass."""
     display_name = "Vendor Check Repeat Behavior"
     option_suppress_entirely = 0
     option_vanilla_item = 1
