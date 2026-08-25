@@ -14,6 +14,7 @@ def build_slot_data(world) -> dict:
     data: dict = {}
     _add_instance_clear_mode(world, data)
     _add_ap_item_display_data(world, data)
+    _add_vendor_check_repeat_behavior(world, data)
     return data
 
 
@@ -52,3 +53,7 @@ def _add_ap_item_display_data(world, data: dict) -> None:
             "flags": int(item.classification),
         }
     data["ap_item_display"] = display
+
+
+def _add_vendor_check_repeat_behavior(world, data: dict) -> None:
+    data["vendor_check_repeat_behavior"] = world.options.vendor_check_repeat_behavior.current_key

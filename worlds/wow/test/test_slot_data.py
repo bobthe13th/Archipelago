@@ -53,3 +53,11 @@ class TestAddApItemDisplayData(unittest.TestCase):
         data: dict = {}
         slot_data_module._add_ap_item_display_data(world, data)
         self.assertEqual(data["ap_item_display"], {})
+
+
+class TestAddVendorCheckRepeatBehavior(unittest.TestCase):
+    def test_adds_vendor_check_repeat_behavior_current_key(self) -> None:
+        world = SimpleNamespace(options=SimpleNamespace(vendor_check_repeat_behavior=SimpleNamespace(current_key="gold_conversion")))
+        data: dict = {}
+        slot_data_module._add_vendor_check_repeat_behavior(world, data)
+        self.assertEqual(data["vendor_check_repeat_behavior"], "gold_conversion")

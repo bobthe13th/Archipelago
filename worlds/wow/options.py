@@ -452,6 +452,26 @@ class IncludeVendorStock(Toggle):
     default = False
 
 
+class VendorCheckRepeatBehavior(Choice):
+    """What happens when a player interacts again with a Vendor Inventories
+    slot they've already checked (M4.7). The synthesized AP item only ever
+    represents the FIRST interaction -- suppress_entirely (default) cancels
+    the purchase/refunds gold with a system message, matching "kept out of
+    the way as much as possible". vanilla_item swaps back to the real WoW
+    item, as if the slot had never been AP-tagged. gold_conversion grants
+    the real item's vendor SellPrice in copper instead of either item.
+    filler_consumable grants a fixed generic filler item instead. Read
+    directly from slot_data at connect (Finding #10's first real consumer) --
+    unlike most of this module's options, this one does NOT need a manual
+    Archipelago.conf mirror."""
+    display_name = "Vendor Check Repeat Behavior"
+    option_suppress_entirely = 0
+    option_vanilla_item = 1
+    option_gold_conversion = 2
+    option_filler_consumable = 3
+    default = 0
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -482,4 +502,5 @@ class WoWOptions(PerGameCommonOptions):
     collector_items_required: CollectorItemsRequired
     include_quest_rewards: IncludeQuestRewards
     include_vendor_stock: IncludeVendorStock
+    vendor_check_repeat_behavior: VendorCheckRepeatBehavior
 
