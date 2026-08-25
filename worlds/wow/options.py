@@ -160,7 +160,7 @@ class DeliveryPolicy(Choice):
     (see the module's conf.dist for the matching warning, including the
     auction_house + access_gating softlock it refuses to combine)."""
     display_name = "Item Delivery Policy"
-    option_everyone_receives = 0
+    option_single_delivery_character = 0
     option_shared_cache_npc = 1
     option_auction_house = 2
     option_first_to_claim = 3
@@ -228,7 +228,7 @@ class CatchUpPolicy(Choice):
     """How a brand-new character catches up on WoW items the realm has
     already received (spec §7.2). Every delivered item is logged once
     regardless of delivery_policy, but historically only reached one
-    designated character (everyone_receives' delivery character); every
+    designated character (single_delivery_character's delivery character); every
     other character starts with none of it. Never read by any rule. The
     connected worldserver must also have Archipelago.CatchUpPolicy set to
     match -- same manual-sync requirement as delivery_policy and the gate
