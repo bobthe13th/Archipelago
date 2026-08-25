@@ -158,12 +158,22 @@ class DeliveryPolicy(Choice):
     read this option from the AP server itself, same manual-sync
     requirement as proficiency_gating/access_gating/character_unlock_gating
     (see the module's conf.dist for the matching warning, including the
-    auction_house + access_gating softlock it refuses to combine)."""
+    auction_house + access_gating softlock it refuses to combine).
+    all_accounts_delivery mails every delivered item to every account with
+    at least one real (non-deleted) character -- deduped to one character
+    per account (whichever logged out most recently), not literally every
+    character. No cap on volume: a long campaign can mail thousands of
+    items to every account with no filtering by classification. Orthogonal
+    to catch_up_policy: this only ever reaches accounts/characters that
+    exist AT THE MOMENT each item is delivered -- an account created
+    afterward relies entirely on catch_up_policy to backfill what it
+    missed, exactly like every other delivery policy."""
     display_name = "Item Delivery Policy"
     option_single_delivery_character = 0
     option_shared_cache_npc = 1
     option_auction_house = 2
     option_first_to_claim = 3
+    option_all_accounts_delivery = 4
     default = 0
 
 
