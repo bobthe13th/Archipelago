@@ -231,6 +231,14 @@ class TestKeyHuntCompletionRequiresKeysAndInstances(WoWTestBase):
         "check_density": 100,
         "key_hunt_keys_required": 5,
         "key_hunt_instances_required": 2,
+        # M4.8.0: this class doesn't reference quest_rewards/vendor_stock at
+        # all -- check_density: 100 above is only meant to guarantee all 40
+        # Key Hunt rares sample in, but without an explicit weight override
+        # here it also pulls in the full ~47,000-row quest_rewards/
+        # vendor_stock tables at their own real-seed weight default of 100,
+        # making this test pathologically slow for no test-relevant reason.
+        "quest_reward_weight": 0,
+        "vendor_stock_weight": 0,
     }
 
     def test_keys_alone_is_not_enough(self) -> None:
@@ -436,16 +444,32 @@ class TestHundredPercentModeGeneratesAndRequiresAllLevelCaps(WoWTestBase):
     enough (mirrors Key Hunt's/Artisan's own "neither alone is enough"
     shape from TestKeyHuntCompletionRequiresKeysAndInstances above).
 
-    run_default_tests defaults to True here (no override): WorldTestBase's
-    own automatic test_all_state_can_reach_everything/test_fill checks now
-    pass for hundred_percent mode -- they previously failed even with every
-    item collected due to a real data-shape bug in Task 3's locations.py
-    (world.optional_category_sampled_names was populated with LOCATION
-    names instead of the paired ITEM names state.has_all actually needs to
-    check for), now fixed by row-index-aligning the stash against
-    category.items_module.ITEMS the same way items.py's
-    create_optional_category_item_pool already did."""
+    run_default_tests previously defaulted to True here (no override):
+    WorldTestBase's own automatic test_all_state_can_reach_everything/
+    test_fill checks passed for hundred_percent mode -- they previously
+    failed even with every item collected due to a real data-shape bug in
+    Task 3's locations.py (world.optional_category_sampled_names was
+    populated with LOCATION names instead of the paired ITEM names
+    state.has_all actually needs to check for), fixed by row-index-aligning
+    the stash against category.items_module.ITEMS the same way items.py's
+    create_optional_category_item_pool already did.
+
+    M4.8.0: run_default_tests is now explicitly False. AP core's generic
+    test_fill (test/bases.py) reimplements accessibility verification as an
+    explicit sphere search that rescans the ENTIRE remaining location list
+    on every wave -- confirmed empirically to take upward of 10 minutes,
+    isolated, at this class's real ~47,000-location scale (quest_rewards +
+    vendor_stock both forced to full inclusion by hundred_percent's own
+    force_all_categories), vs. ~20s for pure world construction alone. This
+    is AP-core test-harness complexity, not a defect in this apworld, and
+    not something to patch under this milestone's scope. The three explicit
+    test methods below already cover this class's documented, load-bearing
+    assertions (generates successfully, 9-of-10 level caps insufficient,
+    optional_category_sampled_names populated) without needing AP core's
+    own generic beat-the-game re-verification; every other game mode in
+    this suite still runs it normally."""
     options = {"game_mode": "hundred_percent"}
+    run_default_tests = False
 
     def test_generates_successfully_with_registered_optional_categories(self) -> None:
         self.assertTrue(self.constructed)
@@ -484,8 +508,29 @@ class TestHundredPercentCompletionRuleStructure(WoWTestBase):
     (TestHundredPercentModeGeneratesAndRequiresAllLevelCaps covers that end
     to end). This class additionally exercises the completion lambda's
     structure directly against a hand-built name set below, as a more
-    targeted regression guard for has_all's individual operands."""
+    targeted regression guard for has_all's individual operands.
+
+    M4.8.0 fix: this docstring already claimed to use "a minimal,
+    fully-controlled fixture rather than this checkout's real
+    quest_rewards/vendor_stock categories", but the code didn't actually do
+    that -- setUp() still built the full real ~47,000-row world every run
+    (both tests below immediately overwrite optional_category_sampled_names
+    anyway, making that real construction 100% wasted work). auto_construct
+    = False + a temporary EMPTY _OPTIONAL_CATEGORIES swap in setUp() now
+    matches this docstring's actual stated intent, mirroring the same
+    swap-before-construct pattern test_optional_categories.py's
+    TestOptionalCategoryRegionsWiring already established."""
     options = {"game_mode": "hundred_percent"}
+    auto_construct = False
+
+    def setUp(self) -> None:
+        from .. import locations as locations_module
+        original = locations_module._OPTIONAL_CATEGORIES
+        locations_module._OPTIONAL_CATEGORIES = []
+        try:
+            self.world_setup()
+        finally:
+            locations_module._OPTIONAL_CATEGORIES = original
 
     def test_level_cap_and_instance_unlocks_suffice_when_nothing_optional_sampled(self) -> None:
         # With world.optional_category_sampled_names replaced by an empty

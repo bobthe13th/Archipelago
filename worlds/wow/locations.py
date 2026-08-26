@@ -24,14 +24,14 @@ class WoWLocation(Location):
 @dataclass
 class OptionalCategory:
     """One entry per DB-derived optional-location family available in EVERY
-    game mode (not gated to one owning mode, unlike rares/fish/professions/
-    collections -- see this plan's Repo-state findings #3 for why those four
-    are deliberately NOT migrated onto this registry). Groups 1-4 each
-    append exactly one entry here; nothing else needs to change per family."""
+    game mode. M4.8: `toggle_option`/`weight` (a single bool + hardcoded
+    int) are replaced by `tag_options` (one WoWOptions OptionSet field name
+    per independent tag dimension) and `weight_option` (a WoWOptions Range
+    field name) -- see this plan's Task 5 and the design spec §5."""
     key: str
-    toggle_option: str  # WoWOptions field name, e.g. "include_quest_rewards"
-    weight: int  # category_weight passed to density.sample_category
-    locations_module: object  # exposes .LOCATIONS: dict[str, int]
+    tag_options: dict[str, str]  # tag dimension -> WoWOptions OptionSet field name
+    weight_option: str           # WoWOptions Range field name
+    locations_module: object     # exposes .LOCATIONS/.TAGS/.ALWAYS_PRESENT
     items_module: Optional[object]  # exposes .ITEMS: dict[str, tuple[int, int]]; None if items live elsewhere
 
 
@@ -39,54 +39,81 @@ _OPTIONAL_CATEGORIES: list[OptionalCategory] = []
 
 _OPTIONAL_CATEGORIES.append(OptionalCategory(
     key="quest_rewards",
-    toggle_option="include_quest_rewards",
-    weight=100,
+    tag_options={"type": "quest_reward_type_pools", "expansion": "quest_reward_expansion_pools"},
+    weight_option="quest_reward_weight",
     locations_module=quest_rewards_content_data,
     items_module=quest_rewards_content_data,
 ))
 
 _OPTIONAL_CATEGORIES.append(OptionalCategory(
     key="vendor_stock",
-    toggle_option="include_vendor_stock",
-    weight=10,
+    tag_options={"expansion": "vendor_stock_expansion_pools"},
+    weight_option="vendor_stock_weight",
     locations_module=vendor_stock_content_data,
     items_module=vendor_stock_content_data,
 ))
 
 
+def _location_matches_pools(world, category: OptionalCategory, name: str) -> bool:
+    """AND across dimensions, OR within a dimension's own selected values
+    (spec §2). A category with zero tag_options entries (none exist as of
+    M4.8.0, but the loop below degrades correctly to "always matches" if
+    one ever does) still requires locations_module.TAGS[name] to resolve --
+    every export_tags family unconditionally emits a TAGS entry per
+    location (Task 1), so this never KeyErrors for a real family."""
+    tags = category.locations_module.TAGS[name]
+    for dimension, option_name in category.tag_options.items():
+        selected = getattr(world.options, option_name).value
+        if not (tags[dimension] & selected):
+            return False
+    return True
+
+
 def create_optional_category_locations(world, region) -> list:
     created = []
     profile = game_mode_profile.get_profile(world.options.game_mode.value)
-    if profile.force_all_categories and not hasattr(world, "optional_category_sampled_names"):
+    force_all = profile.force_all_categories
+    if force_all and not hasattr(world, "optional_category_sampled_names"):
         world.optional_category_sampled_names = set()
+    check_density = game_mode_profile.effective_check_density(world)
+
     for category in _OPTIONAL_CATEGORIES:
-        if not game_mode_profile.is_category_eligible(world, category):
-            continue
         all_rows = list(category.locations_module.LOCATIONS.items())
-        sampled = density.sample_category(
-            game_mode_profile.effective_check_density(world), category.weight, all_rows, world.random,
-        )
-        # 100%'s stash needs to end up holding ITEM names, not location
-        # names -- goals.py's hundred_percent completion rule checks
-        # state.has_all(...) against the pooled ITEM, and every real
-        # optional category names its LOCATIONS/ITEMS rows with DIFFERENT
-        # prefixes for the same underlying row (e.g. quest_rewards_content_
-        # data: location "Quest: X Reward (#N)" vs item "Quest Reward: X
-        # (#N)" -- same trap items.py's create_optional_category_item_pool
-        # docstring documents and guards against). Pair by ROW INDEX against
-        # category.items_module.ITEMS, matching that function's technique,
-        # rather than storing the location name directly. Categories with no
-        # items_module (nothing pooled) are skipped -- there's no item name
-        # to require in that case.
         item_rows = list(category.items_module.ITEMS.items()) if category.items_module is not None else None
         row_index_by_location_name = (
             {name: i for i, (name, _) in enumerate(all_rows)} if item_rows is not None else None
         )
-        for name, location_id in sampled:
-            created.append(WoWLocation(world.player, name, location_id, region))
-            if profile.force_all_categories and item_rows is not None:
+
+        def _stash(name: str) -> None:
+            # 100%'s stash needs ITEM names, not location names -- see the
+            # prior version of this comment (unchanged reasoning, M4.6/M4.7).
+            if force_all and item_rows is not None:
                 item_name = item_rows[row_index_by_location_name[name]][0]
                 world.optional_category_sampled_names.add(item_name)
+
+        # always_present locations (M4.8's exemption mechanism, spec §2a):
+        # bypass BOTH the tag-filter stage AND the density/weight sample
+        # entirely -- unconditionally created regardless of is_category_eligible,
+        # tag selection, or weight, since this project's DK-reachability
+        # guarantee (rules.py) depends on these being present no matter what
+        # a player selects for this category.
+        always_present_names = getattr(category.locations_module, "ALWAYS_PRESENT", frozenset())
+        for name, location_id in all_rows:
+            if name in always_present_names:
+                created.append(WoWLocation(world.player, name, location_id, region))
+                _stash(name)
+
+        if not game_mode_profile.is_category_eligible(world, category):
+            continue
+
+        candidates = [
+            (name, location_id) for name, location_id in all_rows
+            if name not in always_present_names and (force_all or _location_matches_pools(world, category, name))
+        ]
+        category_weight = 100 if force_all else getattr(world.options, category.weight_option).value
+        for name, location_id in density.sample_category(check_density, category_weight, candidates, world.random):
+            created.append(WoWLocation(world.player, name, location_id, region))
+            _stash(name)
     return created
 
 

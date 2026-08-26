@@ -74,39 +74,24 @@ def set_rules(world):
                 lambda state: state.has("Northrend Passage", world.player),
             )
 
-    # M4.5 Task 6 (Quest Rewards): reuses the EXACT same "copies_needed via
-    # Progressive Level Cap" math as the level-milestone loop above (this
-    # function's own lines 40-52), since a quest_reward's min_level is the
-    # identical underlying constraint -- can't turn in a quest that requires
-    # a level you haven't reached yet -- just applied to a different content
-    # family. Only meaningful when include_quest_rewards is on, since that's
-    # the only time quest_rewards_content_data's locations exist in the pool
-    # at all (locations.py's OptionalCategory registration).
-    #
-    # CLAMP (real defect found while implementing this task, not present in
-    # the brief's original snippet): content/quest_rewards.yaml is DB-derived
-    # and its raw min_level values run all the way up to 255 (TBC/Wrath-era
-    # quests and a few sentinel/placeholder rows), while Sprint mode's own
-    # item pool only ever contains a FIXED 10 "Progressive Level Cap" copies
-    # (core_loop_content_data.ITEMS["Progressive Level Cap"][1] -- the same
-    # count that caps out at level 60 for the "Reach Level 60"/Sprint-goal
-    # locations above). An unclamped copies_needed for a min_level=255 quest
-    # would demand more copies than exist anywhere in the pool, making that
-    # location permanently unreachable and failing generation outright
-    # (confirmed empirically: test_all_state_can_reach_everything and
-    # test_fill both failed before this clamp was added). Clamping to
-    # total_caps mirrors the DK-safe clamp already used for levels <= 55
-    # above -- once every copy is held, every quest_reward location must be
-    # reachable, regardless of how large its raw min_level is.
-    if world.options.include_quest_rewards:
-        total_caps = core_loop_content_data.ITEMS["Progressive Level Cap"][1]
-        for loc in world.multiworld.get_locations(world.player):
-            if not loc.name.startswith("Quest:") or loc.name not in quest_rewards_content_data.LOCATIONS:
-                continue
-            trigger = quest_rewards_content_data.TRIGGERS[loc.name]
-            copies_needed = min(total_caps, max(0, math.ceil((trigger["min_level"] - starting_cap) / step)))
-            if copies_needed > 0:
-                world.set_rule(
-                    loc,
-                    lambda state, count=copies_needed: state.has("Progressive Level Cap", world.player, count),
-                )
+    # M4.5 Task 6 (Quest Rewards), M4.8.0: unconditional -- include_quest_rewards
+    # was removed in favor of tag/weight filtering (options.py, locations.py),
+    # and this loop's own per-location `continue` guards already no-op
+    # correctly when zero quest_rewards locations exist in the pool (weight
+    # 0, or every tag dimension narrowed to nothing), so there's no longer a
+    # single toggle to gate this on. Also now covers the 19 locations
+    # migrated from the retired `quests` family (always_present, M4.8.0)
+    # with zero extra code -- they're ordinary quest_rewards rows with real
+    # DB-derived min_level values, so this exact clamp applies to them the
+    # same as every other quest_reward.
+    total_caps = core_loop_content_data.ITEMS["Progressive Level Cap"][1]
+    for loc in world.multiworld.get_locations(world.player):
+        if not loc.name.startswith("Quest:") or loc.name not in quest_rewards_content_data.LOCATIONS:
+            continue
+        trigger = quest_rewards_content_data.TRIGGERS[loc.name]
+        copies_needed = min(total_caps, max(0, math.ceil((trigger["min_level"] - starting_cap) / step)))
+        if copies_needed > 0:
+            world.set_rule(
+                loc,
+                lambda state, count=copies_needed: state.has("Progressive Level Cap", world.player, count),
+            )

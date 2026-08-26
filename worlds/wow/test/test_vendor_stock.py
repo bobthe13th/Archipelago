@@ -41,13 +41,19 @@ class TestVendorStockHasNoRule(WoWTestBase):
     and no real region/zone graph in this checkout to attach an
     Access(NPC_Location)-style rule to. rules.py is untouched by this task,
     so every vendor_stock location must carry AP's own class default access
-    rule (Location.access_rule), never a real one. check_density: 100 against
-    vendor_stock's 37,750 real rows and weight 10 samples ceil(37750 * 1.0 *
-    0.10) == 3775 rows (the weight is the binding constraint) -- still every
-    one of those 3775 sampled locations is covered by this test's loop, not
-    just a hand-picked few."""
+    rule (Location.access_rule), never a real one. The single assertion
+    below (no access rule) is a general invariant that holds regardless of
+    HOW MANY vendor_stock rows get sampled -- unlike some quest_rewards
+    tests, it doesn't depend on any specific named location -- so
+    vendor_stock_weight: 10 (M4.8.0) caps the sample to ~10% of the real
+    ~37,750-row table rather than VendorStockWeight's own real-seed default
+    of 100 (literally every row), which made this test pathologically slow
+    (confirmed empirically) without strengthening the assertion at all.
+    quest_reward_weight: 0 -- this class has nothing to do with
+    quest_rewards; left uncapped it would ALSO default to 100 via
+    check_density: 100, silently filling the full ~9,220-row table too."""
 
-    options = {"game_mode": "sprint", "include_vendor_stock": True, "check_density": 100}
+    options = {"game_mode": "sprint", "check_density": 100, "vendor_stock_weight": 10, "quest_reward_weight": 0}
 
     def test_all_vendor_stock_locations_have_no_access_rule(self) -> None:
         vendor_locations = [
@@ -73,10 +79,19 @@ class TestVendorStockAvailableOutsideSprint(WoWTestBase):
     reachability for this option combination; this class adds the parity/
     presence checks those defaults don't."""
 
+    # vendor_stock_weight: 10 (M4.8.0) -- neither test in this class depends
+    # on a specific named location, just "at least one exists" / a general
+    # parity invariant, so this doesn't need VendorStockWeight's own
+    # real-seed default of 100 (the full ~37,750-row table).
+    # quest_reward_weight: 0 -- this class has nothing to do with
+    # quest_rewards at all, and without capping it explicitly it would ALSO
+    # default to 100 via check_density: 100, silently filling the full
+    # ~9,220-row table for no test-relevant reason.
     options = {
         "game_mode": "key_hunt",
-        "include_vendor_stock": True,
         "check_density": 100,
+        "vendor_stock_weight": 10,
+        "quest_reward_weight": 0,
     }
 
     def test_vendor_stock_locations_exist_in_key_hunt_mode(self) -> None:
@@ -95,9 +110,12 @@ class TestVendorStockItemPoolMatchesLocationCount(WoWTestBase):
     this test, checked here under Sprint mode (the default-owning mode for
     every other family in this file) with include_vendor_stock on -- this is
     exactly the invariant items.py's row-index item-pooling fix (Task 3)
-    exists to protect."""
+    exists to protect. vendor_stock_weight: 10 (M4.8.0) -- see
+    TestVendorStockHasNoRule's own comment above; this test's assertion is
+    also a general invariant, not dependent on a specific location.
+    quest_reward_weight: 0 for the same reason as TestVendorStockHasNoRule."""
 
-    options = {"game_mode": "sprint", "include_vendor_stock": True, "check_density": 100}
+    options = {"game_mode": "sprint", "check_density": 100, "vendor_stock_weight": 10, "quest_reward_weight": 0}
 
     def test_item_pool_matches_location_count_exactly(self) -> None:
         self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))

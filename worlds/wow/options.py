@@ -1,7 +1,7 @@
 # Archipelago/worlds/wow/options.py
 from dataclasses import dataclass
 
-from Options import Choice, PerGameCommonOptions, Range, Toggle
+from Options import Choice, OptionSet, PerGameCommonOptions, Range, Toggle
 
 
 class GameMode(Choice):
@@ -432,34 +432,77 @@ class StartingChoice(Choice):
     default = 0
 
 
-class IncludeQuestRewards(Toggle):
-    """When on, a density-sampled subset of real quest completion rewards
-    (M4.5's DB-extracted Quest Rewards family) becomes part of the
-    location/item pool, available in EVERY game mode -- not gated to one
-    owning mode, unlike Key Hunt's rares or Fishing Quest's fish. Off by
-    default (adds a large, real-data-derived pool most players haven't
-    opted into yet)."""
-    display_name = "Include Quest Rewards"
-    default = False
+class QuestRewardTypePools(OptionSet):
+    """Which Quest Rewards quest-type pools to include (M4.8 tag-based
+    sub-filtering). A location is a candidate iff its own type tag(s)
+    intersect this selection -- dungeon_quest (real QuestInfo.dbc "Dungeon"
+    category), elite_quest (group-recommended quests), repeatable (daily/
+    weekly quests), standard (every quest that's none of the other three --
+    every quest carries at least one type tag, never zero). Default selects
+    every value (full vocabulary) -- narrow this to shrink the candidate
+    pool before check_density/quest_reward_weight sample from it. The 19
+    locations migrated from the retired standalone `quests` family (the
+    M1/M2 Northshire/Goldshire starting quests) are exempt from this filter
+    entirely (always_present) -- see quest_reward_weight's own docstring."""
+    display_name = "Quest Reward Type Pools"
+    valid_keys = ["dungeon_quest", "elite_quest", "repeatable", "standard"]
+    default = valid_keys
 
 
-class IncludeVendorStock(Toggle):
-    """When on, a density-sampled subset of real vendor inventory purchases
-    (M4.5's DB-extracted Vendor Inventories family) becomes part of the
-    location/item pool, available in EVERY game mode. Off by default. Unlike
-    Quest Rewards (weight 100), this category is registered with a lower
-    weight (10) in locations.py's _OPTIONAL_CATEGORIES: vendor_stock's real
-    row count (37,750) is roughly 10x Quest Rewards' (3,735), so an equal
-    weight would let Vendor Inventories alone consume nearly the entire
-    shared DensityBudget before Quest Rewards/Recipes/Trainer Spells get a
-    fair share when several categories are enabled together. No access rule
-    exists for these locations (unlike Quest Rewards' min-level gate) --
-    there is no reputation-gating data and no real region/zone graph in this
-    checkout to attach a rule to (M4.5 Repo-state finding #5), so vendor
-    purchases are unconditionally reachable once sampled, same as every
-    rare/fish/profession/collection location today."""
-    display_name = "Include Vendor Stock"
-    default = False
+class QuestRewardExpansionPools(OptionSet):
+    """Which Quest Rewards expansion pools to include (M4.8), ANDed against
+    quest_reward_type_pools -- a location must match BOTH dimensions'
+    selections to become a candidate. Expansion is resolved at
+    content-extraction time from the quest's own quest-giver's real spawn
+    map. Default selects every value."""
+    display_name = "Quest Reward Expansion Pools"
+    valid_keys = ["vanilla", "tbc", "wotlk"]
+    default = valid_keys
+
+
+class VendorStockExpansionPools(OptionSet):
+    """Which Vendor Inventories expansion pools to include (M4.8).
+    Expansion is resolved from the selling vendor's own real spawn map.
+    Default selects every value."""
+    display_name = "Vendor Stock Expansion Pools"
+    valid_keys = ["vanilla", "tbc", "wotlk"]
+    default = valid_keys
+
+
+class QuestRewardWeight(Range):
+    """Category weight for Quest Rewards (M4.8, replaces the removed
+    include_quest_rewards boolean toggle and locations.py's former
+    hardcoded weight=100 literal) -- multiplied against global
+    check_density to decide how many of the tag-matched candidate
+    locations actually enter the pool (density.sample_category, unchanged).
+    Default 100 (this project's own explicit, deliberate choice): at the
+    global check_density default (25), this makes Quest Rewards
+    on-by-default at roughly a 25% sample of the tag-matched candidate set,
+    a real behavior change from the predecessor include_quest_rewards
+    toggle's own default of False (fully off). Set to 0 to fully exclude
+    this family, matching the old toggle's off state. The 19 locations
+    migrated from the retired `quests` family are exempt from this
+    weight/density sampling entirely (always_present) -- they are always
+    included, at any weight, including 0."""
+    display_name = "Quest Reward Weight"
+    range_start = 0
+    range_end = 100
+    default = 100
+
+
+class VendorStockWeight(Range):
+    """Category weight for Vendor Inventories (M4.8, replaces the removed
+    include_vendor_stock boolean toggle and locations.py's former hardcoded
+    weight=10 literal). Default 100 (this project's own explicit,
+    deliberate choice) -- NOT zero-regression relative to the old hardcoded
+    10: an unmodified seed now samples roughly 10x more Vendor Inventories
+    locations by default than before this milestone, and is on by default
+    at all (the predecessor include_vendor_stock toggle defaulted to
+    False, fully off). Set to 0 to fully exclude this family."""
+    display_name = "Vendor Stock Weight"
+    range_start = 0
+    range_end = 100
+    default = 100
 
 
 class VendorCheckRepeatBehavior(Choice):
@@ -528,7 +571,10 @@ class WoWOptions(PerGameCommonOptions):
     key_hunt_instances_required: KeyHuntInstancesRequired
     artisan_primary_professions_required: ArtisanPrimaryProfessionsRequired
     collector_items_required: CollectorItemsRequired
-    include_quest_rewards: IncludeQuestRewards
-    include_vendor_stock: IncludeVendorStock
+    quest_reward_type_pools: QuestRewardTypePools
+    quest_reward_expansion_pools: QuestRewardExpansionPools
+    vendor_stock_expansion_pools: VendorStockExpansionPools
+    quest_reward_weight: QuestRewardWeight
+    vendor_stock_weight: VendorStockWeight
     vendor_check_repeat_behavior: VendorCheckRepeatBehavior
 

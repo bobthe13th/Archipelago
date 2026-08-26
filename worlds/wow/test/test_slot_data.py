@@ -39,11 +39,11 @@ class TestAddApItemDisplayData(unittest.TestCase):
         self._original_categories = locations_module._OPTIONAL_CATEGORIES
         locations_module._OPTIONAL_CATEGORIES = [
             locations_module.OptionalCategory(
-                key="quest_rewards", toggle_option="include_quest_rewards", weight=100,
+                key="quest_rewards", tag_options={}, weight_option="quest_reward_weight",
                 locations_module=_FakeFamilyLocationsModule, items_module=None,
             ),
             locations_module.OptionalCategory(
-                key="vendor_stock", toggle_option="include_vendor_stock", weight=10,
+                key="vendor_stock", tag_options={}, weight_option="vendor_stock_weight",
                 locations_module=_FakeVendorLocationsModule, items_module=None,
             ),
         ]

@@ -35,11 +35,33 @@ class TestQuestRewardsRowAlignment(unittest.TestCase):
 
 
 class TestQuestRewardsRules(WoWTestBase):
-    # check_density: 100 against quest_rewards' 3,735 real rows guarantees
-    # every row -- including the specific min_level=20 location this test
-    # depends on -- is sampled into the pool, so this test doesn't depend on
-    # random sampling picking it.
-    options = {"game_mode": "sprint", "include_quest_rewards": True, "check_density": 100}
+    # check_density: 100 with quest_reward_weight: 100 (explicit -- see
+    # bases.py's WoWTestBase.world_setup, which now defaults BOTH
+    # quest_reward_weight/vendor_stock_weight to 0 for any class that
+    # doesn't state them explicitly, so "leave it unset to inherit the
+    # option's own real default" no longer works and must be spelled out)
+    # against quest_rewards' real rows guarantees every row -- including
+    # the specific min_level=20 location this test depends on -- is sampled
+    # into the pool, so this test doesn't depend on random sampling picking
+    # it. Unlike the other test classes in this file (see
+    # TestQuestRewardsAvailableOutsideSprint below), this one genuinely
+    # needs full-table coverage for correctness, not just "a real sample"
+    # -- world_setup's MultiWorld.set_seed(None) picks a fresh random seed
+    # every run, so any weight below 100 would make
+    # test_min_level_rule_blocks_until_level_cap_items_held's dependency on
+    # one specific named location genuinely flaky (present only ~weight% of
+    # runs), not just slower.
+    # vendor_stock_weight: 0 -- this class has nothing to do with
+    # vendor_stock; without capping it explicitly it ALSO defaults to 100
+    # via check_density: 100 above, meaning this test was silently filling
+    # the full ~37,750-row vendor_stock table on top of quest_rewards'
+    # ~9,220 rows every run -- a combined ~47,000-row fill that made even
+    # this one test class take upwards of 15+ minutes (confirmed
+    # empirically). Capping only vendor_stock_weight (never
+    # quest_reward_weight, which must stay at its real default -- see
+    # above) removes that unrelated cost without touching this test's own
+    # correctness requirement.
+    options = {"game_mode": "sprint", "check_density": 100, "quest_reward_weight": 100, "vendor_stock_weight": 0}
 
     # "Quest: Morbent Fel Reward (#55)" has trigger.min_level == 20 in the
     # real DB-extracted content/quest_rewards.yaml (quest_id 55). With
@@ -106,10 +128,21 @@ class TestQuestRewardsAvailableOutsideSprint(WoWTestBase):
     reachability for this option combination; this class adds the parity/
     presence checks those defaults don't."""
 
+    # quest_reward_weight: 10 (M4.8.0) -- unlike TestQuestRewardsRules above,
+    # neither test in this class depends on any SPECIFIC named location
+    # being sampled (just "at least one exists" / a general parity
+    # invariant that holds at any sample size), so this doesn't need
+    # QuestRewardWeight's own real-seed default of 100 (the full ~9,220-row
+    # table) -- capping it keeps this class fast without weakening either
+    # assertion. vendor_stock_weight: 0 -- this class has nothing to do
+    # with vendor_stock at all, and without capping it explicitly it would
+    # ALSO default to 100 via check_density: 100, silently filling the full
+    # ~37,750-row table for no test-relevant reason.
     options = {
         "game_mode": "key_hunt",
-        "include_quest_rewards": True,
         "check_density": 100,
+        "quest_reward_weight": 10,
+        "vendor_stock_weight": 0,
     }
 
     def test_quest_reward_locations_exist_in_key_hunt_mode(self) -> None:
