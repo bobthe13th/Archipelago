@@ -18486,6 +18486,9 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Quest Reward: The Twilight Destroyer (#26034)": (1776034, 1),
 }
 
+ALWAYS_PRESENT: frozenset[str] = frozenset({
+})
+
 TRIGGERS: dict[str, dict] = {
     "Quest: Kanrethad's Quest Reward (#1)": {'kind': 'quest_reward', 'quest_id': 1, 'min_level': 1, 'prev_quest_id': None},
     "Quest: Sharptalon's Claw Reward (#2)": {'kind': 'quest_reward', 'quest_id': 2, 'min_level': 20, 'prev_quest_id': 6383, 'is_filler_reward': True},

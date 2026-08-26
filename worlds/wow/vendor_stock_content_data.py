@@ -75484,6 +75484,9 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Vendor Item: Knight-Lieutenant T'Maire Sydes - Commendation of Bravery (#37749)": (2537749, 1),
 }
 
+ALWAYS_PRESENT: frozenset[str] = frozenset({
+})
+
 TRIGGERS: dict[str, dict] = {
     "Vendor: Corina Steele - Gladius (#0)": {'kind': 'vendor_purchase', 'npc_entry': 54, 'item_slot': 0},
     "Vendor: Corina Steele - Two-handed Sword (#1)": {'kind': 'vendor_purchase', 'npc_entry': 54, 'item_slot': 0},
