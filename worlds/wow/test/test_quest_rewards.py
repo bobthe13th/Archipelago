@@ -34,6 +34,45 @@ class TestQuestRewardsRowAlignment(unittest.TestCase):
             )
 
 
+class TestQuestRewardsAlwaysPresentSet(unittest.TestCase):
+    """ALWAYS_PRESENT is a Death-Knight-reachability safety invariant (see
+    rules.py's own comments): these 19 specific Northshire/Goldshire
+    starting-quest locations must be present regardless of player
+    tag/weight options. Every other test in this suite either uses
+    fake/mocked data or iterates ALWAYS_PRESENT dynamically, so none of
+    them would notice if a future extraction bug silently shrank or
+    emptied the real generated set -- the whole suite would stay green,
+    self-consistently, with no signal at all. This test hardcodes the real
+    quest_rewards_content_data.ALWAYS_PRESENT value directly so a
+    regression here fails loudly."""
+
+    def test_always_present_has_the_19_dk_reachability_rows(self) -> None:
+        self.assertEqual(
+            quest_rewards_content_data.ALWAYS_PRESENT,
+            frozenset({
+                "Quest: Bounty on Garrick Padfoot Reward (#6)",
+                "Quest: Kobold Camp Cleanup Reward (#7)",
+                "Quest: Investigate Echo Ridge Reward (#15)",
+                "Quest: Brotherhood of Thieves Reward (#18)",
+                "Quest: Skirmish at Echo Ridge Reward (#21)",
+                "Quest: Wolves Across the Border Reward (#33)",
+                "Quest: Report to Goldshire Reward (#54)",
+                "Quest: A Threat Within Reward (#783)",
+                "Quest: Simple Letter Reward (#3100)",
+                "Quest: Consecrated Letter Reward (#3101)",
+                "Quest: Encrypted Letter Reward (#3102)",
+                "Quest: Hallowed Letter Reward (#3103)",
+                "Quest: Glyphic Letter Reward (#3104)",
+                "Quest: Tainted Letter Reward (#3105)",
+                "Quest: Milly Osworth Reward (#3903)",
+                "Quest: Milly's Harvest Reward (#3904)",
+                "Quest: Grape Manifest Reward (#3905)",
+                "Quest: Eagan Peltskinner Reward (#5261)",
+                "Quest: In Favor of the Light Reward (#5623)",
+            }),
+        )
+
+
 class TestQuestRewardsRules(WoWTestBase):
     # check_density: 100 with quest_reward_weight: 100 (explicit -- see
     # bases.py's WoWTestBase.world_setup, which now defaults BOTH

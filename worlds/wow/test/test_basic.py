@@ -39,8 +39,13 @@ class TestNorthshireGeneration(WoWTestBase):
         always_present_count = len(quest_rewards_content_data.ALWAYS_PRESENT)
         quest_reward_candidates = len(quest_rewards_content_data.LOCATIONS) - always_present_count
         quest_reward_sampled = density.predict_sample_size(25, 100, quest_reward_candidates)
-        vendor_stock_sampled = density.predict_sample_size(25, 100, len(vendor_stock_content_data.LOCATIONS))
-        expected = fixed_count + always_present_count + quest_reward_sampled + vendor_stock_sampled
+        vendor_stock_always_present_count = len(vendor_stock_content_data.ALWAYS_PRESENT)
+        vendor_stock_candidates = len(vendor_stock_content_data.LOCATIONS) - vendor_stock_always_present_count
+        vendor_stock_sampled = density.predict_sample_size(25, 100, vendor_stock_candidates)
+        expected = (
+            fixed_count + always_present_count + quest_reward_sampled
+            + vendor_stock_always_present_count + vendor_stock_sampled
+        )
         self.assertEqual(len(self.multiworld.itempool), expected)
 
     def test_item_pool_matches_location_count_exactly(self) -> None:
