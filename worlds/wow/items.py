@@ -1,8 +1,6 @@
 # Archipelago/worlds/wow/items.py
 from BaseClasses import Item, ItemClassification
 from . import collections_content_data
-from . import content_data
-from .content_data import ITEMS
 from . import core_loop_content_data
 from . import fish_content_data
 from . import gates_content_data
@@ -13,13 +11,6 @@ from . import traps_content_data
 
 class WoWItem(Item):
     game = "World of Warcraft WotLK"
-
-
-def create_item_pool(world) -> list:
-    return [
-        WoWItem(name, ItemClassification.progression, item_id, world.player)
-        for name, item_id in ITEMS.items()
-    ]
 
 
 def create_core_loop_item_pool(world) -> list:
@@ -111,13 +102,17 @@ def _eligible_trap_names(world) -> list[str]:
 
 
 def _trap_baseline_location_count() -> int:
-    # The stable "real content" location count traps are sized as a
-    # percentage of -- quest + core-loop locations, which don't themselves
-    # grow when traps are enabled (unlike the gates family's own filler
-    # locations, which would make the baseline circular).
+    # M4.8.0: the standalone `quests` family (19 locations) is retired --
+    # those 19 locations now live in quest_rewards as always_present rows,
+    # which are NOT part of this baseline (this function's own docstring:
+    # "quest + core-loop locations" meant the FIXED M1/M2 set, never
+    # DB-derived optional-category content). This is a real, deliberate
+    # behavior change: trap_percentage_of_filler's baseline shrinks from 36
+    # to 17 (core-loop only) -- a smaller baseline means fewer total trap
+    # item copies at any given trap_percentage_of_filler setting than
+    # before this milestone.
     return (
-        len(content_data.LOCATIONS)
-        + len(core_loop_content_data.LEVEL_LOCATIONS)
+        len(core_loop_content_data.LEVEL_LOCATIONS)
         + len(core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
     )
 

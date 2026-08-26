@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from typing import Optional
 
 from BaseClasses import Location
-from .content_data import LOCATIONS
 from . import collections_content_data
 from . import core_loop_content_data
 from . import density
@@ -115,13 +114,6 @@ def create_optional_category_locations(world, region) -> list:
             created.append(WoWLocation(world.player, name, location_id, region))
             _stash(name)
     return created
-
-
-def create_locations(world, region) -> list:
-    return [
-        WoWLocation(world.player, name, location_id, region)
-        for name, location_id in LOCATIONS.items()
-    ]
 
 
 def create_core_loop_locations(world, region) -> list:

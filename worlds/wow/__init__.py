@@ -1,10 +1,9 @@
 from worlds.AutoWorld import World
-from .items import WoWItem, create_item_pool, create_core_loop_item_pool, create_gates_item_pool, create_trap_item_pool, create_key_hunt_item_pool, create_fish_item_pool, create_professions_item_pool, create_collections_item_pool, create_optional_category_item_pool
+from .items import WoWItem, create_core_loop_item_pool, create_gates_item_pool, create_trap_item_pool, create_key_hunt_item_pool, create_fish_item_pool, create_professions_item_pool, create_collections_item_pool, create_optional_category_item_pool
 from .regions import create_regions
 from .rules import set_rules
 from . import goals
 from . import slot_data
-from .content_data import LOCATIONS, ITEMS
 from . import collections_content_data
 from . import core_loop_content_data
 from . import fish_content_data
@@ -41,7 +40,6 @@ class WoWWorld(World):
     options: WoWOptions
 
     item_name_to_id = {
-        **{name: item_id for name, item_id in ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in core_loop_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in gates_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in traps_content_data.ITEMS.items()},
@@ -53,7 +51,6 @@ class WoWWorld(World):
         **{name: item_id for name, (item_id, _count) in vendor_stock_content_data.ITEMS.items()},
     }
     location_name_to_id = {
-        **{name: loc_id for name, loc_id in LOCATIONS.items()},
         **{f"Reach Level {level}": loc_id for level, loc_id in core_loop_content_data.LEVEL_LOCATIONS.items()},
         **{
             core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES[instance_key]: loc_id
@@ -80,7 +77,6 @@ class WoWWorld(World):
         create_regions(self)
 
     def create_items(self) -> None:
-        self.multiworld.itempool += create_item_pool(self)
         self.multiworld.itempool += create_core_loop_item_pool(self)
         self.multiworld.itempool += create_gates_item_pool(self)
         self.multiworld.itempool += create_trap_item_pool(self)

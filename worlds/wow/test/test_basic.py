@@ -1,6 +1,6 @@
 # Archipelago/worlds/wow/test/test_basic.py
 from .bases import WoWTestBase
-from .. import content_data
+from .. import quest_rewards_content_data
 from .. import core_loop_content_data
 from .. import traps_content_data
 
@@ -10,26 +10,38 @@ class TestDefault(WoWTestBase):
 
 
 class TestNorthshireGeneration(WoWTestBase):
+    # M4.8.0: test_default_item_pool_size below needs quest_reward_weight/
+    # vendor_stock_weight at their REAL production default (100), not
+    # WoWTestBase.world_setup's fast-test default of 0 -- explicitly set
+    # here so this class's own options dict wins the merge (see bases.py).
+    options = {"quest_reward_weight": 100, "vendor_stock_weight": 100}
+
     def test_all_locations_reachable(self) -> None:
         """M2: all 19 curated locations must be reachable with no items required
         (matches rules.py's no-op access rules for this milestone)."""
         self.assertTrue(len(self.multiworld.get_reachable_locations()) >= 19)
 
     def test_default_item_pool_size(self) -> None:
-        """As of M2.1, create_items always adds both M2's quest-item pool
-        (19) and the core-loop item pool (14 as of M2.1, grown to 17 by Task
-        23's three new raid Instance Unlock items): 36 total. In M4 Tasks
-        5-6, 7 gate items are added unconditionally (riding x5, flight x2 =
-        43 total). Every other Group 1 gate item (Tasks 7/8/10, 27 of them)
-        is option-gated and off by default, so it's absent from this count --
-        see each option's TestXItemsPooledWhenOptionOn class for the
-        option-on pool. Formerly named test_item_pool_matches_location_count
-        when this number needed to equal the location count exactly; Task 11
-        made that unnecessary to check here -- see
-        test_item_pool_matches_location_count_exactly below (and
-        locations.py's create_filler_locations) for how parity is now
-        maintained dynamically instead of via a fixed number."""
-        self.assertEqual(len(self.multiworld.itempool), 43)
+        """M4.8.0: with the plain `quests` family retired, and Quest
+        Rewards/Vendor Inventories now on-by-default (quest_reward_weight/
+        vendor_stock_weight both default 100, replacing the old
+        include_quest_rewards/include_vendor_stock toggles which defaulted
+        False), the fixed core content (17 core-loop items + 7 unconditional
+        gate items = 24) is joined by BOTH DB-derived families sampled at
+        their default weight against check_density's own default (25).
+        Computed via density.predict_sample_size rather than hardcoded,
+        since the DB-derived families' real row counts change whenever the
+        content tables are regenerated."""
+        from .. import density
+        from .. import quest_rewards_content_data
+        from .. import vendor_stock_content_data
+        fixed_count = 24  # 17 core-loop + 7 unconditional gates (riding x5, flight x2)
+        always_present_count = len(quest_rewards_content_data.ALWAYS_PRESENT)
+        quest_reward_candidates = len(quest_rewards_content_data.LOCATIONS) - always_present_count
+        quest_reward_sampled = density.predict_sample_size(25, 100, quest_reward_candidates)
+        vendor_stock_sampled = density.predict_sample_size(25, 100, len(vendor_stock_content_data.LOCATIONS))
+        expected = fixed_count + always_present_count + quest_reward_sampled + vendor_stock_sampled
+        self.assertEqual(len(self.multiworld.itempool), expected)
 
     def test_item_pool_matches_location_count_exactly(self) -> None:
         """Task 11: AP's generation pipeline has no generic step that pads a
@@ -206,7 +218,7 @@ class TestGateItemSphereZero(WoWTestBase):
     }
 
     def test_all_quest_locations_reachable_with_zero_items(self) -> None:
-        for name in content_data.LOCATIONS:
+        for name in quest_rewards_content_data.ALWAYS_PRESENT:
             self.assertTrue(self.can_reach_location(name))
 
     def test_item_pool_matches_location_count_exactly(self) -> None:
@@ -217,69 +229,46 @@ class TestGateItemSphereZero(WoWTestBase):
         self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
 
 
-class TestGateItemSphereZeroWithQuestRewards(WoWTestBase):
-    """M4.5 Task 6, plan Step 8: the same sphere-0 guard as
-    TestGateItemSphereZero above, but with include_quest_rewards also on --
-    Quest Rewards' own locations are a disjoint pool from the 19 sphere-0
-    quest locations (rules.py's Quest Rewards rule only ever calls
-    world.set_rule on locations whose name starts with "Quest: " AND is a
-    key in quest_rewards_content_data.LOCATIONS, never on the M2 quest
-    locations), so this is expected to pass trivially -- but per this plan's
-    Global Constraints ("no new content may block sphere-0 completion") that
-    must be confirmed by a real, run test, not assumed from the disjointness
-    argument alone."""
+class TestGateItemSphereZeroWithNarrowedQuestRewardPools(WoWTestBase):
+    """M4.8.0: the same sphere-0 guard as TestGateItemSphereZero, but with
+    quest_reward_type_pools narrowed to a single pool -- confirms tag
+    narrowing doesn't affect the always_present sphere-0 locations (they
+    bypass tag-filtering entirely) and that the narrowed candidate/item
+    pool still maintains exact item=location parity."""
 
     options = {
         "proficiency_gating": True,
         "access_gating": True,
         "character_unlock_gating": True,
-        "include_quest_rewards": True,
+        "quest_reward_type_pools": {"dungeon_quest"},
+        "quest_reward_weight": 100,
     }
 
-    def test_all_quest_locations_reachable_with_zero_items(self) -> None:
-        for name in content_data.LOCATIONS:
+    def test_all_always_present_quest_locations_reachable_with_zero_items(self) -> None:
+        for name in quest_rewards_content_data.ALWAYS_PRESENT:
             self.assertTrue(self.can_reach_location(name))
 
     def test_item_pool_matches_location_count_exactly(self) -> None:
-        """Same invariant as TestGateItemSphereZero's own version of this
-        test, checked here with include_quest_rewards also on -- this is
-        exactly the invariant items.py's row-index item-pooling fix (Task 3)
-        exists to protect, so it must be checked under the option
-        combination that actually exercises that code path, not just under
-        TestGateItemSphereZero's quest-rewards-off default."""
         self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
 
 
-class TestGateItemSphereZeroWithVendorStock(WoWTestBase):
-    """M4.5 Task 9, plan Step 8: the same sphere-0 guard as
-    TestGateItemSphereZero above, but with include_vendor_stock also on --
-    Vendor Inventories' own locations are a disjoint pool from the 19
-    sphere-0 quest locations (Vendor Inventories carries no access rule at
-    all -- rules.py is untouched by this task -- and its location names are
-    all "Vendor: ..." keys in vendor_stock_content_data.LOCATIONS, never one
-    of the 19 M2 quest locations), so this is expected to pass trivially --
-    but per this plan's Global Constraints ("no new content may block
-    sphere-0 completion") that must be confirmed by a real, run test, not
-    assumed from the disjointness argument alone."""
+class TestGateItemSphereZeroWithNarrowedVendorStockPools(WoWTestBase):
+    """M4.8.0: the same sphere-0 guard, with vendor_stock_expansion_pools
+    narrowed to a single pool."""
 
     options = {
         "proficiency_gating": True,
         "access_gating": True,
         "character_unlock_gating": True,
-        "include_vendor_stock": True,
+        "vendor_stock_expansion_pools": {"tbc"},
+        "vendor_stock_weight": 100,
     }
 
-    def test_all_quest_locations_reachable_with_zero_items(self) -> None:
-        for name in content_data.LOCATIONS:
+    def test_all_always_present_quest_locations_reachable_with_zero_items(self) -> None:
+        for name in quest_rewards_content_data.ALWAYS_PRESENT:
             self.assertTrue(self.can_reach_location(name))
 
     def test_item_pool_matches_location_count_exactly(self) -> None:
-        """Same invariant as TestGateItemSphereZero's own version of this
-        test, checked here with include_vendor_stock also on -- this is
-        exactly the invariant items.py's row-index item-pooling fix (Task 3)
-        exists to protect, so it must be checked under the option
-        combination that actually exercises that code path, not just under
-        TestGateItemSphereZero's vendor-stock-off default."""
         self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
 
 
@@ -476,5 +465,5 @@ class TestTrapsAndGatesCombinedParity(WoWTestBase):
         # Traps carry no access rule and gate no location -- sphere-0 safety
         # should be unaffected by traps_enabled, same guarantee
         # TestGateItemSphereZero already covers for the gate family alone.
-        for name in content_data.LOCATIONS:
+        for name in quest_rewards_content_data.ALWAYS_PRESENT:
             self.assertTrue(self.can_reach_location(name))
