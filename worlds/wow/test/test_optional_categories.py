@@ -19,11 +19,14 @@ class _FakeItemsModule:
 class TestOptionalCategoryRegistry(WoWTestBase):
     # vendor_stock_weight: 0 (M4.8.0) -- this test only inspects the
     # registry's static shape, never any sampled content; capping removes
-    # the unused real ~37,750-row vendor_stock fill from setUp(). Left
-    # quest_reward_weight unset -- several classes below in this file reuse
-    # that exact option as their fake category's own weight_option proxy,
-    # so it's kept consistent at its real default across this file rather
-    # than capped per-class (this one class alone doesn't need the cap).
+    # the unused real ~37,750-row vendor_stock fill from setUp().
+    # quest_reward_weight is left unset here, which -- per bases.py's
+    # WoWTestBase.world_setup -- means it defaults to 0 too (not the real
+    # option default of 100): this class doesn't need the real quest_rewards
+    # family sampled either, so that's fine. Several classes below in this
+    # file DO need quest_reward_weight restated explicitly at 100, since
+    # they reuse that exact option as their fake category's own
+    # weight_option proxy -- see each one's own comment.
     options = {"game_mode": "sprint", "check_density": 100, "vendor_stock_weight": 0}
 
     def test_registry_holds_exactly_quest_rewards_and_vendor_stock_after_m4_8(self) -> None:

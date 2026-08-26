@@ -35,8 +35,23 @@ class WoWTestBase(WorldTestBase):
     # NEW as of M4.8.0 -- nothing else in this codebase reads or depends on
     # either being unset vs. explicitly set, so defaulting them here is
     # safe and precisely scoped to the two families that actually caused
-    # the runtime blowup, leaving check_density and every other family
-    # completely untouched.
+    # the runtime blowup: check_density and every other family's own
+    # sampling behavior is completely untouched.
+    #
+    # One real, noticed side effect of overriding world_setup at all (not
+    # of the merge logic itself): AP core's own WorldTestBase.run_default_tests
+    # is a property that treats "world_setup is overridden" as reason
+    # enough to run the generic test_all_state_can_reach_everything/
+    # test_empty_state_can_reach_something/test_fill checks, even for a
+    # class with falsy `options`. Before this file existed, 6 WoW test
+    # classes with `options = {}` (or no override at all) skipped those
+    # generic checks entirely; now every WoW test class runs them
+    # unconditionally, since WoWTestBase itself always overrides
+    # world_setup. Confirmed via a real full-suite run that this is a pure
+    # coverage increase, not a regression -- every one of those 6 classes'
+    # generic checks pass -- but it IS a real behavior change this file is
+    # responsible for, not just a "fast defaults, nothing else changes"
+    # shim.
     def world_setup(self, seed: typing.Optional[int] = None) -> None:
         original_options = self.options
         merged = dict(original_options)

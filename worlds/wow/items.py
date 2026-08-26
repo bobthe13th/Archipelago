@@ -5,7 +5,6 @@ from . import content_data
 from .content_data import ITEMS
 from . import core_loop_content_data
 from . import fish_content_data
-from . import game_mode_profile
 from . import gates_content_data
 from . import professions_content_data
 from . import rares_content_data
@@ -305,7 +304,21 @@ def create_optional_category_item_pool(world) -> list:
 
     pool = []
     for category in _OPTIONAL_CATEGORIES:
-        if not game_mode_profile.is_category_eligible(world, category) or category.items_module is None:
+        # M4.8.0 fix: do NOT gate this loop on is_category_eligible -- unlike
+        # the old include_*=False toggle it replaced, an ineligible category
+        # can still have real, unconditionally-created locations in the
+        # multiworld (always_present rows bypass is_category_eligible
+        # entirely in locations.py's create_optional_category_locations).
+        # Skipping the category here would silently leave those locations
+        # paired with no item at all, breaking the 1:1 item/location parity
+        # this function exists to protect. This is safe for the ordinary
+        # ineligible case too: sampled_indices below is derived from
+        # world.multiworld.get_locations(), so a category with genuinely
+        # zero locations present (ineligible AND no always_present rows)
+        # naturally yields an empty sampled_indices and pools nothing --
+        # the eligibility check was redundant optimization, not a
+        # correctness requirement.
+        if category.items_module is None:
             continue
         location_names = list(category.locations_module.LOCATIONS.keys())
         item_rows = list(category.items_module.ITEMS.items())

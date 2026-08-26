@@ -517,9 +517,27 @@ class TestHundredPercentCompletionRuleStructure(WoWTestBase):
     (both tests below immediately overwrite optional_category_sampled_names
     anyway, making that real construction 100% wasted work). auto_construct
     = False + a temporary EMPTY _OPTIONAL_CATEGORIES swap in setUp() now
-    matches this docstring's actual stated intent, mirroring the same
-    swap-before-construct pattern test_optional_categories.py's
-    TestOptionalCategoryRegionsWiring already established."""
+    matches this docstring's actual stated intent.
+
+    Rebind, not in-place mutation, and deliberately so: this swap REBINDS
+    `locations_module._OPTIONAL_CATEGORIES` to a new empty list rather than
+    calling `.clear()` on the existing one (contrast
+    TestOptionalCategoryRegionsWiring's append/remove, and
+    TestValidateHundredPercentEmptyRegistry's own deliberate `.clear()`,
+    which exists specifically to also empty goals.py's own
+    `from .locations import _OPTIONAL_CATEGORIES` reference bound at
+    import time). A rebind here is required, not incidental:
+    goals._validate_hundred_percent (called from generate_early, BEFORE
+    this test's own body runs) raises OptionError on a truly empty
+    registry, and goals.py's own import binds the list object once at
+    process start -- a rebind in locations.py's namespace does not affect
+    that already-bound reference, so goals.py still sees the real 2-entry
+    registry and generation proceeds normally, while locations.py's own
+    create_optional_category_locations (which reads its OWN module global
+    fresh on every call, not an imported alias) sees the swapped-in empty
+    list. Calling .clear() here instead would mutate the SAME list object
+    goals.py already holds a reference to, tripping its empty-registry
+    check and breaking construction entirely."""
     options = {"game_mode": "hundred_percent"}
     auto_construct = False
 

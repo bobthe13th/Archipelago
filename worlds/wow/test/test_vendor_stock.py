@@ -66,9 +66,10 @@ class TestVendorStockHasNoRule(WoWTestBase):
 
 
 class TestVendorStockAvailableOutsideSprint(WoWTestBase):
-    """Task 3's OptionalCategory registry -- and IncludeVendorStock's own
-    docstring -- both claim Vendor Inventories works in EVERY game mode, not
-    just Sprint. Every other test in this file only ever exercises Sprint,
+    """Task 3's OptionalCategory registry -- and VendorStockWeight's own
+    docstring (M4.8.0, replacing the retired IncludeVendorStock toggle) --
+    both claim Vendor Inventories works in EVERY game mode, not just
+    Sprint. Every other test in this file only ever exercises Sprint,
     so nothing prior to this class actually ran the family under a different
     mode's own sampler running side by side. Key Hunt is the sharpest case:
     it's the one other mode whose own create_rares_locations also samples
@@ -108,8 +109,8 @@ class TestVendorStockAvailableOutsideSprint(WoWTestBase):
 class TestVendorStockItemPoolMatchesLocationCount(WoWTestBase):
     """Same invariant as TestVendorStockAvailableOutsideSprint's version of
     this test, checked here under Sprint mode (the default-owning mode for
-    every other family in this file) with include_vendor_stock on -- this is
-    exactly the invariant items.py's row-index item-pooling fix (Task 3)
+    every other family in this file) with Vendor Inventories sampled in --
+    this is exactly the invariant items.py's row-index item-pooling fix (Task 3)
     exists to protect. vendor_stock_weight: 10 (M4.8.0) -- see
     TestVendorStockHasNoRule's own comment above; this test's assertion is
     also a general invariant, not dependent on a specific location.

@@ -111,9 +111,10 @@ class TestQuestRewardsRules(WoWTestBase):
 
 
 class TestQuestRewardsAvailableOutsideSprint(WoWTestBase):
-    """Task 3's OptionalCategory registry -- and IncludeQuestRewards' own
-    docstring -- both claim Quest Rewards works in EVERY game mode, not just
-    Sprint. Every other test in this file only ever exercises Sprint, so
+    """Task 3's OptionalCategory registry -- and QuestRewardWeight's own
+    docstring (M4.8.0, replacing the retired IncludeQuestRewards toggle) --
+    both claim Quest Rewards works in EVERY game mode, not just Sprint.
+    Every other test in this file only ever exercises Sprint, so
     nothing prior to this class actually ran the family, its rule (whose
     total_caps clamp assumes core_loop's Progressive Level Cap item pool is
     always 10 regardless of mode -- true because create_core_loop_item_pool
