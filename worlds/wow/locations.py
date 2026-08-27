@@ -12,6 +12,8 @@ from . import game_mode_profile
 from . import professions_content_data
 from . import quest_rewards_content_data
 from . import rares_content_data
+from . import recipes_content_data
+from . import trainer_spells_content_data
 from . import vendor_stock_content_data
 from .items import count_enabled_gates_items, count_enabled_trap_items
 
@@ -23,15 +25,17 @@ class WoWLocation(Location):
 @dataclass
 class OptionalCategory:
     """One entry per DB-derived optional-location family available in EVERY
-    game mode. M4.8: `toggle_option`/`weight` (a single bool + hardcoded
-    int) are replaced by `tag_options` (one WoWOptions OptionSet field name
-    per independent tag dimension) and `weight_option` (a WoWOptions Range
-    field name) -- see this plan's Task 5 and the design spec §5."""
+    game mode. M4.9: weight_option becomes Optional -- None means this
+    category has NO check_density/weight sampling stage at all (Learned
+    Recipes, Trainer Spells & Abilities): every tag-matching row is
+    included unconditionally, per spec. A str value keeps the M4.8
+    tag-filter-then-weight-sample behavior (Quest Rewards, Vendor
+    Inventories)."""
     key: str
-    tag_options: dict[str, str]  # tag dimension -> WoWOptions OptionSet field name
-    weight_option: str           # WoWOptions Range field name
-    locations_module: object     # exposes .LOCATIONS/.TAGS/.ALWAYS_PRESENT
-    items_module: Optional[object]  # exposes .ITEMS: dict[str, tuple[int, int]]; None if items live elsewhere
+    tag_options: dict[str, str]      # tag dimension -> WoWOptions OptionSet field name
+    locations_module: object         # exposes .LOCATIONS/.TAGS/.ALWAYS_PRESENT
+    items_module: Optional[object]   # exposes .ITEMS: dict[str, tuple[int, int]]; None if items live elsewhere
+    weight_option: Optional[str] = None  # WoWOptions Range field name, or None -- see class docstring
 
 
 _OPTIONAL_CATEGORIES: list[OptionalCategory] = []
@@ -50,6 +54,20 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
     weight_option="vendor_stock_weight",
     locations_module=vendor_stock_content_data,
     items_module=vendor_stock_content_data,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="recipes",
+    tag_options={"profession": "recipe_profession_pools", "expansion": "recipe_expansion_pools"},
+    locations_module=recipes_content_data,
+    items_module=recipes_content_data,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="trainer_spells",
+    tag_options={"class": "trainer_spell_class_pools", "expansion": "trainer_spell_expansion_pools"},
+    locations_module=trainer_spells_content_data,
+    items_module=trainer_spells_content_data,
 ))
 
 
@@ -109,8 +127,15 @@ def create_optional_category_locations(world, region) -> list:
             (name, location_id) for name, location_id in all_rows
             if name not in always_present_names and (force_all or _location_matches_pools(world, category, name))
         ]
-        category_weight = 100 if force_all else getattr(world.options, category.weight_option).value
-        for name, location_id in density.sample_category(check_density, category_weight, candidates, world.random):
+        if category.weight_option is None:
+            # M4.9: no check_density/weight sampling stage at all for this
+            # category -- every tag-matched candidate is included
+            # unconditionally, regardless of force_all/check_density.
+            sampled = candidates
+        else:
+            category_weight = 100 if force_all else getattr(world.options, category.weight_option).value
+            sampled = density.sample_category(check_density, category_weight, candidates, world.random)
+        for name, location_id in sampled:
             created.append(WoWLocation(world.player, name, location_id, region))
             _stash(name)
     return created

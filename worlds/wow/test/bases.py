@@ -59,6 +59,20 @@ class WoWTestBase(WorldTestBase):
             merged["quest_reward_weight"] = 0
         if "vendor_stock_weight" not in merged:
             merged["vendor_stock_weight"] = 0
+        # M4.9: recipes/trainer_spells have NO weight_option to zero out
+        # (locations.py's OptionalCategory.weight_option is None for both
+        # -- per spec, every tag-matching row is included unconditionally).
+        # The only way to keep this suite fast for these two families is to
+        # narrow ONE of their AND'd tag dimensions to nothing by default --
+        # same "opt in explicitly per test class" spirit as
+        # quest_reward_weight/vendor_stock_weight above. Without this,
+        # every WoWTestBase test would additionally sample the full
+        # ~1,912-row recipes table and ~1,966-row trainer_spells table on
+        # every single run.
+        if "recipe_profession_pools" not in merged:
+            merged["recipe_profession_pools"] = set()
+        if "trainer_spell_class_pools" not in merged:
+            merged["trainer_spell_class_pools"] = set()
         self.options = merged
         try:
             super().world_setup(seed)

@@ -29,20 +29,27 @@ class TestOptionalCategoryRegistry(WoWTestBase):
     # weight_option proxy -- see each one's own comment.
     options = {"game_mode": "sprint", "check_density": 100, "vendor_stock_weight": 0}
 
-    def test_registry_holds_exactly_quest_rewards_and_vendor_stock_after_m4_8(self) -> None:
-        # Locks in the registry's SHAPE after M4.8.0's tag_options/weight_option
-        # rewrite -- forces every future new-family task to touch this file
-        # consciously rather than silently drifting.
-        self.assertEqual(len(_OPTIONAL_CATEGORIES), 2)
+    def test_registry_holds_all_four_families_after_m4_9(self) -> None:
+        # Locks in the registry's SHAPE after M4.9's two new no-sampling
+        # families -- forces every future new-family task to touch this
+        # file consciously rather than silently drifting.
+        self.assertEqual(len(_OPTIONAL_CATEGORIES), 4)
         self.assertEqual(_OPTIONAL_CATEGORIES[0].key, "quest_rewards")
-        self.assertEqual(
-            _OPTIONAL_CATEGORIES[0].tag_options,
-            {"type": "quest_reward_type_pools", "expansion": "quest_reward_expansion_pools"},
-        )
         self.assertEqual(_OPTIONAL_CATEGORIES[0].weight_option, "quest_reward_weight")
         self.assertEqual(_OPTIONAL_CATEGORIES[1].key, "vendor_stock")
-        self.assertEqual(_OPTIONAL_CATEGORIES[1].tag_options, {"expansion": "vendor_stock_expansion_pools"})
         self.assertEqual(_OPTIONAL_CATEGORIES[1].weight_option, "vendor_stock_weight")
+        self.assertEqual(_OPTIONAL_CATEGORIES[2].key, "recipes")
+        self.assertEqual(
+            _OPTIONAL_CATEGORIES[2].tag_options,
+            {"profession": "recipe_profession_pools", "expansion": "recipe_expansion_pools"},
+        )
+        self.assertIsNone(_OPTIONAL_CATEGORIES[2].weight_option)
+        self.assertEqual(_OPTIONAL_CATEGORIES[3].key, "trainer_spells")
+        self.assertEqual(
+            _OPTIONAL_CATEGORIES[3].tag_options,
+            {"class": "trainer_spell_class_pools", "expansion": "trainer_spell_expansion_pools"},
+        )
+        self.assertIsNone(_OPTIONAL_CATEGORIES[3].weight_option)
 
 
 class TestLocationMatchesPools(WoWTestBase):
@@ -267,3 +274,27 @@ class TestOptionalCategoryRegionsWiring(WoWTestBase):
                 self.assertIn(f"Fake Loc {i}", names)
         finally:
             locations_module._OPTIONAL_CATEGORIES.remove(fake_category)
+
+
+class TestNoWeightOptionCategoryIncludesEveryTagMatchedRowUnconditionally(WoWTestBase):
+    options = {"game_mode": "sprint", "check_density": 0, "vendor_stock_weight": 0}
+
+    def test_zero_check_density_still_includes_every_tag_matched_row_when_weight_option_is_none(self) -> None:
+        # The whole point of weight_option=None (M4.9): check_density=0
+        # would normally zero out EVERY weight-sampled category
+        # (density.sample_category's own math), but a category with no
+        # weight_option bypasses that stage entirely -- this is the
+        # behavioral proof, not just the registry shape.
+        world = self.world
+        region = self.multiworld.get_region("Northshire", world.player)
+        fake_category = OptionalCategory(
+            key="fake", tag_options={}, locations_module=_FakeLocationsModule, items_module=_FakeItemsModule,
+        )
+        from .. import locations as locations_module
+        original = locations_module._OPTIONAL_CATEGORIES
+        locations_module._OPTIONAL_CATEGORIES = [fake_category]
+        try:
+            created = create_optional_category_locations(world, region)
+            self.assertEqual(len(created), 10)
+        finally:
+            locations_module._OPTIONAL_CATEGORIES = original
