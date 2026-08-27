@@ -26,16 +26,36 @@ class TestNorthshireGeneration(WoWTestBase):
         Rewards/Vendor Inventories now on-by-default (quest_reward_weight/
         vendor_stock_weight both default 100, replacing the old
         include_quest_rewards/include_vendor_stock toggles which defaulted
-        False), the fixed core content (17 core-loop items + 7 unconditional
-        gate items = 24) is joined by BOTH DB-derived families sampled at
-        their default weight against check_density's own default (25).
-        Computed via density.predict_sample_size rather than hardcoded,
-        since the DB-derived families' real row counts change whenever the
-        content tables are regenerated."""
+        False), the fixed core content (core-loop items + 7 unconditional
+        gate items) is joined by BOTH DB-derived families sampled at their
+        default weight against check_density's own default (25). Computed
+        via density.predict_sample_size rather than hardcoded, since the
+        DB-derived families' real row counts change whenever the content
+        tables are regenerated.
+
+        M4.9.3.1 Task 11 fix: core_loop's own item count is no longer a
+        fixed 21 either -- create_core_loop_item_pool (items.py) now pads
+        core-loop's item pool with filler so it exactly matches this
+        slot's real, track-aware core-loop LOCATION count (85 for the
+        standard track, 31 for death_knight), a hard pre-existing
+        item==location parity invariant this apworld enforces per family.
+        This test's slot never sets death_knight_slot (neither this class
+        nor WoWTestBase.world_setup does), so it resolves to that option's
+        real default (False) -- i.e. the standard track. Mirror
+        create_core_loop_item_pool's own computation
+        (LEVEL_LOCATIONS_BY_TRACK[track] + INSTANCE_CLEAR_LOCATIONS) rather
+        than hardcoding a number, so this stays correct if the DB-derived
+        core_loop content tables are ever regenerated."""
         from .. import density
         from .. import quest_rewards_content_data
         from .. import vendor_stock_content_data
-        fixed_count = 28  # M4.9: 21 core-loop item copies (14 Progressive Level Cap + 7 unlocks) + 7 unconditional gates (riding x5, flight x2)
+        is_dk_slot = bool(self.world.options.death_knight_slot)
+        track = "death_knight" if is_dk_slot else "standard"
+        core_loop_item_count = (
+            len(core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track])
+            + len(core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
+        )
+        fixed_count = core_loop_item_count + 7  # core-loop items (track-aware) + 7 unconditional gates (riding x5, flight x2)
         always_present_count = len(quest_rewards_content_data.ALWAYS_PRESENT)
         quest_reward_candidates = len(quest_rewards_content_data.LOCATIONS) - always_present_count
         quest_reward_sampled = density.predict_sample_size(25, 100, quest_reward_candidates)
