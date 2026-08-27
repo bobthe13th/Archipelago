@@ -505,6 +505,78 @@ class VendorStockWeight(Range):
     default = 100
 
 
+class RecipeProfessionPools(OptionSet):
+    """Which Learned Recipes profession pools to include (M4.9, adopting
+    M4.8's tag-based sub-filtering from day one). A location is a
+    candidate iff its own profession tag intersects this selection --
+    resolved at extraction time from the recipe's own taught spell's real
+    skill-line (SkillLineAbility.dbc, since this DB's own skill_line_ability
+    SQL tables are unpopulated stubs). "other" catches the small remainder
+    (61 of 1,912 real rows) whose skill-line doesn't resolve to one of the
+    14 known primary/secondary professions -- every recipe carries exactly
+    one profession tag, never zero. Default selects every value (full
+    vocabulary, zero-regression). Unlike quest_reward_type_pools/
+    vendor_stock_expansion_pools, there is no matching *_weight Range
+    option for this family -- per spec, EVERY tag-matching row is
+    included, with no check_density/weight sampling stage at all."""
+    display_name = "Recipe Profession Pools"
+    valid_keys = [
+        "alchemy", "blacksmithing", "cooking", "enchanting", "engineering",
+        "first_aid", "fishing", "herbalism", "inscription", "jewelcrafting",
+        "leatherworking", "mining", "skinning", "tailoring", "other",
+    ]
+    default = valid_keys
+
+
+class RecipeExpansionPools(OptionSet):
+    """Which Learned Recipes expansion pools to include (M4.9), ANDed
+    against recipe_profession_pools. Expansion is resolved from the
+    recipe's own required-skill-rank bracket (<=300 vanilla, <=375 tbc,
+    else wotlk -- the same bracket convention content/professions.yaml's
+    own skill_milestone rows already use), not the teaching trainer/
+    vendor's zone -- chosen because a meaningful fraction of real recipe
+    items in this DB have no vendor/trainer source at all (loot/quest-only
+    recipes), while RequiredSkillRank is always present on every recipe
+    item. Default selects every value."""
+    display_name = "Recipe Expansion Pools"
+    valid_keys = ["vanilla", "tbc", "wotlk"]
+    default = valid_keys
+
+
+class TrainerSpellClassPools(OptionSet):
+    """Which Trainer Spells & Abilities class pools to include (M4.9). A
+    location is a candidate iff its own class tag(s) intersect this
+    selection -- resolved from the real class-trainer's own
+    trainer.Requirement field, confirmed real via
+    Trainer::IsTrainerValidForPlayer (Trainer.cpp): for Type::Class
+    trainers, Requirement IS the player's class id directly. A small
+    number of real spell_ids (4 of 1,966) are taught by more than one
+    class's trainer and carry every matching class tag, not just one.
+    Mount/Tradeskill/Pet trainers are out of scope for this family
+    entirely (Tradeskill rank-up spells are already covered by the
+    existing professions family's skill_milestone triggers; Mount
+    trainers gate by race, not class). Default selects every value."""
+    display_name = "Trainer Spell Class Pools"
+    valid_keys = [
+        "warrior", "paladin", "hunter", "rogue", "priest",
+        "death_knight", "shaman", "mage", "warlock", "druid",
+    ]
+    default = valid_keys
+
+
+class TrainerSpellExpansionPools(OptionSet):
+    """Which Trainer Spells & Abilities expansion pools to include (M4.9).
+    Expansion is resolved from the teaching trainer's own real spawn map
+    (creature_default_trainer -> creature.map -> Map.dbc's expansionID),
+    the same pattern extract_vendor_stock.py's _load_vendor_expansions and
+    extract_quest_rewards.py's _load_quest_expansions already established.
+    Default selects every value."""
+    display_name = "Trainer Spell Expansion Pools"
+    valid_keys = ["vanilla", "tbc", "wotlk"]
+    default = valid_keys
+
+
+
 class VendorCheckRepeatBehavior(Choice):
     """What happens when a player interacts again with a Vendor Inventories
     slot they've already checked (M4.7). The synthesized AP item only ever
@@ -576,5 +648,9 @@ class WoWOptions(PerGameCommonOptions):
     vendor_stock_expansion_pools: VendorStockExpansionPools
     quest_reward_weight: QuestRewardWeight
     vendor_stock_weight: VendorStockWeight
+    recipe_profession_pools: RecipeProfessionPools
+    recipe_expansion_pools: RecipeExpansionPools
+    trainer_spell_class_pools: TrainerSpellClassPools
+    trainer_spell_expansion_pools: TrainerSpellExpansionPools
     vendor_check_repeat_behavior: VendorCheckRepeatBehavior
 
