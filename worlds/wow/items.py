@@ -390,10 +390,19 @@ def create_filler_item_pool(world, count: int) -> list[WoWItem]:
     sampling each eligible category down to FILLER_PER_CATEGORY_CAP ("as
     even as possible" -- a category with fewer real rows than the cap
     contributes everything it has instead of being padded/excluded).
-    Returns exactly `count` items (or every eligible item if fewer than
-    `count` exist across every selected category combined -- this should
-    never actually happen at this family's real scale, ~13,509+5 rows
-    across 18 categories, but is handled without error either way)."""
+    Returns exactly `count` items whenever at least one category is
+    selected: at real production scale (~13,509+5 rows across 18
+    categories) the unique eligible supply comfortably exceeds `count`
+    and every item is sampled without repetition ("as even as possible"
+    category variety, unchanged). If a player narrows FillerCategoryPools
+    to a combination whose real eligible supply is smaller than `count`
+    (e.g. only "badge_currency" selected, 5 real items, against a
+    64-item deficit), the shortfall is padded via repeated random draws
+    from that same eligible set -- filler reward items are explicitly
+    non-unique/replaceable by design, so a repeated item is a normal,
+    valid outcome here, not a correctness problem. Only degrades to
+    fewer than `count` items in the genuinely degenerate case where zero
+    categories/names are eligible at all."""
     selected = set(world.options.filler_category_pools.value)
 
     by_category: dict[str, list[str]] = {}
@@ -413,7 +422,26 @@ def create_filler_item_pool(world, count: int) -> list[WoWItem]:
         eligible_names.extend(capped)
 
     world.random.shuffle(eligible_names)
-    chosen_names = eligible_names[:count]
+    if len(eligible_names) >= count:
+        chosen_names = eligible_names[:count]
+    elif eligible_names:
+        # M4.9.3.1: a player can legitimately narrow FillerCategoryPools
+        # to a combination whose real eligible supply is smaller than
+        # what a deficit-closing caller needs (e.g. only "badge_currency"
+        # selected, 5 real items, against core_loop's up-to-64-item
+        # standard-track deficit) -- filler reward items are explicitly
+        # non-unique/replaceable by design (unlike progression items),
+        # so padding with repeats here is correct behavior, not a
+        # workaround: every chosen name still resolves to one real,
+        # valid WoW item/effect either way. Only degrades gracefully to
+        # fewer-than-count if NO category is selected at all (the
+        # eligible_names-empty branch below), a distinct, much rarer
+        # misconfiguration.
+        chosen_names = list(eligible_names)
+        chosen_names.extend(world.random.choice(eligible_names) for _ in range(count - len(eligible_names)))
+        world.random.shuffle(chosen_names)
+    else:
+        chosen_names = []
 
     pool = []
     for name in chosen_names:
