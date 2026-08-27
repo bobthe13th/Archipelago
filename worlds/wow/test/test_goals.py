@@ -440,9 +440,18 @@ class TestValidateHundredPercentEmptyRegistry(unittest.TestCase):
 class TestHundredPercentModeGeneratesAndRequiresAllLevelCaps(WoWTestBase):
     """100% mode must generate successfully with this checkout's real
     quest_rewards/vendor_stock categories registered, and its completion
-    rule must require all 10 Progressive Level Cap copies -- 9 alone is not
-    enough (mirrors Key Hunt's/Artisan's own "neither alone is enough"
-    shape from TestKeyHuntCompletionRequiresKeysAndInstances above).
+    rule must require ALL pooled Progressive Level Cap copies -- one short
+    is not enough (mirrors Key Hunt's/Artisan's own "neither alone is
+    enough" shape from TestKeyHuntCompletionRequiresKeysAndInstances
+    above). M4.9: the total grew from 10 to 14 (core_loop.yaml, to support
+    the every-level milestone track's own level-80 ceiling) -- unlike
+    Sprint (goals.py's _set_completion_rule_sprint, fixed to require only
+    the level-60-specific threshold), 100% mode's own completion rule
+    (_set_completion_rule_hundred_percent) deliberately still reads
+    ITEMS["Progressive Level Cap"][1] directly (ALL copies, whatever that
+    total is) -- "collect literally everything" is exactly 100% mode's own
+    definition, so no threshold-derivation fix was needed there, only this
+    test's own hardcoded expectation of what "all" currently means.
 
     run_default_tests previously defaulted to True here (no override):
     WorldTestBase's own automatic test_all_state_can_reach_everything/
@@ -474,11 +483,11 @@ class TestHundredPercentModeGeneratesAndRequiresAllLevelCaps(WoWTestBase):
     def test_generates_successfully_with_registered_optional_categories(self) -> None:
         self.assertTrue(self.constructed)
 
-    def test_nine_of_ten_level_cap_copies_is_not_enough(self) -> None:
+    def test_thirteen_of_fourteen_level_cap_copies_is_not_enough(self) -> None:
         state = self.multiworld.state
         level_caps = self.get_items_by_name("Progressive Level Cap")
-        self.assertEqual(len(level_caps), 10)
-        self.collect(level_caps[:9])
+        self.assertEqual(len(level_caps), 14)
+        self.collect(level_caps[:13])
         self.assertFalse(self.multiworld.completion_condition[self.player](state))
 
     def test_optional_category_sampled_names_is_populated(self) -> None:

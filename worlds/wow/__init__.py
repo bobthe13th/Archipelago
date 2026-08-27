@@ -26,16 +26,13 @@ class WoWWorld(World):
     Progressive Level Cap / Instance Unlocks / Dark Portal / Northrend
     Passage items, Sprint mode (reach level 60) playable end to end.
 
-    Known accepted limitation: Death Knight characters start at level 55
-    via a server-side path that bypasses the level-up hook driving the
-    "Reach Level N" checks for N in 5..55, so those 11 locations are
-    unreachable in actual play for that class (see the extended comment in
-    locations.py's create_core_loop_locations). Sprint's completion rule
-    only requires collecting all 10 Progressive Level Cap copies, not
-    checking any specific location, so the goal remains logically
-    reachable for every class; this is tracked as a residual experiential
-    risk, not a generation-time error, and is deferred pending a
-    class-aware state model (out of scope for M2.1).
+    M4.9 update: the Death Knight reachability gap this docstring used to
+    describe here is now resolved via a two-track split (core_loop.yaml's
+    "standard"/"death_knight" level-milestone tracks, gated by the
+    death_knight_slot option) -- see locations.py's
+    create_core_loop_locations for the real mechanism and its own
+    trust-model caveat (nothing enforces that a death_knight_slot=True
+    player actually plays a Death Knight in-game).
     """
     game = "World of Warcraft WotLK"
     options_dataclass = WoWOptions
@@ -55,7 +52,18 @@ class WoWWorld(World):
         **{name: item_id for name, (item_id, _count) in vendor_stock_content_data.ITEMS.items()},
     }
     location_name_to_id = {
-        **{f"Reach Level {level}": loc_id for level, loc_id in core_loop_content_data.LEVEL_LOCATIONS.items()},
+        # M4.9: this class attribute is AP's GLOBAL location namespace for
+        # this game (used once per game class to build the datapackage),
+        # not a per-slot list -- it must include BOTH tracks' "Reach Level
+        # N" locations regardless of any single generation's
+        # death_knight_slot value, the same way quest_rewards_content_data's
+        # full LOCATIONS dict is included here regardless of per-slot
+        # tag/weight sampling.
+        **{
+            core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK[track][level]: loc_id
+            for track, levels in core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK.items()
+            for level, loc_id in levels.items()
+        },
         **{
             core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES[instance_key]: loc_id
             for instance_key, loc_id in core_loop_content_data.INSTANCE_CLEAR_LOCATIONS.items()

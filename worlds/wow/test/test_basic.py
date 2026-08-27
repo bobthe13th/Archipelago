@@ -35,7 +35,7 @@ class TestNorthshireGeneration(WoWTestBase):
         from .. import density
         from .. import quest_rewards_content_data
         from .. import vendor_stock_content_data
-        fixed_count = 24  # 17 core-loop + 7 unconditional gates (riding x5, flight x2)
+        fixed_count = 28  # M4.9: 21 core-loop item copies (14 Progressive Level Cap + 7 unlocks) + 7 unconditional gates (riding x5, flight x2)
         always_present_count = len(quest_rewards_content_data.ALWAYS_PRESENT)
         quest_reward_candidates = len(quest_rewards_content_data.LOCATIONS) - always_present_count
         quest_reward_sampled = density.predict_sample_size(25, 100, quest_reward_candidates)
@@ -278,19 +278,25 @@ class TestGateItemSphereZeroWithNarrowedVendorStockPools(WoWTestBase):
 
 
 class TestCoreLoopAccessRules(WoWTestBase):
-    """Final-review fix: rules.py must attach real prerequisites to the
-    core-loop locations, matching the real C++ server's genuine
-    prerequisites, so the fill algorithm can no longer place a required
-    Progressive Level Cap copy on a milestone location that itself requires
-    already having that copy (which produced permanently unwinnable seeds
-    when rules.py's set_rules was a no-op)."""
+    """Final-review fix (M2.1) + M4.9 update: rules.py must attach real
+    prerequisites to the core-loop locations, matching the real C++
+    server's genuine prerequisites, so the fill algorithm can no longer
+    place a required Progressive Level Cap copy on a milestone location
+    that itself requires already having that copy. M4.9: the old
+    Death-Knight "safety collapse" (every location below level 55 needed
+    the SAME copy count as level 55) is retired -- default (non-DK) slots
+    now use each location's own natural per-level threshold, since the
+    standard track no longer needs to share reachability with a class that
+    can never reach it (that class gets its own, separate death_knight
+    track instead -- see TestDeathKnightSlotLevelMilestoneTracks, Task 5)."""
 
-    def test_reach_level_60_needs_all_ten_progressive_level_caps(self) -> None:
+    def test_reach_level_80_needs_all_fourteen_progressive_level_caps(self) -> None:
         progressive_caps = self.get_items_by_name("Progressive Level Cap")
-        self.collect(progressive_caps[:9])
-        self.assertFalse(self.can_reach_location("Reach Level 60"))
-        self.collect(progressive_caps[9:])
-        self.assertTrue(self.can_reach_location("Reach Level 60"))
+        self.assertEqual(len(progressive_caps), 14)
+        self.collect(progressive_caps[:13])
+        self.assertFalse(self.can_reach_location("Reach Level 80"))
+        self.collect(progressive_caps[13:])
+        self.assertTrue(self.can_reach_location("Reach Level 80"))
 
     def test_clear_ragefire_chasm_needs_its_instance_unlock(self) -> None:
         self.assertFalse(self.can_reach_location("Clear Ragefire Chasm"))
@@ -304,29 +310,31 @@ class TestCoreLoopAccessRules(WoWTestBase):
         self.collect(unlock)
         self.assertTrue(self.can_reach_location("Clear Deadmines"))
 
-    def test_reach_level_10_now_needs_full_dk_safe_requirement(self) -> None:
-        # Fix under test: every "Reach Level N" location for N < 55 must require
-        # the SAME copy count as "Reach Level 55" (9 copies), not its own smaller
-        # per-level threshold -- otherwise a required Progressive Level Cap copy
-        # could land on a Death Knight-unreachable location (levels 5-55 never
-        # fire their level-up hook for a DK, see rules.py's module docstring).
-        progressive_caps = self.get_items_by_name("Progressive Level Cap")
-        self.collect(progressive_caps[:8])
-        self.assertFalse(self.can_reach_location("Reach Level 10"))
-        self.collect(progressive_caps[8:9])
+    def test_reach_level_10_and_below_need_no_progressive_level_cap(self) -> None:
+        # M4.9: levels 1-10 are already within STARTING_LEVEL_CAP (10), so
+        # they need zero Progressive Level Cap copies -- unlike the old
+        # DK-safety-collapsed threshold (9 copies), the standard track's own
+        # natural math applies now that Death Knight no longer shares this
+        # track.
+        self.assertTrue(self.can_reach_location("Reach Level 1"))
         self.assertTrue(self.can_reach_location("Reach Level 10"))
 
-    def test_reach_level_55_and_below_share_the_same_threshold(self) -> None:
+    def test_reach_level_55_needs_nine_progressive_level_caps(self) -> None:
         progressive_caps = self.get_items_by_name("Progressive Level Cap")
-        self.collect(progressive_caps[:9])
-        for level in (10, 15, 20, 25, 30, 35, 40, 45, 50, 55):
-            self.assertTrue(self.can_reach_location(f"Reach Level {level}"))
+        self.collect(progressive_caps[:8])
+        self.assertFalse(self.can_reach_location("Reach Level 55"))
+        self.collect(progressive_caps[8:9])
+        self.assertTrue(self.can_reach_location("Reach Level 55"))
 
 
 class TestSprintGoal(WoWTestBase):
-    def test_sprint_goal_requires_all_progressive_level_caps(self) -> None:
-        """Reaching the Sprint goal must require all 10 Progressive Level
-        Cap copies (starting cap 10, +5 each, reaches exactly 60).
+    def test_sprint_goal_requires_ten_of_fourteen_progressive_level_caps(self) -> None:
+        """M4.9: Progressive Level Cap's total pooled copy count grew from
+        10 to 14 (core_loop.yaml, to support the every-level milestone
+        track's own level-80 ceiling), but Sprint's own goal is still
+        level 60 -- goals.py's _set_completion_rule_sprint now derives the
+        real level-60 threshold (10) instead of requiring ALL copies, so
+        the remaining 4 copies are collectible but not required to win.
 
         Note: WorldTestBase.collect_by_name collects *every* matching item
         in the pool in one call (it is not "collect one copy"), so to
@@ -337,18 +345,24 @@ class TestSprintGoal(WoWTestBase):
         state = self.multiworld.state
         self.assertFalse(self.multiworld.completion_condition[self.player](state))
         progressive_caps = self.get_items_by_name("Progressive Level Cap")
-        self.assertEqual(len(progressive_caps), 10)
+        self.assertEqual(len(progressive_caps), 14)
         self.collect(progressive_caps[:9])
         self.assertFalse(self.multiworld.completion_condition[self.player](state))
-        self.collect(progressive_caps[9:])
+        self.collect(progressive_caps[9:10])
         self.assertTrue(self.multiworld.completion_condition[self.player](state))
 
-    def test_core_loop_item_pool_matches_location_count(self) -> None:
+    def test_core_loop_item_pool_matches_expected_total(self) -> None:
+        # M4.9: 14 Progressive Level Cap copies (was 10) + 7 unconditional
+        # unlock items (Ragefire Chasm, Deadmines, Dark Portal, Northrend
+        # Passage, Molten Core, Sunwell Plateau, Icecrown Citadel) = 21.
+        # This is a real, deliberate total -- NOT derived from the standard
+        # track's own 85-location count (80 level milestones + 5 instance
+        # clears): Progressive Level Cap copies and "Reach Level N"
+        # locations are two independently-sized things that happened to
+        # both equal 17 under the old every-5-levels granularity by
+        # coincidence, not by any enforced invariant.
         core_loop_item_count = sum(count for _, count in core_loop_content_data.ITEMS.values())
-        # 12 level milestones + 5 instance clears (Ragefire Chasm, Deadmines,
-        # and Task 23's Molten Core/Sunwell Plateau/Icecrown Citadel).
-        core_loop_location_count = 12 + 5
-        self.assertEqual(core_loop_item_count, core_loop_location_count)
+        self.assertEqual(core_loop_item_count, 21)
 
 
 _ALL_TRAP_ITEM_NAMES = tuple(traps_content_data.ITEMS)

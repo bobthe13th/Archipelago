@@ -21,29 +21,31 @@ from . import quest_rewards_content_data
 # the matching Instance Unlock item). Leaving these locations rule-free let
 # the fill algorithm place a required Progressive Level Cap copy on a
 # milestone location that itself required already having that copy,
-# producing permanently unwinnable seeds. See the extended comment in
-# locations.py's create_core_loop_locations for the (separate, still
-# accepted) Death Knight reachability gap, which this fix does not change.
+# producing permanently unwinnable seeds. M4.9: the separate Death Knight
+# reachability gap this comment used to describe as "still accepted" is
+# now resolved via a two-track split -- see locations.py's
+# create_core_loop_locations for the real mechanism and its own trust-model
+# caveat.
 def set_rules(world):
     starting_cap = core_loop_content_data.STARTING_LEVEL_CAP
     step = core_loop_content_data.LEVEL_CAP_STEP
-    # Death Knight characters start at level 55 via a path that bypasses the
-    # level-up hook (see locations.py's create_core_loop_locations docstring),
-    # so the 11 locations for level < 55 are physically unreachable for that
-    # class. Gating every one of them behind the SAME copy count as level 55
-    # (rather than each level's own smaller threshold) doesn't change what's
-    # needed to win a seed -- Progressive Level Cap copies are fungible, only
-    # the total held count matters (state.has doesn't track provenance) --
-    # but it guarantees any copy the fill algorithm places on one of those 11
-    # locations is logically redundant (obtainable only once nearly done),
-    # forcing every ESSENTIAL copy to land somewhere DK-reachable (the 19 M2
-    # quest locations, Reach Level 55/60, or either instance clear).
-    level_55_copies_needed = max(0, math.ceil((55 - starting_cap) / step))
-    for level, _location_id in core_loop_content_data.LEVEL_LOCATIONS.items():
-        copies_needed = level_55_copies_needed if level <= 55 else max(
-            0, math.ceil((level - starting_cap) / step)
-        )
-        location = world.get_location(f"Reach Level {level}")
+    # M4.9: the M2.1-era Death Knight "safety collapse" (every level < 55
+    # location required the SAME copy count as level 55, so a required
+    # Progressive Level Cap copy could never land somewhere DK-unreachable)
+    # is retired, superseded by locations.py's own two-track split
+    # (core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK["standard"] vs
+    # ["death_knight"]). A death_knight_slot=True slot now only ever
+    # creates the death_knight track's 55-80 locations to begin with, so
+    # there is no longer any DK-unreachable "Reach Level N" location in the
+    # pool for that slot to collapse away -- every location (on whichever
+    # track this slot actually created) can use its own natural per-level
+    # threshold.
+    is_dk_slot = bool(world.options.death_knight_slot)
+    track = "death_knight" if is_dk_slot else "standard"
+    for level, _location_id in core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track].items():
+        copies_needed = max(0, math.ceil((level - starting_cap) / step))
+        name = core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK[track][level]
+        location = world.get_location(name)
         if copies_needed > 0:
             world.set_rule(
                 location,

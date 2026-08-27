@@ -156,7 +156,7 @@ class TestQuestRewardsAvailableOutsideSprint(WoWTestBase):
     Every other test in this file only ever exercises Sprint, so
     nothing prior to this class actually ran the family, its rule (whose
     total_caps clamp assumes core_loop's Progressive Level Cap item pool is
-    always 10 regardless of mode -- true because create_core_loop_item_pool
+    always 14 regardless of mode -- true because create_core_loop_item_pool
     is called unconditionally in create_items, but never checked from the
     Quest Rewards side), or its registry's interaction with an existing
     mode-owned sampler, under any other mode. Key Hunt is the sharpest case:

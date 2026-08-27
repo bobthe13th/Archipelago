@@ -142,31 +142,36 @@ def create_optional_category_locations(world, region) -> list:
 
 
 def create_core_loop_locations(world, region) -> list:
-    # KNOWN ACCEPTED LIMITATION (M2.1): Death Knight characters on this
-    # server start at level 55 via Player::Create, a path that does not
-    # dispatch the C++ level-up hook (Player::GiveLevel) which drives these
-    # location checks. That means the 11 "Reach Level N" checks for N in
-    # 5..55 can never fire for a Death Knight -- only "Reach Level 60" is
-    # reachable for that class (DK does level up normally, via GiveLevel,
-    # from 55 to 60). This is a real in-game reachability gap, but it is
-    # NOT visible to Archipelago's logic layer: rules.py attaches no access
-    # rule to these locations (or any WoW location), Sprint mode has no
-    # notion of character class as state, and there is no per-class option
-    # in M2.1's options.py, so every location here is modeled as
-    # unconditionally reachable and generation will not fail or warn about
-    # it. The Sprint win condition itself only requires collecting all 10
-    # "Progressive Level Cap" copies (see rules.py), not checking any
-    # specific location, so the goal remains reachable for every class in
-    # the logic model. The residual risk is purely experiential: if a
-    # Progressive Level Cap copy is filled into one of the 11 DK-unreachable
-    # milestone locations, a real Death Knight player could not obtain that
-    # copy in actual gameplay. Modeling player class as generation-time
-    # state (e.g. an option that excludes low-level milestones for DK
-    # slots) is out of scope here -- it's deferred alongside the other
-    # per-class/per-mode work called out in options.py's GameMode docstring.
+    # M4.9: every-level granularity (was every 5th level) with a real
+    # per-class track split, replacing the M2.1 "KNOWN ACCEPTED
+    # LIMITATION" this function used to document here. Death Knight
+    # characters on this server still start at level 55 via Player::Create,
+    # a path that does not dispatch the C++ level-up hook
+    # (Player::GiveLevel) the sub-55 "Reach Level N" locations depend on --
+    # but going to every-level granularity would have grown that gap
+    # roughly 5x (11 unreachable locations -> ~54) if the content stayed a
+    # single universal track. Instead, core_loop.yaml now defines TWO
+    # tracks (LEVEL_LOCATIONS_BY_TRACK in core_loop_content_data.py,
+    # mirroring INSTANCES_BY_EXPANSION's grouping precedent): "standard"
+    # (every class except Death Knight, levels 1-80) and "death_knight"
+    # (Death Knight only, levels 55-80, matching the class's real starting
+    # level). death_knight_slot (options.py) is this world's own
+    # generation-time signal for which track to instantiate -- a
+    # DK-flagged slot gets ONLY the death_knight track's locations, so
+    # there is no longer any DK-unreachable "Reach Level N" location in the
+    # pool at all for that slot. This is a trust model, not a runtime
+    # guarantee: nothing enforces that a death_knight_slot=True player
+    # actually plays a Death Knight in-game (or vice versa) -- see
+    # death_knight_slot's own options.py docstring for why that's an
+    # accepted, documented limitation identical in shape to
+    # starting_choice/combo_unlocks_scope's existing "honor your own
+    # option" trust model, not a new kind of gap.
+    is_dk_slot = bool(world.options.death_knight_slot)
+    track = "death_knight" if is_dk_slot else "standard"
     locations = []
-    for level, location_id in core_loop_content_data.LEVEL_LOCATIONS.items():
-        locations.append(WoWLocation(world.player, f"Reach Level {level}", location_id, region))
+    for level, location_id in core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track].items():
+        name = core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK[track][level]
+        locations.append(WoWLocation(world.player, name, location_id, region))
     for instance_key, location_id in core_loop_content_data.INSTANCE_CLEAR_LOCATIONS.items():
         name = core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES[instance_key]
         locations.append(WoWLocation(world.player, name, location_id, region))

@@ -4,6 +4,8 @@ completion rules. Every mode beyond Sprint is added here as content lands
 for it -- see docs/m4-plan.md Group 6 for which modes are Tier 1/2/3."""
 from __future__ import annotations
 
+import math
+
 from Options import OptionError
 
 from . import collections_content_data
@@ -41,13 +43,22 @@ def _validate_sprint(world) -> None:
 
 
 def _set_completion_rule_sprint(world) -> None:
-    # Sprint: reach level 60, which (per this milestone's fixed content
-    # table) requires having received all 10 Progressive Level Cap copies --
-    # starting cap 10, +5 each, 10 copies reaches exactly 60. Moved here
-    # unchanged from rules.py's original set_completion_rule (Task 22).
+    # Sprint: reach level 60. M4.9: Progressive Level Cap's total pooled
+    # copy count grew from 10 to 14 (core_loop.yaml, to support the
+    # every-level milestone track's own level-80 ceiling: starting cap 10 +
+    # 14 * step 5 = 80) -- Sprint's own goal is still level 60, not 80, so
+    # this rule can no longer use "hold ALL copies" (that used to be
+    # coincidentally correct only because the old total was tuned to stop
+    # exactly at 60). Derive the real level-60 threshold from the same
+    # constants the cap-raise math itself uses, instead of hardcoding 10 or
+    # reading the total ITEMS count.
+    copies_for_sprint_goal = math.ceil(
+        (core_loop_content_data.SPRINT_GOAL_LEVEL - core_loop_content_data.STARTING_LEVEL_CAP)
+        / core_loop_content_data.LEVEL_CAP_STEP
+    )
     world.set_completion_rule(
         lambda state: state.has(
-            "Progressive Level Cap", world.player, core_loop_content_data.ITEMS["Progressive Level Cap"][1]
+            "Progressive Level Cap", world.player, copies_for_sprint_goal
         )
     )
 

@@ -2,6 +2,8 @@
 from BaseClasses import Item, ItemClassification
 from . import collections_content_data
 from . import core_loop_content_data
+from . import filler_reward_items_content_data
+from . import filler_reward_effects_content_data
 from . import fish_content_data
 from . import gates_content_data
 from . import professions_content_data
@@ -13,11 +15,46 @@ class WoWItem(Item):
     game = "World of Warcraft WotLK"
 
 
+# M4.9.3.1: maps each real filler_reward_effects `effect` string to its
+# player-facing FillerCategoryPools key -- the two vocabularies differ
+# slightly (effect="cast_spell" is category="random_buff", etc.) since
+# `effect` names the underlying C++ dispatch case (APFillerRewardEffects.cpp)
+# while `category` names the player-facing concept (options.py).
+_EFFECT_TO_CATEGORY = {
+    "cast_spell": "random_buff",
+    "grant_money": "gold_reward",
+    "grant_xp_percent": "xp_reward",
+    "grant_title": "title",
+    "portable_service": "portable_service",
+}
+
+# Shared per-category cap ("as even as possible" -- design spec's own
+# phrasing): every category is sampled down to this count if it has more
+# real/curated rows than this; a category with FEWER rows than this
+# contributes everything it has (badge_currency: 5, toy: 6) rather than
+# being padded or excluded.
+FILLER_PER_CATEGORY_CAP = 30
+
+
 def create_core_loop_item_pool(world) -> list:
     pool = []
     for name, (item_id, count) in core_loop_content_data.ITEMS.items():
         for _ in range(count):
             pool.append(WoWItem(name, ItemClassification.progression, item_id, world.player))
+    # M4.9.3.1: core_loop's every-level granularity (M4.9.3) grew its own
+    # location count (85 standard-track / 31 death_knight-track) well past
+    # its own fixed item count (21) -- pad the pool to close the deficit
+    # exactly, the same track-aware sizing _trap_baseline_location_count
+    # already established for the trap family's own baseline.
+    is_dk_slot = bool(world.options.death_knight_slot)
+    track = "death_knight" if is_dk_slot else "standard"
+    location_count = (
+        len(core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track])
+        + len(core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
+    )
+    deficit = location_count - len(pool)
+    if deficit > 0:
+        pool.extend(create_filler_item_pool(world, deficit))
     return pool
 
 
@@ -101,18 +138,18 @@ def _eligible_trap_names(world) -> list[str]:
     ]
 
 
-def _trap_baseline_location_count() -> int:
-    # M4.8.0: the standalone `quests` family (19 locations) is retired --
-    # those 19 locations now live in quest_rewards as always_present rows,
-    # which are NOT part of this baseline (this function's own docstring:
-    # "quest + core-loop locations" meant the FIXED M1/M2 set, never
-    # DB-derived optional-category content). This is a real, deliberate
-    # behavior change: trap_percentage_of_filler's baseline shrinks from 36
-    # to 17 (core-loop only) -- a smaller baseline means fewer total trap
-    # item copies at any given trap_percentage_of_filler setting than
-    # before this milestone.
+def _trap_baseline_location_count(world) -> int:
+    # M4.9: track-aware -- a slot's real core-loop location count now
+    # depends on death_knight_slot (locations.py's two-track split), not a
+    # single fixed number. Standard track: 80 level milestones + 5 instance
+    # clears = 85. Death Knight track: 26 level milestones (55-80) + 5
+    # instance clears = 31. (M4.8.0's own docstring note about the
+    # standalone `quests` family's 19 locations no longer being part of
+    # this baseline still applies -- unaffected by this task.)
+    is_dk_slot = bool(world.options.death_knight_slot)
+    track = "death_knight" if is_dk_slot else "standard"
     return (
-        len(core_loop_content_data.LEVEL_LOCATIONS)
+        len(core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track])
         + len(core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
     )
 
@@ -126,7 +163,7 @@ def count_enabled_trap_items(world) -> int:
         return 0
     if not _eligible_trap_names(world):
         return 0
-    return max(0, round(_trap_baseline_location_count() * world.options.trap_percentage_of_filler / 100))
+    return max(0, round(_trap_baseline_location_count(world) * world.options.trap_percentage_of_filler / 100))
 
 
 def _distribute_trap_counts_uniform(eligible: list[str], total: int) -> dict[str, int]:
@@ -333,5 +370,57 @@ def create_optional_category_item_pool(world) -> list:
             item_name, (item_id, count) = item_rows[i]
             for _ in range(count):
                 pool.append(WoWItem(item_name, ItemClassification.progression, item_id, world.player))
+    return pool
+
+
+def create_filler_item_pool(world, count: int) -> list[WoWItem]:
+    """Generic, reusable "N random filler reward items" pool -- any content
+    family with more locations than pooled items calls this to close its
+    own deficit exactly (M4.9.3.1's own origin: core_loop's every-level
+    granularity change left the standard/death_knight tracks short 64/10
+    items respectively, with no existing mechanism in this direction --
+    every other family is either self-balancing 1:1 or, for gates/traps,
+    backfills the OPPOSITE direction via locations.py's own
+    create_filler_locations/content/filler.yaml, a different, pre-existing
+    mechanism this function does not touch or duplicate).
+
+    Draws from BOTH filler_reward_items (13 real DB-extracted item
+    categories, tag-filtered) and filler_reward_effects (5 curated reward
+    effects, effect-filtered) together, respecting FillerCategoryPools,
+    sampling each eligible category down to FILLER_PER_CATEGORY_CAP ("as
+    even as possible" -- a category with fewer real rows than the cap
+    contributes everything it has instead of being padded/excluded).
+    Returns exactly `count` items (or every eligible item if fewer than
+    `count` exist across every selected category combined -- this should
+    never actually happen at this family's real scale, ~13,509+5 rows
+    across 18 categories, but is handled without error either way)."""
+    selected = set(world.options.filler_category_pools.value)
+
+    by_category: dict[str, list[str]] = {}
+    for name, tags in filler_reward_items_content_data.TAGS.items():
+        category = next(iter(tags["category"]))
+        if category in selected:
+            by_category.setdefault(category, []).append(name)
+    for name, effect in filler_reward_effects_content_data.EFFECT_BY_ITEM_NAME.items():
+        category = _EFFECT_TO_CATEGORY[effect]
+        if category in selected:
+            by_category.setdefault(category, []).append(name)
+
+    eligible_names: list[str] = []
+    for category, names in by_category.items():
+        world.random.shuffle(names)
+        capped = names[:FILLER_PER_CATEGORY_CAP]
+        eligible_names.extend(capped)
+
+    world.random.shuffle(eligible_names)
+    chosen_names = eligible_names[:count]
+
+    pool = []
+    for name in chosen_names:
+        if name in filler_reward_items_content_data.ITEMS:
+            item_id, _item_count = filler_reward_items_content_data.ITEMS[name]
+        else:
+            item_id, _item_count = filler_reward_effects_content_data.ITEMS[name]
+        pool.append(WoWItem(name, ItemClassification.filler, item_id, world.player))
     return pool
 
