@@ -1,5 +1,6 @@
 # Archipelago/worlds/wow/test/test_optional_categories.py
 from .bases import WoWTestBase
+from .. import WoWWorld
 from ..locations import _OPTIONAL_CATEGORIES, OptionalCategory, create_optional_category_locations, _location_matches_pools
 
 
@@ -35,8 +36,16 @@ class TestOptionalCategoryRegistry(WoWTestBase):
         # file consciously rather than silently drifting.
         self.assertEqual(len(_OPTIONAL_CATEGORIES), 4)
         self.assertEqual(_OPTIONAL_CATEGORIES[0].key, "quest_rewards")
+        self.assertEqual(
+            _OPTIONAL_CATEGORIES[0].tag_options,
+            {"type": "quest_reward_type_pools", "expansion": "quest_reward_expansion_pools"},
+        )
         self.assertEqual(_OPTIONAL_CATEGORIES[0].weight_option, "quest_reward_weight")
         self.assertEqual(_OPTIONAL_CATEGORIES[1].key, "vendor_stock")
+        self.assertEqual(
+            _OPTIONAL_CATEGORIES[1].tag_options,
+            {"expansion": "vendor_stock_expansion_pools"},
+        )
         self.assertEqual(_OPTIONAL_CATEGORIES[1].weight_option, "vendor_stock_weight")
         self.assertEqual(_OPTIONAL_CATEGORIES[2].key, "recipes")
         self.assertEqual(
@@ -298,3 +307,27 @@ class TestNoWeightOptionCategoryIncludesEveryTagMatchedRowUnconditionally(WoWTes
             self.assertEqual(len(created), 10)
         finally:
             locations_module._OPTIONAL_CATEGORIES = original
+
+
+class TestOptionalCategoriesFullyRegisteredInWorldDatapackage(WoWTestBase):
+    # M4.9.2 final review, Finding 2: a family can be fully compiled and
+    # correctly appended to _OPTIONAL_CATEGORIES (locations.py) while still
+    # never being spread into WoWWorld.location_name_to_id/item_name_to_id
+    # (__init__.py) -- that exact gap shipped for recipes/trainer_spells
+    # and was only caught by AP-core's separate test/general datapackage
+    # tests, which this milestone never ran. This test closes that gap at
+    # the wow-scoped level: every LOCATIONS/ITEMS key of every registered
+    # family must resolve in the world's own name-to-id maps.
+    def test_every_registered_family_locations_and_items_are_in_world_maps(self) -> None:
+        for category in _OPTIONAL_CATEGORIES:
+            missing_locations = set(category.locations_module.LOCATIONS) - set(WoWWorld.location_name_to_id)
+            self.assertEqual(
+                missing_locations, set(),
+                f"{category.key}: locations missing from WoWWorld.location_name_to_id",
+            )
+            if category.items_module is not None:
+                missing_items = set(category.items_module.ITEMS) - set(WoWWorld.item_name_to_id)
+                self.assertEqual(
+                    missing_items, set(),
+                    f"{category.key}: items missing from WoWWorld.item_name_to_id",
+                )

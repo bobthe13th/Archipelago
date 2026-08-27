@@ -576,7 +576,6 @@ class TrainerSpellExpansionPools(OptionSet):
     default = valid_keys
 
 
-
 class VendorCheckRepeatBehavior(Choice):
     """What happens when a player interacts again with a Vendor Inventories
     slot they've already checked (M4.7). The synthesized AP item only ever
