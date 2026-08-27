@@ -74,7 +74,7 @@ class WoWTestBase(WorldTestBase):
         if "trainer_spell_class_pools" not in merged:
             merged["trainer_spell_class_pools"] = set()
         if "filler_category_pools" not in merged:
-            merged["filler_category_pools"] = set()
+            merged["filler_category_pools"] = {"consumable", "bag", "reagent"}
         self.options = merged
         try:
             super().world_setup(seed)
