@@ -7,7 +7,7 @@ LEVEL_CAP_STEP = 5
 SPRINT_GOAL_LEVEL = 60
 
 ITEMS: dict[str, tuple[int, int]] = {
-    "Progressive Level Cap": (810000, 10),
+    "Progressive Level Cap": (810000, 14),
     "Instance Unlock: Ragefire Chasm": (810001, 1),
     "Instance Unlock: Deadmines": (810002, 1),
     "Dark Portal Access": (810003, 1),
@@ -33,19 +33,18 @@ INSTANCE_UNLOCK_ITEM_TO_KEY: dict[int, str] = {
     810007: "icecrown_citadel",
 }
 
-LEVEL_LOCATIONS: dict[int, int] = {
-    5: 710000,
-    10: 710001,
-    15: 710002,
-    20: 710003,
-    25: 710004,
-    30: 710005,
-    35: 710006,
-    40: 710007,
-    45: 710008,
-    50: 710009,
-    55: 710010,
-    60: 710011,
+LEVEL_LOCATIONS_BY_TRACK: dict[str, dict[int, int]] = {
+    "standard": {1: 710001, 2: 710002, 3: 710003, 4: 710004, 5: 710005, 6: 710006, 7: 710007, 8: 710008, 9: 710009, 10: 710010, 11: 710011, 12: 710012, 13: 710013, 14: 710014, 15: 710015, 16: 710016, 17: 710017, 18: 710018, 19: 710019, 20: 710020, 21: 710021, 22: 710022, 23: 710023, 24: 710024, 25: 710025, 26: 710026, 27: 710027, 28: 710028, 29: 710029, 30: 710030, 31: 710031, 32: 710032, 33: 710033, 34: 710034, 35: 710035, 36: 710036, 37: 710037, 38: 710038, 39: 710039, 40: 710040, 41: 710041, 42: 710042, 43: 710043, 44: 710044, 45: 710045, 46: 710046, 47: 710047, 48: 710048, 49: 710049, 50: 710050, 51: 710051, 52: 710052, 53: 710053, 54: 710054, 55: 710055, 56: 710056, 57: 710057, 58: 710058, 59: 710059, 60: 710060, 61: 710061, 62: 710062, 63: 710063, 64: 710064, 65: 710065, 66: 710066, 67: 710067, 68: 710068, 69: 710069, 70: 710070, 71: 710071, 72: 710072, 73: 710073, 74: 710074, 75: 710075, 76: 710076, 77: 710077, 78: 710078, 79: 710079, 80: 710080},
+    "death_knight": {55: 711055, 56: 711056, 57: 711057, 58: 711058, 59: 711059, 60: 711060, 61: 711061, 62: 711062, 63: 711063, 64: 711064, 65: 711065, 66: 711066, 67: 711067, 68: 711068, 69: 711069, 70: 711070, 71: 711071, 72: 711072, 73: 711073, 74: 711074, 75: 711075, 76: 711076, 77: 711077, 78: 711078, 79: 711079, 80: 711080},
+}
+
+# M4.9: name for each (track, level) pair, generated directly from each
+# location row's own `name` field -- same anti-hardcoded-ternary discipline
+# as INSTANCE_CLEAR_LOCATION_NAMES below (Task 23 bugfix), so locations.py/
+# rules.py never need to hand-format a track-specific name suffix themselves.
+LEVEL_LOCATION_NAMES_BY_TRACK: dict[str, dict[int, str]] = {
+    "standard": {1: "Reach Level 1", 2: "Reach Level 2", 3: "Reach Level 3", 4: "Reach Level 4", 5: "Reach Level 5", 6: "Reach Level 6", 7: "Reach Level 7", 8: "Reach Level 8", 9: "Reach Level 9", 10: "Reach Level 10", 11: "Reach Level 11", 12: "Reach Level 12", 13: "Reach Level 13", 14: "Reach Level 14", 15: "Reach Level 15", 16: "Reach Level 16", 17: "Reach Level 17", 18: "Reach Level 18", 19: "Reach Level 19", 20: "Reach Level 20", 21: "Reach Level 21", 22: "Reach Level 22", 23: "Reach Level 23", 24: "Reach Level 24", 25: "Reach Level 25", 26: "Reach Level 26", 27: "Reach Level 27", 28: "Reach Level 28", 29: "Reach Level 29", 30: "Reach Level 30", 31: "Reach Level 31", 32: "Reach Level 32", 33: "Reach Level 33", 34: "Reach Level 34", 35: "Reach Level 35", 36: "Reach Level 36", 37: "Reach Level 37", 38: "Reach Level 38", 39: "Reach Level 39", 40: "Reach Level 40", 41: "Reach Level 41", 42: "Reach Level 42", 43: "Reach Level 43", 44: "Reach Level 44", 45: "Reach Level 45", 46: "Reach Level 46", 47: "Reach Level 47", 48: "Reach Level 48", 49: "Reach Level 49", 50: "Reach Level 50", 51: "Reach Level 51", 52: "Reach Level 52", 53: "Reach Level 53", 54: "Reach Level 54", 55: "Reach Level 55", 56: "Reach Level 56", 57: "Reach Level 57", 58: "Reach Level 58", 59: "Reach Level 59", 60: "Reach Level 60", 61: "Reach Level 61", 62: "Reach Level 62", 63: "Reach Level 63", 64: "Reach Level 64", 65: "Reach Level 65", 66: "Reach Level 66", 67: "Reach Level 67", 68: "Reach Level 68", 69: "Reach Level 69", 70: "Reach Level 70", 71: "Reach Level 71", 72: "Reach Level 72", 73: "Reach Level 73", 74: "Reach Level 74", 75: "Reach Level 75", 76: "Reach Level 76", 77: "Reach Level 77", 78: "Reach Level 78", 79: "Reach Level 79", 80: "Reach Level 80"},
+    "death_knight": {55: "Reach Level 55 (Death Knight)", 56: "Reach Level 56 (Death Knight)", 57: "Reach Level 57 (Death Knight)", 58: "Reach Level 58 (Death Knight)", 59: "Reach Level 59 (Death Knight)", 60: "Reach Level 60 (Death Knight)", 61: "Reach Level 61 (Death Knight)", 62: "Reach Level 62 (Death Knight)", 63: "Reach Level 63 (Death Knight)", 64: "Reach Level 64 (Death Knight)", 65: "Reach Level 65 (Death Knight)", 66: "Reach Level 66 (Death Knight)", 67: "Reach Level 67 (Death Knight)", 68: "Reach Level 68 (Death Knight)", 69: "Reach Level 69 (Death Knight)", 70: "Reach Level 70 (Death Knight)", 71: "Reach Level 71 (Death Knight)", 72: "Reach Level 72 (Death Knight)", 73: "Reach Level 73 (Death Knight)", 74: "Reach Level 74 (Death Knight)", 75: "Reach Level 75 (Death Knight)", 76: "Reach Level 76 (Death Knight)", 77: "Reach Level 77 (Death Knight)", 78: "Reach Level 78 (Death Knight)", 79: "Reach Level 79 (Death Knight)", 80: "Reach Level 80 (Death Knight)"},
 }
 
 INSTANCE_CLEAR_LOCATIONS: dict[str, int] = {
