@@ -614,6 +614,73 @@ class VendorCheckRepeatBehavior(Choice):
     default = 0
 
 
+class DeathKnightSlot(Toggle):
+    """M4.9: whether this slot's realm is intended to be played on a Death
+    Knight character. Purely a generation-time signal, exactly like
+    starting_choice above -- there is no per-account "which class did you
+    actually create" state in this checkout for the module to check
+    against, so this option is NOT read at runtime by the C++ module at
+    all (unlike most of this module's options, it is deliberately NOT
+    mirrored to slot_data or a worldserver.conf key -- see slot_data.py's
+    own "_add_x_to_slot_data" pattern, which this option does not
+    participate in). Instead, the C++ level-up hook
+    (ArchipelagoLevelScript.cpp) reads the connecting player's OWN real
+    class directly via player->getClass() at the moment they level up, and
+    picks whichever of the two content tracks (LEVEL_LOCATIONS_STANDARD /
+    LEVEL_LOCATIONS_DEATH_KNIGHT) matches -- this option's ONLY job is to
+    decide, at generation time, which of those two tracks' "Reach Level N"
+    locations even exist in this slot's world
+    (locations.py's create_core_loop_locations). If you turn this on but
+    then actually play a non-Death-Knight character (or vice versa), the
+    world you generated and the character you played no longer agree, and
+    the mismatched track's locations will never be reachable in practice
+    -- the same "you must honor your own declared option" trust model this
+    module already uses for starting_choice/combo_unlocks_scope, not a new
+    kind of gap. Off by default: most seeds are not Death Knight runs, and
+    every existing seed's YAML (with this key absent) resolves to the
+    pre-M4.9 standard 1-80 track, matching pre-M4.9 behavior as closely as
+    the granularity change allows."""
+    display_name = "Death Knight Slot"
+    default = False
+
+
+class DeathKnightLevel1Start(Toggle):
+    """M4.9: only meaningful when death_knight_slot is also True. Documents
+    and enables an opt-in for a level-1 (rather than the class's native
+    level-55) Death Knight start, by flipping the REALM-WIDE
+    StartHeroicPlayerLevel setting in worldserver.conf (real AzerothCore
+    config, confirmed default 55, range 1-MaxPlayerLevel) from 55 down to
+    1. This is a one-line config flip, not something this option enforces
+    or reads at runtime -- it is realm-wide, not per-slot (the WoW server
+    has exactly one StartHeroicPlayerLevel value for every character on
+    the realm), so it falls into this project's existing "manual
+    server-config sync" category (see docs/guides/server-setup-guide.md),
+    the same as delivery_policy/catch_up_policy/the gate toggles, NOT a
+    new kind of limitation.
+    IMPORTANT, real rough edges if enabled (verified during M4.9 planning
+    against this checkout's own live database, not guessed -- see Task 6's
+    reproducible queries): a level-1 Death Knight still spawns in Ebon
+    Hold and is still handed the Death's Door questline -- both are built
+    around a level-55 character's stat/gear/ability budget, not a level-1
+    one. This checkout's live `trainer_spell` table (the normalized
+    trainer/trainer_spell schema this checkout's worldserver actually
+    reads -- `npc_trainer` does not exist in the live DB) shows the Death
+    Knight class trainer's taught-spell ReqLevel values start at exactly
+    55 (55, 56, 57, ... 80, zero rows below 55), and
+    playercreateinfo_spell_custom (the other table a dormant sub-55 grant
+    could theoretically live in) is entirely empty in this checkout's base
+    data -- confirming there is no dormant/latent sub-55 Death Knight
+    ability-acquisition curve anywhere in this checkout's data to fall
+    back on. A level-1 Death Knight who turns this on is playable (can
+    immediately leave Ebon Hold and level normally, like any other class,
+    picking up the class's real level-up ability grants starting at level
+    55 same as everyone else), but faces level-58-appropriate starting-zone
+    content at level 1 if they choose to engage with Ebon Hold/Death's
+    Door instead of leaving immediately. Off by default."""
+    display_name = "Death Knight Level 1 Start (Opt-In, Rough Edges)"
+    default = False
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -652,4 +719,6 @@ class WoWOptions(PerGameCommonOptions):
     trainer_spell_class_pools: TrainerSpellClassPools
     trainer_spell_expansion_pools: TrainerSpellExpansionPools
     vendor_check_repeat_behavior: VendorCheckRepeatBehavior
+    death_knight_slot: DeathKnightSlot
+    death_knight_level1_start: DeathKnightLevel1Start
 

@@ -472,3 +472,22 @@ class TestTrapsAndGatesCombinedParity(WoWTestBase):
         # TestGateItemSphereZero already covers for the gate family alone.
         for name in quest_rewards_content_data.ALWAYS_PRESENT:
             self.assertTrue(self.can_reach_location(name))
+
+
+class TestDeathKnightOptionsExistAndDefaultOff(WoWTestBase):
+    def test_death_knight_slot_defaults_false(self) -> None:
+        self.assertFalse(bool(self.multiworld.worlds[self.player].options.death_knight_slot))
+
+    def test_death_knight_level1_start_defaults_false(self) -> None:
+        self.assertFalse(bool(self.multiworld.worlds[self.player].options.death_knight_level1_start))
+
+    def test_neither_option_is_mirrored_to_slot_data(self) -> None:
+        # M4.9: death_knight_slot is a pure generation-time signal (which
+        # locations even exist) -- the C++ level hook reads the real player
+        # class instead (Task 4), so there is nothing for it to read from
+        # slot_data. death_knight_level1_start is realm-wide config-sync
+        # bookkeeping only (Task 6) -- same "not mirrored" precedent as
+        # starting_choice.
+        data = self.multiworld.worlds[self.player].fill_slot_data()
+        self.assertNotIn("death_knight_slot", data)
+        self.assertNotIn("death_knight_level1_start", data)
