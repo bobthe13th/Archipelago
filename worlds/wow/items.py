@@ -384,14 +384,14 @@ def create_filler_item_pool(world, count: int) -> list[WoWItem]:
     create_filler_locations/content/filler.yaml, a different, pre-existing
     mechanism this function does not touch or duplicate).
 
-    Draws from BOTH filler_reward_items (13 real DB-extracted item
+    Draws from BOTH filler_reward_items (12 real DB-extracted item
     categories, tag-filtered) and filler_reward_effects (5 curated reward
     effects, effect-filtered) together, respecting FillerCategoryPools,
     sampling each eligible category down to FILLER_PER_CATEGORY_CAP ("as
     even as possible" -- a category with fewer real rows than the cap
     contributes everything it has instead of being padded/excluded).
     Returns exactly `count` items whenever at least one category is
-    selected: at real production scale (~13,509+5 rows across 18
+    selected: at real production scale (~11,284+5 rows across 17
     categories) the unique eligible supply comfortably exceeds `count`
     and every item is sampled without repetition ("as even as possible"
     category variety, unchanged). If a player narrows FillerCategoryPools

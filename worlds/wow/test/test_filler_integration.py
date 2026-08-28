@@ -1,6 +1,8 @@
 # Archipelago/worlds/wow/test/test_filler_integration.py
 import unittest
 
+from Options import OptionError
+
 from .bases import WoWTestBase
 from .. import filler_reward_items_content_data, filler_reward_effects_content_data
 
@@ -25,7 +27,7 @@ class TestCoreLoopParityWithFillerActive(WoWTestBase):
         "recipe_profession_pools": set(), "trainer_spell_class_pools": set(),
         "filler_category_pools": {
             "random_buff", "gold_reward", "xp_reward", "title", "portable_service",
-            "badge_currency", "consumable", "recipe", "bag", "gear_enhancement",
+            "badge_currency", "consumable", "bag", "gear_enhancement",
             "equipment", "openable", "toy", "seasonal", "mount", "pet", "tabard", "reagent",
         },
     }
@@ -47,7 +49,7 @@ class TestCoreLoopParityDeathKnightTrack(WoWTestBase):
         "death_knight_slot": True,
         "filler_category_pools": {
             "random_buff", "gold_reward", "xp_reward", "title", "portable_service",
-            "badge_currency", "consumable", "recipe", "bag", "gear_enhancement",
+            "badge_currency", "consumable", "bag", "gear_enhancement",
             "equipment", "openable", "toy", "seasonal", "mount", "pet", "tabard", "reagent",
         },
     }
@@ -75,6 +77,28 @@ class TestFillerCategoryPoolNarrowingReducesSampledSet(WoWTestBase):
         }
         self.assertTrue(pooled_filler_names)
         self.assertTrue(pooled_filler_names.issubset(badge_names))
+
+
+class TestEmptyFillerCategoryPoolsFailsValidation(WoWTestBase):
+    """core_loop's every-level item pool has a real, unconditional
+    dependency on Filler to close its own item/location deficit (up to 64
+    items on the standard track, 10 on death_knight) in every game_mode,
+    not just Sprint -- unchecking every FillerCategoryPools box leaves zero
+    eligible items to draw from, which must fail generation loudly here
+    (goals._validate_filler_category_pools_nonempty) with a clear message,
+    the same way TestKeyHuntZeroDensityFailsValidation (test_goals.py)
+    proves the analogous Key Hunt density check fires before generation
+    reaches Fill and raises a confusing raw FillError instead."""
+    run_default_tests = False
+    auto_construct = False
+    options = {"game_mode": "sprint", "filler_category_pools": set()}
+
+    def test_empty_filler_category_pools_fails_generation(self) -> None:
+        with self.assertRaises(OptionError) as ctx:
+            self.world_setup()
+        message = str(ctx.exception).lower()
+        self.assertIn("filler", message)
+        self.assertIn("categor", message)
 
 
 if __name__ == "__main__":

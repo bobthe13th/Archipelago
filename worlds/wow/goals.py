@@ -24,7 +24,33 @@ def validate(world) -> None:
     loudly here (spec Sec5.3: "fail generation with a clear message"), not
     surface later as a confusing KeyError/FillError once regions or items
     already exist."""
+    _validate_filler_category_pools_nonempty(world)
     _VALIDATORS[world.options.game_mode.value](world)
+
+
+def _validate_filler_category_pools_nonempty(world) -> None:
+    """Mode-independent check, run before the per-mode _VALIDATORS dispatch
+    below: core_loop's every-level item pool has a real, unconditional
+    dependency on Filler to close its own item/location deficit in every
+    game_mode, not just Sprint (create_core_loop_item_pool pads the pool
+    with create_filler_item_pool(world, deficit) whenever core_loop.yaml's
+    milestone granularity leaves the standard/death_knight tracks short --
+    64 items on the standard track, 10 on death_knight, per items.py's own
+    create_filler_item_pool docstring). An empty FillerCategoryPools
+    selection has zero eligible items to draw from, so that deficit can
+    never be closed -- left unchecked, this surfaces later as a raw,
+    confusing Fill.FillError deep in generation instead of a clear,
+    actionable message here."""
+    if not world.options.filler_category_pools.value:
+        raise OptionError(
+            "WoW: filler_category_pools is empty -- core_loop's item pool "
+            "has an unconditional dependency on Filler to close its own "
+            "item/location deficit (up to 64 items on the standard track, "
+            "10 on the death_knight track, per create_filler_item_pool's "
+            "docstring), and an empty category selection has no eligible "
+            "items to draw from. Select at least one FillerCategoryPools "
+            "category."
+        )
 
 
 def set_completion_rule_for_mode(world) -> None:

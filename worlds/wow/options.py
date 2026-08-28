@@ -686,21 +686,33 @@ class FillerCategoryPools(OptionSet):
     Filler section). Filler is a generic, reusable reward pool any content
     family with more locations than items can draw from to close its own
     deficit -- core_loop's every-level granularity change (M4.9.3) is the
-    first real consumer. 18 categories total: 5 curated reward EFFECTS
+    first real consumer. 17 categories total: 5 curated reward EFFECTS
     (random_buff/gold_reward/xp_reward/title/portable_service -- new
-    delivery mechanisms this milestone built) and 13 real, DB-extracted WoW
-    ITEM categories (badge_currency/consumable/recipe/bag/
+    delivery mechanisms this milestone built) and 12 real, DB-extracted WoW
+    ITEM categories (badge_currency/consumable/bag/
     gear_enhancement/equipment/openable/toy/seasonal/mount/pet/tabard/
     reagent). A pooled filler item's category is EITHER its
     filler_reward_items row's own `category` tag OR its
     filler_reward_effects row's own `effect` field, mapped 1:1 to one of
-    these 18 keys by items.py's create_filler_item_pool. Default selects
+    these 17 keys by items.py's create_filler_item_pool. Default selects
     every value -- Filler is on by default, matching every other pooled
-    optional family in this apworld."""
+    optional family in this apworld.
+
+    A "recipe" category existed here through M4.9.3.1 but was removed
+    after a whole-branch review found a real location-check-collision
+    risk: Filler's recipe rows reused the same real recipe items the
+    Recipes family's own location-check trigger uses, and the C++ hook
+    that fires those checks (a source-agnostic spell-learn hook) cannot
+    tell a Filler-delivered "duplicate" recipe apart from a genuine
+    Recipes-family reward -- learning one could silently complete that
+    Recipes location outside the normal flow. The category was dropped
+    entirely rather than reworked, per explicit user direction; see
+    content/filler_reward_items.yaml's regeneration history in the
+    sibling module repo."""
     display_name = "Filler Category Pools"
     valid_keys = [
         "random_buff", "gold_reward", "xp_reward", "title", "portable_service",
-        "badge_currency", "consumable", "recipe", "bag", "gear_enhancement",
+        "badge_currency", "consumable", "bag", "gear_enhancement",
         "equipment", "openable", "toy", "seasonal", "mount", "pet", "tabard", "reagent",
     ]
     default = valid_keys
