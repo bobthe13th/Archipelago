@@ -209,6 +209,48 @@ def _distribute_trap_counts_chaos(world, eligible: list[str], total: int) -> dic
     return counts
 
 
+def _distribute_filler_effect_counts_uniform(eligible: list[str], total: int) -> dict[str, int]:
+    counts = {name: 0 for name in eligible}
+    for i in range(total):
+        counts[eligible[i % len(eligible)]] += 1
+    return counts
+
+
+def _distribute_filler_effect_counts_weighted(eligible: list[str], total: int) -> dict[str, int]:
+    # Same largest-remainder apportionment as _distribute_trap_counts_weighted
+    # -- every M4.9.6 row currently carries a flat weight of 1 (see this
+    # plan's Global Constraints), so weighted and uniform currently agree
+    # for real data; this function stays independently correct for a future
+    # milestone that assigns differentiated weights (see
+    # test_weighted_apportions_proportionally_to_each_rows_own_weight).
+    weights = [filler_reward_effects_content_data.ITEMS[name][1] for name in eligible]
+    total_weight = sum(weights)
+    if total_weight == 0:
+        return _distribute_filler_effect_counts_uniform(eligible, total)
+    raw = [total * w / total_weight for w in weights]
+    counts_list = [int(r) for r in raw]
+    remainder = total - sum(counts_list)
+    order = sorted(range(len(eligible)), key=lambda i: raw[i] - counts_list[i], reverse=True)
+    for i in order[:remainder]:
+        counts_list[i] += 1
+    return {eligible[i]: counts_list[i] for i in range(len(eligible))}
+
+
+def _distribute_filler_effect_counts_chaos(world, eligible: list[str], total: int) -> dict[str, int]:
+    counts = {name: 0 for name in eligible}
+    for _ in range(total):
+        counts[world.random.choice(eligible)] += 1
+    return counts
+
+
+def _distribute_filler_effect_counts(world, eligible: list[str], total: int) -> dict[str, int]:
+    if world.options.filler_effect_distribution_mode == "weighted":
+        return _distribute_filler_effect_counts_weighted(eligible, total)
+    elif world.options.filler_effect_distribution_mode == "chaos":
+        return _distribute_filler_effect_counts_chaos(world, eligible, total)
+    return _distribute_filler_effect_counts_uniform(eligible, total)
+
+
 def create_trap_item_pool(world) -> list:
     if not world.options.traps_enabled:
         return []
@@ -438,10 +480,25 @@ def create_filler_item_pool(world, count: int) -> list[WoWItem]:
         category = next(iter(tags["category"]))
         if category in selected:
             by_category.setdefault(category, []).append(name)
+
+    # M4.9.6: filler_reward_effects categories use the new distribution-
+    # mode-aware weighted selection (mirroring traps' own mechanism)
+    # instead of the plain "one entry per distinct name" the
+    # filler_reward_items categories above still use -- a higher-weighted
+    # effect row is proportionally more likely to survive the existing
+    # shuffle+FILLER_PER_CATEGORY_CAP slice below, since it contributes
+    # that many duplicate name-entries here.
+    effect_names_by_category: dict[str, list[str]] = {}
     for name, effect in filler_reward_effects_content_data.EFFECT_BY_ITEM_NAME.items():
         category = _EFFECT_TO_CATEGORY[effect]
         if category in selected:
-            by_category.setdefault(category, []).append(name)
+            effect_names_by_category.setdefault(category, []).append(name)
+    for category, names in effect_names_by_category.items():
+        weighted_counts = _distribute_filler_effect_counts(world, names, FILLER_PER_CATEGORY_CAP)
+        weighted_names = []
+        for name, n in weighted_counts.items():
+            weighted_names.extend([name] * n)
+        by_category.setdefault(category, []).extend(weighted_names)
 
     eligible_names: list[str] = []
     for category, names in by_category.items():

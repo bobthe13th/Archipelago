@@ -1,5 +1,8 @@
 # Archipelago/worlds/wow/test/test_filler_integration.py
+import random
+import types
 import unittest
+from unittest.mock import patch
 
 from Options import OptionError
 
@@ -15,6 +18,45 @@ class TestFillerRowAlignment(unittest.TestCase):
     def test_filler_reward_effects_cover_all_five_effects(self) -> None:
         effects = set(filler_reward_effects_content_data.EFFECT_BY_ITEM_NAME.values())
         self.assertEqual(effects, {"cast_spell", "grant_money", "grant_xp_percent", "grant_title", "portable_service"})
+
+
+class TestDistributeFillerEffectCounts(unittest.TestCase):
+    def test_uniform_spreads_evenly_and_sums_to_total(self) -> None:
+        from .. import items as items_module
+        counts = items_module._distribute_filler_effect_counts_uniform(["a", "b", "c"], 10)
+        self.assertEqual(sum(counts.values()), 10)
+        self.assertLessEqual(max(counts.values()) - min(counts.values()), 1)
+
+    def test_weighted_apportions_proportionally_to_each_rows_own_weight(self) -> None:
+        from .. import items as items_module
+        from .. import filler_reward_effects_content_data
+        with patch.dict(filler_reward_effects_content_data.ITEMS, {"a": (1, 1), "b": (2, 3)}, clear=True):
+            counts = items_module._distribute_filler_effect_counts_weighted(["a", "b"], 8)
+        self.assertEqual(sum(counts.values()), 8)
+        self.assertEqual(counts["b"], 6)
+        self.assertEqual(counts["a"], 2)
+
+    def test_weighted_falls_back_to_uniform_when_total_weight_is_zero(self) -> None:
+        from .. import items as items_module
+        from .. import filler_reward_effects_content_data
+        with patch.dict(filler_reward_effects_content_data.ITEMS, {"a": (1, 0), "b": (2, 0)}, clear=True):
+            counts = items_module._distribute_filler_effect_counts_weighted(["a", "b"], 4)
+        self.assertEqual(counts, {"a": 2, "b": 2})
+
+    def test_chaos_sums_to_total(self) -> None:
+        from .. import items as items_module
+        world = types.SimpleNamespace(random=random.Random(42))
+        counts = items_module._distribute_filler_effect_counts_chaos(world, ["a", "b", "c"], 15)
+        self.assertEqual(sum(counts.values()), 15)
+
+    def test_dispatcher_reads_the_distribution_mode_option(self) -> None:
+        from .. import items as items_module
+        world = types.SimpleNamespace(
+            random=random.Random(1),
+            options=types.SimpleNamespace(filler_effect_distribution_mode="uniform"),
+        )
+        counts = items_module._distribute_filler_effect_counts(world, ["a", "b"], 4)
+        self.assertEqual(counts, {"a": 2, "b": 2})
 
 
 class TestCoreLoopParityWithFillerActive(WoWTestBase):
@@ -77,6 +119,32 @@ class TestFillerCategoryPoolNarrowingReducesSampledSet(WoWTestBase):
         }
         self.assertTrue(pooled_filler_names)
         self.assertTrue(pooled_filler_names.issubset(badge_names))
+
+
+class TestFillerEffectCategoryNarrowingReducesSampledSet(WoWTestBase):
+    options = {
+        "game_mode": "sprint", "check_density": 100,
+        "quest_reward_weight": 0, "vendor_stock_weight": 0,
+        "recipe_profession_pools": set(), "trainer_spell_class_pools": set(),
+        "filler_category_pools": {"gold_reward"},
+        # Real, non-default value -- proves the full Choice-based option
+        # actually parses and reaches _distribute_filler_effect_counts
+        # through real generation, not just via the SimpleNamespace stubs
+        # TestDistributeFillerEffectCounts uses above.
+        "filler_effect_distribution_mode": "chaos",
+    }
+
+    def test_only_gold_reward_filler_effect_items_are_pooled(self) -> None:
+        gold_names = {
+            name for name, effect in filler_reward_effects_content_data.EFFECT_BY_ITEM_NAME.items()
+            if effect == "grant_money"
+        }
+        pooled_filler_names = {
+            i.name for i in self.multiworld.itempool
+            if i.name in filler_reward_items_content_data.ITEMS or i.name in filler_reward_effects_content_data.ITEMS
+        }
+        self.assertTrue(pooled_filler_names)
+        self.assertTrue(pooled_filler_names.issubset(gold_names))
 
 
 class TestEmptyFillerCategoryPoolsFailsValidation(WoWTestBase):
