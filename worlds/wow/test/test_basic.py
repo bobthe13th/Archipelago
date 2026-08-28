@@ -132,6 +132,8 @@ _ACCESS_ITEM_NAMES = (
     "Auction House Access",
     "Hearthstone Access",
     "Mailbox Access",
+    "Bank Access",
+    "Gathering Access",
 )
 
 
@@ -161,6 +163,12 @@ _CHARACTER_UNLOCK_ITEM_NAMES = (
     "Progressive Bank Bag Slot: Slot 7",
     "Talent Point Access",
     "Dual Spec Unlock",
+    "Progressive Glyph Slot: Slot 1",
+    "Progressive Glyph Slot: Slot 2",
+    "Progressive Glyph Slot: Slot 3",
+    "Progressive Glyph Slot: Slot 4",
+    "Progressive Glyph Slot: Slot 5",
+    "Progressive Glyph Slot: Slot 6",
 )
 
 
