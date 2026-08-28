@@ -261,13 +261,14 @@ class ProficiencyGating(Toggle):
 
 
 class AccessGating(Toggle):
-    """When on, Auction House access, Hearthstone use, sending mail, and
-    Bank access are locked behind Archipelago items instead of being free
-    from the start (spec §5.1 -- optional, off by default). Gathering
-    (mining/herbalism/skinning) gating lands in a later task of this same
-    plan. The connected worldserver must also have Archipelago.AccessGating
-    enabled in its .conf to match -- same manual-sync requirement as
-    proficiency_gating above."""
+    """When on, Auction House access, Hearthstone use, sending mail, Bank
+    access, and gathering (mining/herbalism/skinning, gated as one access
+    type) are locked behind Archipelago items instead of being free from
+    the start (spec §5.1 -- optional, off by default). All 5 of the
+    design's access types are implemented as of M4.9. The connected
+    worldserver must also have Archipelago.AccessGating enabled in its
+    .conf to match -- same manual-sync requirement as proficiency_gating
+    above."""
     display_name = "Access Gating"
     default = False
 
