@@ -107,6 +107,14 @@ class TestAddApItemDisplayData(unittest.TestCase):
         )
 
 
+class TestAddInstanceClearMode(unittest.TestCase):
+    def test_adds_instance_clear_mode_current_key(self) -> None:
+        world = SimpleNamespace(options=SimpleNamespace(instance_clear_mode=SimpleNamespace(current_key="final_boss_only")))
+        data: dict = {}
+        slot_data_module._add_instance_clear_mode(world, data)
+        self.assertEqual(data["instance_clear_mode"], "final_boss_only")
+
+
 class TestAddVendorCheckRepeatBehavior(unittest.TestCase):
     def test_adds_vendor_check_repeat_behavior_current_key(self) -> None:
         world = SimpleNamespace(options=SimpleNamespace(vendor_check_repeat_behavior=SimpleNamespace(current_key="gold_conversion")))

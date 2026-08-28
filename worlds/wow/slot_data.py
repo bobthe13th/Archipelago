@@ -27,12 +27,12 @@ def build_slot_data(world) -> dict:
 
 
 def _add_instance_clear_mode(world, data: dict) -> None:
-    # Task 23: mirrors the resolved InstanceClearMode choice so a connected
-    # worldserver COULD read it from the AP session in the future -- as of
-    # this task, the module still has no slot_data parsing at all (the same
-    # known gap Finding #10 documents for every other option), so an
-    # operator must still mirror this by hand via
-    # Archipelago.InstanceClearMode until that gap is closed.
+    # Task 23 (M2) added this write; M4.9 closes the other half of the gap --
+    # ArchipelagoWorldScript.cpp now parses this key out of Connected's
+    # slot_data (APProtocol::ParseInstanceClearModeFromSlotData, mirroring
+    # vendor_check_repeat_behavior's exact M4.7 shape) instead of requiring
+    # an operator to mirror it by hand via Archipelago.InstanceClearMode --
+    # that manual conf key no longer exists (M4.9 removed it outright).
     data["instance_clear_mode"] = world.options.instance_clear_mode.current_key
 
 
