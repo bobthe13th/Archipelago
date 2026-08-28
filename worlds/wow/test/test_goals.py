@@ -122,6 +122,9 @@ class TestAchievementHuntDefaultOptionsGenerate(WoWTestBase):
         for name in achievements_content_data.ITEMS:
             self.assertEqual(len(self.get_items_by_name(name)), 1)
 
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
 
 class TestAchievementHuntCompletionHundredPercentRequiresEveryAchievement(WoWTestBase):
     options = {"game_mode": "achievement_hunt", "achievement_hunt_tier": "hundred_percent"}
@@ -212,6 +215,9 @@ class TestExplorerDefaultOptionsGenerate(WoWTestBase):
         self.assertFalse(self.multiworld.completion_condition[self.player](state))
         self.collect_by_name(achievements_content_data.WORLD_EXPLORER_ITEM_NAME)
         self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
 
 
 class TestAchievementHuntOptionsExist(unittest.TestCase):

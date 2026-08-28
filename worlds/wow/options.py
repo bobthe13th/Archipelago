@@ -153,7 +153,12 @@ class AchievementHuntTier(Choice):
     established. The connected worldserver must also have
     Archipelago.AchievementHuntTier set to match -- this module has no way
     to read this option from the AP server itself, same manual-sync
-    requirement as completionist_expansion."""
+    requirement as completionist_expansion. Note: some achievements in the
+    pool are faction-exclusive (e.g. "For The Alliance!"/"For The Horde!"
+    are both in the 100%/99% pools, but no single character can complete
+    both) -- since the completion flag is realm-wide, this is completable
+    across multiple characters of both factions on the same realm, not a
+    single-character requirement."""
     display_name = "Achievement Hunt: Tier"
     option_hundred_percent = 0
     option_ninety_nine_percent = 1
@@ -171,7 +176,10 @@ class AchievementHuntSubset(Choice):
     professions (root 169), reputation (root 201), pvp (Player vs. Player,
     root 95). The connected worldserver must also have
     Archipelago.AchievementHuntSubset set to match -- same manual-sync
-    requirement as achievement_hunt_tier above."""
+    requirement as achievement_hunt_tier above. Note: the ninety_nine_percent
+    tier's "extremely hard" exclusion does NOT apply here -- a named subset
+    may still require achievements that would have been excluded under the
+    99% tier (e.g. the arena rating-gated achievements in the pvp subset)."""
     display_name = "Achievement Hunt: Named Subset"
     option_explorer = 0
     option_dungeons = 1

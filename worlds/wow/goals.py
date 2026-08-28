@@ -359,10 +359,12 @@ def _validate_achievement_hunt(world) -> None:
         )
     target = _achievement_hunt_target_item_names(world)
     if not target:
+        tier = world.options.achievement_hunt_tier.current_key
+        detail = f"achievement_hunt_tier='{tier}'"
+        if tier == "named_subset":
+            detail += f" and achievement_hunt_subset='{world.options.achievement_hunt_subset.current_key}'"
         raise OptionError(
-            f"WoW: game_mode 'achievement_hunt' with achievement_hunt_tier="
-            f"'{world.options.achievement_hunt_tier.current_key}' and achievement_hunt_subset="
-            f"'{world.options.achievement_hunt_subset.current_key}' resolves to an empty target "
+            f"WoW: game_mode 'achievement_hunt' with {detail} resolves to an empty target "
             f"set -- nothing to complete."
         )
 
@@ -398,13 +400,15 @@ def _set_completion_rule_explorer(world) -> None:
 _NOT_YET_IMPLEMENTED_MODE_NAMES = {}
 
 # GameMode.value -> (bare option name, reason) for modes that cannot be
-# built in this checkout at all, because the "full roster" cannot
-# be extracted from any real data source this checkout has. Gladiator is no
-# longer listed here at all as of M4.9 -- it was removed from GameMode's
-# Choice values entirely (options.py) rather than kept as a permanent
-# hard-fail option, since a deleted enum value fails generation even more
-# clearly (before goals.py's own validation ever runs) than an OptionError
-# from this dispatch table did.
+# built in this checkout at all. Permanently empty as of M4.9.4: every mode
+# that was ever listed here has since gained real content or been removed
+# entirely -- Gladiator (value 9) was deleted from GameMode's Choice values
+# outright (options.py), while achievement_hunt (8) and explorer (10) gained
+# real completion logic (see _validate_achievement_hunt/_validate_explorer
+# and their matching _set_completion_rule_* functions above). Left in place,
+# still wired into both dispatch tables below, so a future mode that turns
+# out to be unbuildable in some checkout has a ready-made slot to register
+# into rather than needing this whole mechanism reintroduced.
 _NOT_BUILDABLE_MODES = {}
 
 _VALIDATORS = {
