@@ -40,11 +40,11 @@ class InstanceClearMode(Choice):
     however many attempts it takes. "final_boss_only" fires the instant the
     raid's own final boss dies, matching how the two M2 dungeons (Ragefire
     Chasm, Deadmines) already behave -- those two dungeons are unaffected by
-    this option either way, since they carry no boss roster to track. The
-    connected worldserver must have Archipelago.InstanceClearMode set to
-    match -- this module has no way to read this option from the AP server
-    itself, same manual-sync requirement as delivery_policy/
-    combo_unlocks_scope above."""
+    this option either way, since they carry no boss roster to track. Read
+    directly from slot_data at connect (M4.9) -- unlike most of this
+    module's options, this one does NOT need a manual Archipelago.conf
+    mirror; the old Archipelago.InstanceClearMode conf key has been removed
+    outright."""
     display_name = "Instance Clear Mode"
     option_all_bosses = 0
     option_final_boss_only = 1
