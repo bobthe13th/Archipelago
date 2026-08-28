@@ -26,7 +26,6 @@ class GameMode(Choice):
     option_artisan = 6
     option_collector = 7
     option_achievement_hunt = 8
-    option_gladiator = 9
     option_explorer = 10
     option_fishing_quest = 11
     option_hundred_percent = 12

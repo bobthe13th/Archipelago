@@ -29,26 +29,44 @@ class TestFishingQuestNotSampledByDensity(WoWTestBase):
             self.assertEqual(len(self.get_items_by_name(name)), 1)
 
 
-class TestGladiatorNotBuildable(WoWTestBase):
-    """Gladiator is a DIFFERENT deferral category from the not-yet-implemented
-    swap chain above (key_hunt -> artisan -> collector, each retired once its
-    own task shipped real content) -- Task 27's own hook research found
-    arena-rating tiers have no safe push hook (OnBeforeArenaTeamMemberUpdate
-    fires before the engine's own ArenaTeam::GetRatingMod computes the actual
-    rating change, so the post-match rating can't be predicted from that
-    hook without blindly reimplementing untestable internal engine math) and
-    battleground-objective events (flag captures, etc.) aren't exposed via
-    any generic ScriptMgr hook at all, only hardcoded inside each
-    Battleground subclass -- matching achievement_hunt/explorer's
-    not_buildable category (verified, not assumed) rather than a scheduling
-    gap. Resolved 2026-08-20 per explicit user direction: same hard-failure
-    treatment as achievement_hunt/explorer."""
-    run_default_tests = False
-    auto_construct = False
-    options = {"game_mode": "gladiator"}
+class TestGladiatorRemovedFromGameMode(unittest.TestCase):
+    """M4.9 Sec4: Gladiator retired entirely -- not merely a permanent
+    hard-fail option (that was the 2026-08-20 interim state this class used
+    to test via TestGladiatorNotBuildable). Deleting a previously-shipped
+    option value is a breaking change for any existing seed's YAML that
+    referenced it; acceptable per the spec because no real seed could ever
+    have used it successfully (goals.py's own _NOT_BUILDABLE_MODES already
+    made it fail generation unconditionally). The retired value 9 is NOT
+    reused or renumbered -- option_explorer (10), option_fishing_quest (11),
+    and option_hundred_percent (12) keep their exact existing numeric
+    values, so no OTHER already-shipped GameMode value's meaning shifts."""
 
-    def test_gladiator_fails_generation(self) -> None:
-        self.assertRaises(OptionError, self.world_setup)
+    def test_gladiator_option_name_no_longer_exists(self) -> None:
+        from ..options import GameMode
+        self.assertNotIn("option_gladiator", dir(GameMode))
+        self.assertNotIn("gladiator", GameMode.name_lookup.values())
+
+    def test_value_9_is_permanently_retired_not_reused(self) -> None:
+        from ..options import GameMode
+        self.assertNotIn(9, GameMode.name_lookup)
+
+    def test_other_game_mode_values_keep_their_existing_numbers(self) -> None:
+        from ..options import GameMode
+        self.assertEqual(GameMode.name_lookup[7], "collector")
+        self.assertEqual(GameMode.name_lookup[10], "explorer")
+        self.assertEqual(GameMode.name_lookup[11], "fishing_quest")
+        self.assertEqual(GameMode.name_lookup[12], "hundred_percent")
+
+    def test_goals_dispatch_tables_have_no_entry_for_value_9(self) -> None:
+        self.assertNotIn(9, goals._VALIDATORS)
+        self.assertNotIn(9, goals._COMPLETION_RULES)
+        self.assertNotIn(9, goals._NOT_BUILDABLE_MODES)
+
+    def test_selecting_gladiator_by_name_is_rejected_by_options_parsing(self) -> None:
+        from ..options import GameMode
+        from Options import OptionError
+        with self.assertRaises((KeyError, OptionError, ValueError)):
+            GameMode.from_text("gladiator")
 
 
 class TestAchievementHuntNotBuildable(WoWTestBase):
