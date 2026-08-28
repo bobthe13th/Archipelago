@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from BaseClasses import Location
+from . import achievements_content_data
 from . import collections_content_data
 from . import core_loop_content_data
 from . import density
@@ -282,3 +283,33 @@ def create_collections_locations(world, region) -> list:
         WoWLocation(world.player, name, location_id, region)
         for name, location_id in collections_content_data.LOCATIONS.items()
     ]
+
+
+def create_achievement_locations(world, region) -> list:
+    # Achievement Hunt (M4.9 Sec4): every achievement in the compiled
+    # 1,162-row pool always exists as a location whenever game_mode is
+    # achievement_hunt, regardless of achievement_hunt_tier/subset -- NOT
+    # filtered at generation time. Only the completion RULE (goals.py's
+    # _achievement_hunt_target_item_names) differs by chosen tier/subset,
+    # mirroring Collector's own "every location exists, only the threshold
+    # differs" shape. Not density-sampled either, same "gated on game_mode
+    # itself" family as professions/collections/fish.
+    if world.options.game_mode != "achievement_hunt":
+        return []
+    return [
+        WoWLocation(world.player, name, location_id, region)
+        for name, location_id in achievements_content_data.LOCATIONS.items()
+    ]
+
+
+def create_explorer_locations(world, region) -> list:
+    # Explorer (M4.9 Sec4): a single location, the real World Explorer
+    # achievement (id 46) -- reuses the SAME compiled achievements.yaml
+    # table Achievement Hunt draws from (both key off the shared
+    # OnPlayerAchievementComplete hook per the spec), gated to just this
+    # one row rather than the full pool.
+    if world.options.game_mode != "explorer":
+        return []
+    name = achievements_content_data.WORLD_EXPLORER_LOCATION_NAME
+    location_id = achievements_content_data.LOCATIONS[name]
+    return [WoWLocation(world.player, name, location_id, region)]

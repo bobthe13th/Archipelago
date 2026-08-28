@@ -1,5 +1,6 @@
 # Archipelago/worlds/wow/items.py
 from BaseClasses import Item, ItemClassification
+from . import achievements_content_data
 from . import collections_content_data
 from . import core_loop_content_data
 from . import filler_reward_items_content_data
@@ -293,6 +294,30 @@ def create_collections_item_pool(world) -> list:
         WoWItem(name, ItemClassification.progression, item_id, world.player)
         for name, (item_id, _count) in collections_content_data.ITEMS.items()
     ]
+
+
+# M4.9 Sec4 (Achievement Hunt): all 1,162 "Achievement Complete: <name>"
+# items are pooled unconditionally whenever game_mode is achievement_hunt,
+# one copy each, mirroring create_achievement_locations' identical
+# game_mode check and count.
+def create_achievements_item_pool(world) -> list:
+    if world.options.game_mode != "achievement_hunt":
+        return []
+    return [
+        WoWItem(name, ItemClassification.progression, item_id, world.player)
+        for name, (item_id, _count) in achievements_content_data.ITEMS.items()
+    ]
+
+
+# M4.9 Sec4 (Explorer): the single "Achievement Complete: World Explorer
+# (#46)" item, mirroring create_explorer_locations' identical single-row
+# game_mode check.
+def create_explorer_item_pool(world) -> list:
+    if world.options.game_mode != "explorer":
+        return []
+    name = achievements_content_data.WORLD_EXPLORER_ITEM_NAME
+    item_id, count = achievements_content_data.ITEMS[name]
+    return [WoWItem(name, ItemClassification.progression, item_id, world.player) for _ in range(count)]
 
 
 def create_optional_category_item_pool(world) -> list:

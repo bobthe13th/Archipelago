@@ -1,9 +1,10 @@
 from worlds.AutoWorld import World
-from .items import WoWItem, create_core_loop_item_pool, create_gates_item_pool, create_trap_item_pool, create_key_hunt_item_pool, create_fish_item_pool, create_professions_item_pool, create_collections_item_pool, create_optional_category_item_pool
+from .items import WoWItem, create_core_loop_item_pool, create_gates_item_pool, create_trap_item_pool, create_key_hunt_item_pool, create_fish_item_pool, create_professions_item_pool, create_collections_item_pool, create_optional_category_item_pool, create_achievements_item_pool, create_explorer_item_pool
 from .regions import create_regions
 from .rules import set_rules
 from . import goals
 from . import slot_data
+from . import achievements_content_data
 from . import collections_content_data
 from . import core_loop_content_data
 from . import fish_content_data
@@ -48,6 +49,7 @@ class WoWWorld(World):
         **{name: item_id for name, (item_id, _count) in fish_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in professions_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in collections_content_data.ITEMS.items()},
+        **{name: item_id for name, (item_id, _count) in achievements_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in quest_rewards_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in recipes_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in trainer_spells_content_data.ITEMS.items()},
@@ -77,6 +79,7 @@ class WoWWorld(World):
         **{name: loc_id for name, loc_id in fish_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in professions_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in collections_content_data.LOCATIONS.items()},
+        **{name: loc_id for name, loc_id in achievements_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in quest_rewards_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in recipes_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in trainer_spells_content_data.LOCATIONS.items()},
@@ -102,6 +105,8 @@ class WoWWorld(World):
         self.multiworld.itempool += create_fish_item_pool(self)
         self.multiworld.itempool += create_professions_item_pool(self)
         self.multiworld.itempool += create_collections_item_pool(self)
+        self.multiworld.itempool += create_achievements_item_pool(self)
+        self.multiworld.itempool += create_explorer_item_pool(self)
         self.multiworld.itempool += create_optional_category_item_pool(self)
 
     def set_rules(self) -> None:

@@ -69,32 +69,113 @@ class TestGladiatorRemovedFromGameMode(unittest.TestCase):
             GameMode.from_text("gladiator")
 
 
-class TestAchievementHuntNotBuildable(WoWTestBase):
-    """achievement_hunt and explorer are a DIFFERENT deferral category from
-    the above -- Task 27's own research found this checkout's
-    data/sql/base/db_world/*_dbc.sql tables (achievement_dbc,
-    achievement_criteria_dbc, areatable_dbc, ...) are empty stub schemas
-    with zero real data, and no binary .dbc client files exist in the repo
-    either, so there is no real achievement/subzone name data anywhere to
-    build a "full roster" from -- matching Task 9's earlier "not buildable"
-    finding for continent/city/zone gates. This must keep failing even
-    after every OTHER Tier-3 mode has real content, unlike
-    TestCollectorNotYetImplemented above."""
-    run_default_tests = False
-    auto_construct = False
+class TestAchievementHuntDefaultOptionsGenerate(WoWTestBase):
     options = {"game_mode": "achievement_hunt"}
 
-    def test_achievement_hunt_fails_generation(self) -> None:
-        self.assertRaises(OptionError, self.world_setup)
+    def test_generates_successfully(self) -> None:
+        self.assertTrue(self.constructed)
+
+    def test_all_1162_achievement_locations_and_items_exist(self) -> None:
+        from .. import achievements_content_data
+        achievement_locations = [
+            loc for loc in self.multiworld.get_locations()
+            if loc.name.startswith("Achievement: ")
+        ]
+        self.assertEqual(len(achievement_locations), 1162)
+        self.assertEqual(len(achievements_content_data.LOCATIONS), 1162)
+        for name in achievements_content_data.ITEMS:
+            self.assertEqual(len(self.get_items_by_name(name)), 1)
 
 
-class TestExplorerNotBuildable(WoWTestBase):
-    run_default_tests = False
-    auto_construct = False
+class TestAchievementHuntCompletionHundredPercentRequiresEveryAchievement(WoWTestBase):
+    options = {"game_mode": "achievement_hunt", "achievement_hunt_tier": "hundred_percent"}
+
+    def test_partial_collection_does_not_complete(self) -> None:
+        from .. import achievements_content_data
+        state = self.multiworld.state
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+        some_names = list(achievements_content_data.ITEMS.keys())[:50]
+        for name in some_names:
+            self.collect_by_name(name)
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+
+    def test_collecting_every_achievement_item_completes(self) -> None:
+        from .. import achievements_content_data
+        state = self.multiworld.state
+        for name in achievements_content_data.ITEMS:
+            self.collect_by_name(name)
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+
+class TestAchievementHuntCompletionNinetyNinePercentExcludesHardDenylist(WoWTestBase):
+    options = {"game_mode": "achievement_hunt", "achievement_hunt_tier": "ninety_nine_percent"}
+
+    def test_extremely_hard_items_are_not_required(self) -> None:
+        from .. import achievements_content_data, goals
+        world = self.multiworld.worlds[self.player]
+        target = goals._achievement_hunt_target_item_names(world)
+        self.assertTrue(achievements_content_data.EXTREMELY_HARD_ITEM_NAMES.isdisjoint(target))
+        self.assertEqual(len(target), 1162 - 33)
+
+    def test_collecting_every_non_hard_achievement_item_completes(self) -> None:
+        from .. import achievements_content_data
+        state = self.multiworld.state
+        for name in achievements_content_data.ITEMS:
+            if name not in achievements_content_data.EXTREMELY_HARD_ITEM_NAMES:
+                self.collect_by_name(name)
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+
+class TestAchievementHuntNamedSubsetTargetsOnlyThatSubset(WoWTestBase):
+    options = {
+        "game_mode": "achievement_hunt",
+        "achievement_hunt_tier": "named_subset",
+        "achievement_hunt_subset": "professions",
+    }
+
+    def test_target_set_is_exactly_the_professions_subset(self) -> None:
+        from .. import achievements_content_data, goals
+        world = self.multiworld.worlds[self.player]
+        target = goals._achievement_hunt_target_item_names(world)
+        self.assertEqual(target, achievements_content_data.ACHIEVEMENTS_BY_SUBSET["professions"])
+        self.assertEqual(len(target), 77)
+
+    def test_collecting_only_the_professions_subset_completes(self) -> None:
+        from .. import achievements_content_data
+        state = self.multiworld.state
+        for name in achievements_content_data.ACHIEVEMENTS_BY_SUBSET["professions"]:
+            self.collect_by_name(name)
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+
+class TestExplorerDefaultOptionsGenerate(WoWTestBase):
     options = {"game_mode": "explorer"}
 
-    def test_explorer_fails_generation(self) -> None:
-        self.assertRaises(OptionError, self.world_setup)
+    def test_generates_successfully(self) -> None:
+        self.assertTrue(self.constructed)
+
+    def test_exactly_one_achievement_location_exists(self) -> None:
+        achievement_locations = [
+            loc for loc in self.multiworld.get_locations()
+            if loc.name.startswith("Achievement: ")
+        ]
+        self.assertEqual(len(achievement_locations), 1)
+        self.assertEqual(achievement_locations[0].name, "Achievement: World Explorer (#46)")
+
+    def test_no_achievement_hunt_locations_leak_into_explorer_mode(self) -> None:
+        from .. import achievements_content_data
+        location_names = {loc.name for loc in self.multiworld.get_locations()}
+        # Every OTHER achievement location must be absent -- Explorer only
+        # ever creates the single World Explorer row, not the full pool.
+        other_names = set(achievements_content_data.LOCATIONS) - {achievements_content_data.WORLD_EXPLORER_LOCATION_NAME}
+        self.assertTrue(location_names.isdisjoint(other_names))
+
+    def test_completion_requires_the_world_explorer_item(self) -> None:
+        from .. import achievements_content_data
+        state = self.multiworld.state
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+        self.collect_by_name(achievements_content_data.WORLD_EXPLORER_ITEM_NAME)
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
 
 
 class TestAchievementHuntOptionsExist(unittest.TestCase):

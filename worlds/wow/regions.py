@@ -1,6 +1,6 @@
 # Archipelago/worlds/wow/regions.py
 from BaseClasses import Region
-from .locations import create_core_loop_locations, create_filler_locations, create_rares_locations, create_fish_locations, create_professions_locations, create_collections_locations, create_optional_category_locations
+from .locations import create_core_loop_locations, create_filler_locations, create_rares_locations, create_fish_locations, create_professions_locations, create_collections_locations, create_optional_category_locations, create_achievement_locations, create_explorer_locations
 
 
 def create_regions(world):
@@ -21,6 +21,8 @@ def create_regions(world):
     northshire.locations += create_fish_locations(world, northshire)
     northshire.locations += create_professions_locations(world, northshire)
     northshire.locations += create_collections_locations(world, northshire)
+    northshire.locations += create_achievement_locations(world, northshire)
+    northshire.locations += create_explorer_locations(world, northshire)
 
     # Universal optional-category registry (M4.5 Task 3): available in EVERY
     # game mode, unlike the four families above which are each gated to one

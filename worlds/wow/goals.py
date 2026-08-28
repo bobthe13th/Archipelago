@@ -8,6 +8,7 @@ import math
 
 from Options import OptionError
 
+from . import achievements_content_data
 from . import collections_content_data
 from . import core_loop_content_data
 from . import density
@@ -330,6 +331,66 @@ def _set_completion_rule_hundred_percent(world) -> None:
     )
 
 
+# M4.9 Sec4 (Achievement Hunt, built for real): three curated tiers, all
+# drawn from the SAME compiled achievements_content_data table --
+# hundred_percent is every location that table exposes, ninety_nine_percent
+# excludes the hand-curated EXTREMELY_HARD_ITEM_NAMES set, named_subset
+# requires exactly one of ACHIEVEMENTS_BY_SUBSET's six real, category-
+# derived groups. Every achievement location/item ALWAYS exists in the pool
+# regardless of which tier is chosen (create_achievement_locations below) --
+# only this target set (what the completion RULE requires) differs, the
+# same "every location exists, only the threshold differs" shape Collector's
+# collector_items_required already established.
+def _achievement_hunt_target_item_names(world) -> frozenset[str]:
+    tier = world.options.achievement_hunt_tier.current_key
+    if tier == "named_subset":
+        subset = world.options.achievement_hunt_subset.current_key
+        return achievements_content_data.ACHIEVEMENTS_BY_SUBSET.get(subset, frozenset())
+    all_names = frozenset(achievements_content_data.ITEMS.keys())
+    if tier == "ninety_nine_percent":
+        return all_names - achievements_content_data.EXTREMELY_HARD_ITEM_NAMES
+    return all_names  # hundred_percent
+
+
+def _validate_achievement_hunt(world) -> None:
+    if not achievements_content_data.LOCATIONS:
+        raise OptionError(
+            "WoW: game_mode 'achievement_hunt' has no achievement locations in achievements.yaml."
+        )
+    target = _achievement_hunt_target_item_names(world)
+    if not target:
+        raise OptionError(
+            f"WoW: game_mode 'achievement_hunt' with achievement_hunt_tier="
+            f"'{world.options.achievement_hunt_tier.current_key}' and achievement_hunt_subset="
+            f"'{world.options.achievement_hunt_subset.current_key}' resolves to an empty target "
+            f"set -- nothing to complete."
+        )
+
+
+def _set_completion_rule_achievement_hunt(world) -> None:
+    target = _achievement_hunt_target_item_names(world)
+    world.set_completion_rule(lambda state: state.has_all(target, world.player))
+
+
+# M4.9 Sec4 (Explorer, rebuilt for real): a single location/item pair, the
+# real "World Explorer" achievement (id 46, drawn from the exact same
+# compiled achievements_content_data table Achievement Hunt uses -- both
+# key off the same shared OnPlayerAchievementComplete hook, per the spec),
+# replacing the previous custom subzone-visit-tracker design entirely.
+def _validate_explorer(world) -> None:
+    if achievements_content_data.WORLD_EXPLORER_LOCATION_NAME not in achievements_content_data.LOCATIONS:
+        raise OptionError(
+            "WoW: game_mode 'explorer' requires the World Explorer achievement location, "
+            "but it is missing from achievements.yaml."
+        )
+
+
+def _set_completion_rule_explorer(world) -> None:
+    world.set_completion_rule(
+        lambda state: state.has(achievements_content_data.WORLD_EXPLORER_ITEM_NAME, world.player)
+    )
+
+
 # GameMode.value -> bare option name, for every mode without real content
 # yet (scheduling gap, not a data-availability problem). Mirrors
 # options.py's GameMode option_* attributes exactly -- keep both in sync
@@ -344,14 +405,7 @@ _NOT_YET_IMPLEMENTED_MODE_NAMES = {}
 # hard-fail option, since a deleted enum value fails generation even more
 # clearly (before goals.py's own validation ever runs) than an OptionError
 # from this dispatch table did.
-_NOT_BUILDABLE_MODES = {
-    8: ("achievement_hunt", "achievement_dbc.sql/achievement_criteria_dbc.sql (which would carry "
-        "Achievement.dbc/Achievement-Criteria.dbc data) are empty stub tables with zero real "
-        "achievement names/definitions, and no binary .dbc client files exist in this repo."),
-    10: ("explorer", "areatable_dbc.sql (which would carry AreaTable.dbc data) is an empty stub "
-         "table with zero real subzone names/definitions, and no binary .dbc client files exist "
-         "in this repo."),
-}
+_NOT_BUILDABLE_MODES = {}
 
 _VALIDATORS = {
     0: _validate_sprint,
@@ -361,6 +415,8 @@ _VALIDATORS = {
     5: _validate_completionist,
     6: _validate_artisan,
     7: _validate_collector,
+    8: _validate_achievement_hunt,
+    10: _validate_explorer,
     11: _validate_fishing_quest,
     12: _validate_hundred_percent,  # option_hundred_percent
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
@@ -375,6 +431,8 @@ _COMPLETION_RULES = {
     5: _set_completion_rule_completionist,
     6: _set_completion_rule_artisan,
     7: _set_completion_rule_collector,
+    8: _set_completion_rule_achievement_hunt,
+    10: _set_completion_rule_explorer,
     11: _set_completion_rule_fishing_quest,
     12: _set_completion_rule_hundred_percent,  # option_hundred_percent
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
