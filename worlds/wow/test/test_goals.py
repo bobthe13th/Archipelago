@@ -68,6 +68,42 @@ class TestGladiatorRemovedFromGameMode(unittest.TestCase):
         with self.assertRaises((KeyError, OptionError, ValueError)):
             GameMode.from_text("gladiator")
 
+    def test_no_python_source_file_references_gladiator_at_all(self) -> None:
+        # NOTE: adapted from the M4.9.4 task-9 brief's literal version, which
+        # asserted a bare `offending == []` over every *.py file's raw text.
+        # Run as originally written, that version fails here -- not because
+        # Gladiator lingers as a GameMode, but because of two categories of
+        # false positive the manual grep sweep (this same task's Step 3)
+        # explicitly treats as acceptable and out of scope:
+        #   1. This very test file, whose TestGladiatorRemovedFromGameMode
+        #      class (name, docstring, and sibling test methods) necessarily
+        #      says "gladiator" while explaining the removal.
+        #   2. Generated *_content_data.py modules, which hold real WoW
+        #      item/achievement names that happen to contain the word (e.g.
+        #      "Gladiator's Tabard", the arena-rating achievement literally
+        #      named "Gladiator") -- not the retired GameMode value.
+        #   3. goals.py's own historical-context comment
+        #      (_NOT_BUILDABLE_MODES) explaining that Gladiator was removed.
+        # This version keeps the brief's intent -- fail on any *live code*
+        # reference to Gladiator as a GameMode -- while excluding exactly
+        # those documented-acceptable categories.
+        import pathlib
+        wow_dir = pathlib.Path(__file__).parent.parent
+        this_file = pathlib.Path(__file__).resolve()
+        offending = []
+        for path in wow_dir.rglob("*.py"):
+            if path.resolve() == this_file:
+                continue
+            if path.name.endswith("_content_data.py"):
+                continue
+            code_lines = [
+                line for line in path.read_text(encoding="utf-8").splitlines()
+                if not line.strip().startswith("#")
+            ]
+            if "gladiator" in "\n".join(code_lines).lower():
+                offending.append(str(path))
+        self.assertEqual(offending, [])
+
 
 class TestAchievementHuntDefaultOptionsGenerate(WoWTestBase):
     options = {"game_mode": "achievement_hunt"}
