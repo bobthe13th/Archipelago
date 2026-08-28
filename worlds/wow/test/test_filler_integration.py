@@ -147,6 +147,54 @@ class TestFillerEffectCategoryNarrowingReducesSampledSet(WoWTestBase):
         self.assertTrue(pooled_filler_names.issubset(gold_names))
 
 
+class TestRandomBuffVarietyAcrossSeeds(WoWTestBase):
+    """C1 regression test (final whole-branch review finding): before the
+    fix, create_filler_item_pool fed _distribute_filler_effect_counts an
+    UNSHUFFLED, item_id-ordered names list -- since len(eligible)=568 for
+    random_buff vastly exceeds the 30-slot FILLER_PER_CATEGORY_CAP, both
+    uniform and weighted modes degenerated to deterministically picking
+    the exact same first-30-by-item_id buffs on every seed. This test
+    proves two different seeds now reach a DIFFERENT subset of the 568
+    real candidates under the default (weighted) distribution mode.
+
+    auto_construct/run_default_tests are disabled (same mechanism
+    TestEmptyFillerCategoryPoolsFailsValidation uses above) so this test
+    can call self.world_setup(seed=...) explicitly, twice, with two
+    different seeds, instead of relying on the single auto-constructed
+    multiworld every other test class in this file gets from setUp()."""
+    auto_construct = False
+    run_default_tests = False
+    options = {
+        "game_mode": "sprint", "check_density": 100,
+        "quest_reward_weight": 0, "vendor_stock_weight": 0,
+        "recipe_profession_pools": set(), "trainer_spell_class_pools": set(),
+        "filler_category_pools": {"random_buff"},
+    }
+
+    def test_two_different_seeds_pool_different_buff_subsets(self) -> None:
+        buff_names = {
+            name for name, effect in filler_reward_effects_content_data.EFFECT_BY_ITEM_NAME.items()
+            if effect == "cast_spell"
+        }
+
+        def pooled_buff_names(seed: int) -> frozenset:
+            self.world_setup(seed=seed)
+            return frozenset(
+                item.name for item in self.multiworld.itempool
+                if item.name in buff_names
+            )
+
+        first = pooled_buff_names(1)
+        second = pooled_buff_names(2)
+        self.assertTrue(first)
+        self.assertTrue(second)
+        self.assertNotEqual(
+            first, second,
+            "two different seeds pooled the identical buff subset -- the "
+            "shuffle-before-distribution fix did not take effect",
+        )
+
+
 class TestEmptyFillerCategoryPoolsFailsValidation(WoWTestBase):
     """core_loop's every-level item pool has a real, unconditional
     dependency on Filler to close its own item/location deficit (up to 64

@@ -494,6 +494,20 @@ def create_filler_item_pool(world, count: int) -> list[WoWItem]:
         if category in selected:
             effect_names_by_category.setdefault(category, []).append(name)
     for category, names in effect_names_by_category.items():
+        # C1 (final whole-branch review): names is built from
+        # EFFECT_BY_ITEM_NAME.items(), which iterates in item_id insertion
+        # order (ascending spell_id). Feeding that order directly into
+        # _distribute_filler_effect_counts, whose uniform/weighted modes
+        # both cycle `i % len(eligible)`, is fine when total >> len(eligible)
+        # (the trap trio this was copied from) but degenerates the OTHER
+        # way when len(eligible) >> total (random_buff: 568 real names vs.
+        # the 30-slot FILLER_PER_CATEGORY_CAP) -- it deterministically
+        # selects only the first `total` names by item_id, on every seed,
+        # regardless of distribution mode. Shuffling per-category with
+        # world.random here (still seed-derived, so still deterministic
+        # per-seed) restores real seed-to-seed variety across all 568
+        # candidates without touching the distribution math itself.
+        world.random.shuffle(names)
         weighted_counts = _distribute_filler_effect_counts(world, names, FILLER_PER_CATEGORY_CAP)
         weighted_names = []
         for name, n in weighted_counts.items():
