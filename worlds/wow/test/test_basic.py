@@ -1,4 +1,7 @@
 # Archipelago/worlds/wow/test/test_basic.py
+import types
+import unittest
+
 from .bases import WoWTestBase
 from .. import quest_rewards_content_data
 from .. import core_loop_content_data
@@ -78,8 +81,9 @@ class TestNorthshireGeneration(WoWTestBase):
         exceed locations. So real 1:1 parity is required for every option
         combination, not just "locations >= items". locations.py's
         create_filler_locations achieves this dynamically: it slices
-        content/filler.yaml's 27 rows (the max possible, one per
-        gates_content_data.ITEMS entry) down to exactly
+        content/filler.yaml's 37 rows reserved for gates (the max possible,
+        one per gates_content_data.ITEMS entry, grown from 27 by Task 21's 2
+        combo-unlock items and M4.9's 8 new gate items) down to exactly
         items.py's count_enabled_gates_items(world) for whatever options
         this generation actually has -- see TestGateItemSphereZero (every
         optional gate on) for the other end of that range."""
@@ -487,12 +491,14 @@ class TestTrapDistributionModeChaos(WoWTestBase):
 class TestTrapsAndGatesCombinedParity(WoWTestBase):
     """Task 17's parity extension to Task 11's mechanism: traps and gates
     are two independently-sized optional families sharing one filler
-    ceiling (content/filler.yaml's 62 rows, grown from 60 by Task 21's two
-    combo-unlock items). Stress-tests both at their most extreme settings
-    simultaneously (including combo_unlocks_scope: "both", the setting that
-    actually reaches the full 29-item gates worst case) -- if the combined
+    ceiling (content/filler.yaml's 73 rows, grown from 62 by M4.9's 8 new
+    gate items: Bank Access, Gathering Access, 6x Progressive Glyph Slot --
+    62 itself grown from 60 by Task 21's two combo-unlock items).
+    Stress-tests both at their most extreme settings simultaneously
+    (including combo_unlocks_scope: "both", the setting that actually
+    reaches the full 37-item gates worst case) -- if the combined
     count_enabled_gates_items() + count_enabled_trap_items() ever exceeds
-    62, or if the two counts are computed inconsistently between
+    73, or if the two counts are computed inconsistently between
     create_items and create_regions' create_filler_locations, this is
     where it would show up as a FillError."""
     options = {
@@ -514,6 +520,49 @@ class TestTrapsAndGatesCombinedParity(WoWTestBase):
         # TestGateItemSphereZero already covers for the gate family alone.
         for name in quest_rewards_content_data.ALWAYS_PRESENT:
             self.assertTrue(self.can_reach_location(name))
+
+
+class TestFillerPoolCoversWorstCaseGatesAndTraps(unittest.TestCase):
+    """M4.9.5 final review (Fix 12): TestTrapsAndGatesCombinedParity above is
+    the one test that would normally prove this milestone's most
+    safety-critical invariant (enough filler locations exist for the
+    worst-case combination of gate items + trap items) -- but it's
+    currently red for an unrelated, pre-existing reason: an earlier,
+    separate, still-in-progress milestone (M4.9.3) changed level milestones
+    to per-level, which changed items.py's _trap_baseline_location_count()'s
+    real return value away from the number content/filler.yaml's row count
+    was last sized against (see filler.yaml's own header comment for the
+    full explanation). That drift is out of scope for this plan to fix.
+
+    This test asserts the same real invariant WITHOUT depending on a full
+    seed generation succeeding, using the exact same real
+    _trap_baseline_location_count function count_enabled_trap_items relies
+    on (not a hardcoded guess), so it stays honest about whether the
+    invariant actually holds today. It is EXPECTED to currently FAIL for
+    the same known, out-of-scope M4.9.3 drift -- that is this test
+    correctly surfacing a real, already-known gap, not a bug in this
+    test. Do not "fix" this test by changing the filler pool size; that
+    belongs to whichever effort is already tracking the M4.9.3 drift."""
+
+    def test_filler_pool_covers_worst_case_gates_and_traps(self) -> None:
+        from .. import filler_content_data, gates_content_data
+        from .. import items as items_module
+
+        max_gate_items = len(gates_content_data.ITEMS)
+
+        # Worst case trap count: trap_percentage_of_filler at its Range max
+        # (100), whichever track's baseline location count is larger --
+        # reuse the same real _trap_baseline_location_count function
+        # count_enabled_trap_items itself calls, for both tracks, rather
+        # than recomputing or guessing the totals ourselves.
+        standard_world = types.SimpleNamespace(options=types.SimpleNamespace(death_knight_slot=False))
+        dk_world = types.SimpleNamespace(options=types.SimpleNamespace(death_knight_slot=True))
+        max_trap_items = max(
+            items_module._trap_baseline_location_count(standard_world),
+            items_module._trap_baseline_location_count(dk_world),
+        )
+
+        self.assertGreaterEqual(len(filler_content_data.LOCATIONS), max_gate_items + max_trap_items)
 
 
 class TestDeathKnightOptionsExistAndDefaultOff(WoWTestBase):

@@ -277,7 +277,7 @@ class CharacterUnlockGating(Toggle):
     """When on, bank bag slots, spending talent points, dual spec, and
     Glyph Slots are locked behind Archipelago items instead of being
     free/purchasable from the start (spec §5.1 -- optional, off by
-    default). All four progressive-unlock types named in the design are
+    default). All four character-unlock types named in the design are
     implemented as of M4.9 (Glyph Slot gating closed the last gap). The
     connected worldserver must also have Archipelago.CharacterUnlockGating
     enabled in its .conf to match -- same manual-sync requirement as the
