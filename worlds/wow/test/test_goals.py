@@ -97,6 +97,27 @@ class TestExplorerNotBuildable(WoWTestBase):
         self.assertRaises(OptionError, self.world_setup)
 
 
+class TestAchievementHuntOptionsExist(unittest.TestCase):
+    def test_achievement_hunt_tier_has_the_three_spec_values(self) -> None:
+        from ..options import AchievementHuntTier
+        self.assertEqual(AchievementHuntTier.option_hundred_percent, 0)
+        self.assertEqual(AchievementHuntTier.option_ninety_nine_percent, 1)
+        self.assertEqual(AchievementHuntTier.option_named_subset, 2)
+        self.assertEqual(AchievementHuntTier.default, 0)
+
+    def test_achievement_hunt_subset_has_the_six_named_subsets(self) -> None:
+        from ..options import AchievementHuntSubset
+        self.assertEqual(
+            set(AchievementHuntSubset.name_lookup.values()),
+            {"explorer", "dungeons", "raids", "professions", "reputation", "pvp"},
+        )
+
+    def test_wow_options_dataclass_has_both_new_fields(self) -> None:
+        from ..options import WoWOptions
+        self.assertIn("achievement_hunt_tier", WoWOptions.type_hints)
+        self.assertIn("achievement_hunt_subset", WoWOptions.type_hints)
+
+
 class TestArtisanDefaultOptionsGenerate(WoWTestBase):
     """Task 27: selecting artisan with every other option left at default
     must actually generate."""

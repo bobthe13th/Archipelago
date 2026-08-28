@@ -137,6 +137,51 @@ class CollectorItemsRequired(Range):
     default = 264
 
 
+class AchievementHuntTier(Choice):
+    """Only relevant when game_mode is achievement_hunt (M4.9 Sec4). Which of
+    the three curated tiers the completion rule requires: hundred_percent
+    (every real achievement in the compiled pool -- Feats of Strength/meta-
+    achievements and achievements that never fire the completion hook at all
+    are already excluded at extraction time, not a runtime choice here),
+    ninety_nine_percent (the same pool minus a hand-flagged "extremely hard"
+    denylist -- realm-first-adjacent PvP-rating grinds, long reputation-
+    exalt chains), or named_subset (exactly one of achievement_hunt_subset's
+    six thematic groups). Every achievement location/item in the compiled
+    table always exists in the pool regardless of this choice -- only the
+    completion RULE differs, the same "every location exists, only the
+    threshold differs" shape Collector's collector_items_required already
+    established. The connected worldserver must also have
+    Archipelago.AchievementHuntTier set to match -- this module has no way
+    to read this option from the AP server itself, same manual-sync
+    requirement as completionist_expansion."""
+    display_name = "Achievement Hunt: Tier"
+    option_hundred_percent = 0
+    option_ninety_nine_percent = 1
+    option_named_subset = 2
+    default = 0
+
+
+class AchievementHuntSubset(Choice):
+    """Only relevant when game_mode is achievement_hunt AND
+    achievement_hunt_tier is named_subset. Which of the six real,
+    Achievement.dbc-category-derived thematic subsets the completion rule
+    requires: explorer (Exploration, real category root 97), dungeons/raids
+    (both derived from the real "Dungeons & Raids" category root 168, split
+    by each achievement's own leaf-category name containing "Raid" or not),
+    professions (root 169), reputation (root 201), pvp (Player vs. Player,
+    root 95). The connected worldserver must also have
+    Archipelago.AchievementHuntSubset set to match -- same manual-sync
+    requirement as achievement_hunt_tier above."""
+    display_name = "Achievement Hunt: Named Subset"
+    option_explorer = 0
+    option_dungeons = 1
+    option_raids = 2
+    option_professions = 3
+    option_reputation = 4
+    option_pvp = 5
+    default = 0
+
+
 class CheckDensity(Range):
     """Global check density (0-100). Controls how many rows are sampled from
     each enabled optional location category. 0 disables every optional
@@ -746,6 +791,8 @@ class WoWOptions(PerGameCommonOptions):
     key_hunt_instances_required: KeyHuntInstancesRequired
     artisan_primary_professions_required: ArtisanPrimaryProfessionsRequired
     collector_items_required: CollectorItemsRequired
+    achievement_hunt_tier: AchievementHuntTier
+    achievement_hunt_subset: AchievementHuntSubset
     quest_reward_type_pools: QuestRewardTypePools
     quest_reward_expansion_pools: QuestRewardExpansionPools
     vendor_stock_expansion_pools: VendorStockExpansionPools
