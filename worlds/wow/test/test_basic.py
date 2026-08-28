@@ -525,3 +525,77 @@ class TestDeathKnightOptionsExistAndDefaultOff(WoWTestBase):
         data = self.multiworld.worlds[self.player].fill_slot_data()
         self.assertNotIn("death_knight_slot", data)
         self.assertNotIn("death_knight_level1_start", data)
+
+
+class TestDeathKnightSlotLevelMilestoneTracks(WoWTestBase):
+    """M4.9 spec Sec6: a Death-Knight-flagged slot's location set must
+    exclude every sub-55 standard-track location and include the 55-80
+    Death Knight track instead. Also a real-generation item=location parity
+    check for the death_knight track specifically (TestGateItemSphereZero's
+    sibling for this option, at the other end of core_loop's own track
+    axis)."""
+
+    options = {"death_knight_slot": True}
+
+    def test_sub_55_standard_locations_are_absent(self) -> None:
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        for level in range(1, 55):
+            self.assertNotIn(f"Reach Level {level}", location_names)
+
+    def test_death_knight_track_55_to_80_is_present(self) -> None:
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        for level in range(55, 81):
+            self.assertIn(f"Reach Level {level} (Death Knight)", location_names)
+
+    def test_standard_track_55_to_80_is_absent(self) -> None:
+        # Confirms the two tracks are genuinely exclusive for this slot --
+        # not just "the DK track was added on top of the standard one".
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        for level in range(55, 81):
+            self.assertNotIn(f"Reach Level {level}", location_names)
+
+    def test_core_loop_location_count_is_thirty_one(self) -> None:
+        # 26 death_knight level milestones (55-80) + 5 instance clears.
+        core_loop_names = set(core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK["death_knight"].values()) | set(
+            core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES.values()
+        )
+        present = {loc.name for loc in self.multiworld.get_locations(self.player)} & core_loop_names
+        self.assertEqual(len(present), 31)
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        # Real-generation parity check (spec Sec6): the DK track's own
+        # location count (31 core-loop + whatever optional categories this
+        # generation sampled) must exactly equal the pooled item count --
+        # same invariant TestGateItemSphereZero/TestNorthshireGeneration
+        # already enforce for the standard track's default configuration.
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
+class TestStandardSlotLevelMilestoneTracks(WoWTestBase):
+    """Complement to TestDeathKnightSlotLevelMilestoneTracks above: a
+    default (death_knight_slot off) slot gets the full 1-80 standard track
+    and none of the death_knight track. This is also exercised implicitly
+    by every other default-options test in this file, but this class makes
+    the track-exclusivity property explicit and directly comparable to its
+    DK-flagged sibling."""
+
+    def test_full_standard_track_is_present(self) -> None:
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        for level in range(1, 81):
+            self.assertIn(f"Reach Level {level}", location_names)
+
+    def test_death_knight_track_is_entirely_absent(self) -> None:
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        for level in range(55, 81):
+            self.assertNotIn(f"Reach Level {level} (Death Knight)", location_names)
+
+    def test_core_loop_location_count_is_eighty_five(self) -> None:
+        # 80 standard level milestones (1-80) + 5 instance clears.
+        core_loop_names = set(core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK["standard"].values()) | set(
+            core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES.values()
+        )
+        present = {loc.name for loc in self.multiworld.get_locations(self.player)} & core_loop_names
+        self.assertEqual(len(present), 85)
+
+    def test_item_pool_matches_location_count_exactly(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
