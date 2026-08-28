@@ -770,6 +770,28 @@ class FillerCategoryPools(OptionSet):
     default = valid_keys
 
 
+class FillerEffectDistributionMode(Choice):
+    """Only used when filler_category_pools includes at least one of the 5
+    curated reward-effect categories (random_buff/gold_reward/xp_reward/
+    title/portable_service, M4.9.6): how each category's own discrete
+    value rows (e.g. Gold Reward's 21 copper tiers) get sampled when
+    create_filler_item_pool draws from them. "uniform" spreads them as
+    evenly as possible; "weighted" uses each row's own relative weight
+    (its content-table count field); "chaos" picks each individual copy's
+    value independently at random, varying the split generation to
+    generation even for identical options. Every row in this family
+    currently carries an equal weight of 1 (M4.9.6 has no principled
+    per-value rarity signal), so weighted and uniform currently produce
+    statistically similar results -- the option still functions correctly
+    per its documented semantics and is ready for a future milestone to
+    assign differentiated weights. weighted is the default, matching
+    trap_distribution_mode's own precedent."""
+    display_name = "Filler Effect Distribution Mode"
+    option_uniform = 0
+    option_weighted = 1
+    option_chaos = 2
+    default = 1
+
 
 @dataclass
 class WoWOptions(PerGameCommonOptions):
@@ -814,4 +836,5 @@ class WoWOptions(PerGameCommonOptions):
     death_knight_slot: DeathKnightSlot
     death_knight_level1_start: DeathKnightLevel1Start
     filler_category_pools: FillerCategoryPools
+    filler_effect_distribution_mode: FillerEffectDistributionMode
 
