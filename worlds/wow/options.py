@@ -530,6 +530,34 @@ class ContainersanityExpansionPools(OptionSet):
     default = valid_keys
 
 
+class GathersanityExpansionPools(OptionSet):
+    """Which expansion tiers' gathering/skinning/disenchant slots
+    Gathersanity draws locations from -- a slot is tagged by every
+    expansion where a real spawn/source exists (gathering nodes: the
+    backing gameobject's real spawn map; skinning: the backing
+    creature's real spawn map; disenchant: the real character-level
+    range of every source item sharing that bracket) (M4.10.2)."""
+    display_name = "Gathersanity Expansion Pools"
+    valid_keys = ["vanilla", "tbc", "wotlk"]
+    default = valid_keys
+
+
+class GathersanitySourcePools(OptionSet):
+    """Which of Gathersanity's six real sources to include. gathering_node
+    is mining/herbalism world nodes (gameobject_loot_template). skinning/
+    mob_herbalism/mob_mining/mob_engineering are all creature corpse
+    interactions via skinning_loot_template, split by the real vanilla
+    creature_template.type_flags bit that gates which profession can use
+    them (CREATURE_TYPE_FLAG_SKIN_WITH_HERBALISM/_MINING/_ENGINEERING,
+    src/server/shared/SharedDefines.h:2697-2704) -- plain skinning is the
+    default/no-flag case. disenchant is disenchant_loot_template's real
+    item-level-bracket loot slots. Default selects every value (full
+    vocabulary, zero-regression) (M4.10.2)."""
+    display_name = "Gathersanity Source Pools"
+    valid_keys = ["gathering_node", "skinning", "mob_herbalism", "mob_mining", "mob_engineering", "disenchant"]
+    default = valid_keys
+
+
 class QuestRewardWeight(Range):
     """Category weight for Quest Rewards (M4.8, replaces the removed
     include_quest_rewards boolean toggle and locations.py's former
@@ -852,6 +880,8 @@ class WoWOptions(PerGameCommonOptions):
     quest_reward_expansion_pools: QuestRewardExpansionPools
     vendor_stock_expansion_pools: VendorStockExpansionPools
     containersanity_expansion_pools: ContainersanityExpansionPools
+    gathersanity_expansion_pools: GathersanityExpansionPools
+    gathersanity_source_pools: GathersanitySourcePools
     quest_reward_weight: QuestRewardWeight
     vendor_stock_weight: VendorStockWeight
     recipe_profession_pools: RecipeProfessionPools

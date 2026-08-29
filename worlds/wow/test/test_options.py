@@ -23,5 +23,28 @@ class TestLootSlotCheckRepeatBehavior(unittest.TestCase):
             self.assertTrue(hasattr(LootSlotCheckRepeatBehavior, f"option_{mode}"))
 
 
+class TestGathersanityExpansionPools(unittest.TestCase):
+    def test_default_selects_full_vocabulary(self) -> None:
+        from ..options import GathersanityExpansionPools
+        self.assertEqual(GathersanityExpansionPools.default, GathersanityExpansionPools.valid_keys)
+
+    def test_valid_keys_match_the_project_s_three_expansion_tiers(self) -> None:
+        from ..options import GathersanityExpansionPools
+        self.assertEqual(set(GathersanityExpansionPools.valid_keys), {"vanilla", "tbc", "wotlk"})
+
+
+class TestGathersanitySourcePools(unittest.TestCase):
+    def test_default_selects_full_vocabulary(self) -> None:
+        from ..options import GathersanitySourcePools
+        self.assertEqual(GathersanitySourcePools.default, GathersanitySourcePools.valid_keys)
+
+    def test_valid_keys_match_the_six_real_sources(self) -> None:
+        from ..options import GathersanitySourcePools
+        self.assertEqual(
+            set(GathersanitySourcePools.valid_keys),
+            {"gathering_node", "skinning", "mob_herbalism", "mob_mining", "mob_engineering", "disenchant"},
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
