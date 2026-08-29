@@ -78,11 +78,14 @@ class WoWTestBase(WorldTestBase):
         # M4.10.1: containersanity shares recipes/trainer_spells' exact
         # weight_option=None shape (every tag-matched row included
         # unconditionally). Without this default, every WoWTestBase test
-        # would additionally sample/pool the full ~16,810-row
+        # would additionally sample/pool the full ~16,526-row
         # containersanity family on every single run. (Originally
         # ~17,594 at extraction time; narrowed by a final whole-branch
         # review fix excluding 784 permanently-unlootable rows -- see
-        # extract_containersanity.py.)
+        # extract_containersanity.py. Further narrowed to ~16,526 by
+        # M4.10.2 Task 1, which carves 284 real gathering-node rows --
+        # Copper Vein, Silverleaf, etc. -- out to Gathersanity's own
+        # extraction.)
         if "containersanity_expansion_pools" not in merged:
             merged["containersanity_expansion_pools"] = set()
         self.options = merged
