@@ -46,5 +46,5 @@ LOCATIONS: dict[str, int] = {
 }
 
 ITEMS: dict[str, tuple[int, int]] = {
-    "Key Hunt: Key": (830029, 40),
+    "Key Hunt: Key": (730040, 40),
 }
