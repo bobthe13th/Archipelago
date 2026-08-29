@@ -1,8 +1,8 @@
 import dataclasses
 from collections.abc import Callable, Iterable, Mapping
-from typing import TYPE_CHECKING, Any, ClassVar, Final, Generic, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Final, Generic, Never, Self, cast
 
-from typing_extensions import Never, Self, TypeVar, dataclass_transform, override
+from typing_extensions import TypeVar, dataclass_transform, override
 
 from BaseClasses import CollectionState
 from NetUtils import JSONMessagePart

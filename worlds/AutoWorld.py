@@ -7,9 +7,8 @@ import sys
 import time
 from collections.abc import Callable, Iterable, Mapping
 from random import Random
-from typing import (Any, ClassVar, Dict, FrozenSet, List, Optional, Set, TextIO, Tuple,
+from typing import (Any, ClassVar, Dict, FrozenSet, List, Optional, Self, Set, TextIO, Tuple,
                     TYPE_CHECKING, Type, Union)
-from typing_extensions import Self
 
 from Options import item_and_loc_options, ItemsAccessibility, OptionGroup, PerGameCommonOptions
 from BaseClasses import CollectionState, Entrance
