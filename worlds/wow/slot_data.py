@@ -11,11 +11,29 @@ from __future__ import annotations
 
 from . import locations as locations_module
 
-# Finding I3 (M4.7 final review): the only two families whose locations the
-# C++ side's trigger-lookup maps (QUEST_ID_TO_LOCATION_ID /
-# VENDOR_SLOT_TO_LOCATION_ID, Task 1) can ever resolve -- see
-# _ap_item_display_eligible_location_names below.
-_AP_ITEM_DISPLAY_FAMILY_KEYS = frozenset({"quest_rewards", "vendor_stock"})
+# Finding I3 (M4.7 final review) + M4.10.1 final regression pass (Task 8): the
+# families whose locations the C++ side's trigger-lookup maps
+# (QUEST_ID_TO_LOCATION_ID / VENDOR_SLOT_TO_LOCATION_ID, Task 1;
+# BuildLocationIdToGameobjectLootSlot, M4.10.1 Task 5) can ever resolve -- see
+# _ap_item_display_eligible_location_names below. SynthesizeAndRewireLocations
+# (APItemDisplay.cpp) is driven ENTIRELY by iterating this slot_data map --
+# BuildLocationIdToGameobjectLootSlot's own map is only ever consulted for a
+# locationId that already showed up as a key here, never iterated
+# independently. Omitting "containersanity" left the entire family a
+# no-op at runtime: gameobject_loot_template.Item was never rewritten to a
+# synthesized entry, archipelago_lootslot_original_items was never
+# populated, and no synthesized item_template row ever existed -- looting a
+# Containersanity chest silently granted the real vanilla item with no AP
+# check ever firing, despite every individual piece (extraction, compiler,
+# C++ synthesis branch, ArchipelagoLootSlotScript hook) being independently
+# correct and unit-tested. Caught here because no test at any level actually
+# drove SynthesizeAndRewireLocations's dispatch with a location present in
+# BuildLocationIdToGameobjectLootSlot's map but absent from this frozenset:
+# the Python unit tests mock a hand-picked eligible-names set that never
+# included containersanity as a positive case, and the C++ tests
+# (test_APItemDisplay.cpp) only exercise SynthesizedEntryFor's pure-function
+# idempotency, never the full family-dispatch loop.
+_AP_ITEM_DISPLAY_FAMILY_KEYS = frozenset({"quest_rewards", "vendor_stock", "containersanity"})
 
 
 def build_slot_data(world) -> dict:
@@ -38,10 +56,12 @@ def _add_instance_clear_mode(world, data: dict) -> None:
 
 
 def _ap_item_display_eligible_location_names() -> frozenset[str]:
-    """Finding I3 (M4.7 final review): the set of location NAMES belonging
-    to a family whose C++ trigger-lookup map (QUEST_ID_TO_LOCATION_ID /
-    VENDOR_SLOT_TO_LOCATION_ID, Task 1) can actually resolve a synthesized
-    item back to a real quest_template/npc_vendor row. Originally
+    """Finding I3 (M4.7 final review) + M4.10.1 Task 8: the set of location
+    NAMES belonging to a family whose C++ trigger-lookup map
+    (QUEST_ID_TO_LOCATION_ID / VENDOR_SLOT_TO_LOCATION_ID, Task 1;
+    BuildLocationIdToGameobjectLootSlot, M4.10.1) can actually resolve a
+    synthesized item back to a real quest_template/npc_vendor/
+    gameobject_loot_template row. Originally
     _add_ap_item_display_data included EVERY location in the whole world
     unconditionally ("extra entries are harmless" -- see the superseded
     docstring this replaced), but that was wrong in practice: it made the
