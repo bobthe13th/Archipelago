@@ -88,6 +88,15 @@ class WoWTestBase(WorldTestBase):
         # extraction.)
         if "containersanity_expansion_pools" not in merged:
             merged["containersanity_expansion_pools"] = set()
+        # M4.10.2: gathersanity shares containersanity/recipes/trainer_spells'
+        # exact weight_option=None shape (every tag-matched row included
+        # unconditionally). Without this default, every WoWTestBase test
+        # would additionally sample/pool the full gathersanity family on
+        # every single run.
+        if "gathersanity_expansion_pools" not in merged:
+            merged["gathersanity_expansion_pools"] = set()
+        if "gathersanity_source_pools" not in merged:
+            merged["gathersanity_source_pools"] = set()
         self.options = merged
         try:
             super().world_setup(seed)

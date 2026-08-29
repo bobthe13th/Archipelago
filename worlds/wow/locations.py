@@ -11,6 +11,7 @@ from . import density
 from . import filler_content_data
 from . import fish_content_data
 from . import game_mode_profile
+from . import gathersanity_content_data
 from . import professions_content_data
 from . import quest_rewards_content_data
 from . import rares_content_data
@@ -77,6 +78,13 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
     tag_options={"expansion": "containersanity_expansion_pools"},
     locations_module=containersanity_content_data,
     items_module=containersanity_content_data,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="gathersanity",
+    tag_options={"expansion": "gathersanity_expansion_pools", "source": "gathersanity_source_pools"},
+    locations_module=gathersanity_content_data,
+    items_module=gathersanity_content_data,
 ))
 
 

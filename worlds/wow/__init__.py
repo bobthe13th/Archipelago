@@ -12,6 +12,7 @@ from . import fish_content_data
 from . import filler_reward_effects_content_data
 from . import filler_reward_items_content_data
 from . import gates_content_data
+from . import gathersanity_content_data
 from . import filler_content_data
 from . import professions_content_data
 from . import quest_rewards_content_data
@@ -58,6 +59,7 @@ class WoWWorld(World):
         **{name: item_id for name, (item_id, _count) in filler_reward_items_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in filler_reward_effects_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in containersanity_content_data.ITEMS.items()},
+        **{name: item_id for name, (item_id, _count) in gathersanity_content_data.ITEMS.items()},
     }
     location_name_to_id = {
         # M4.9: this class attribute is AP's GLOBAL location namespace for
@@ -87,6 +89,7 @@ class WoWWorld(World):
         **{name: loc_id for name, loc_id in trainer_spells_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in vendor_stock_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in containersanity_content_data.LOCATIONS.items()},
+        **{name: loc_id for name, loc_id in gathersanity_content_data.LOCATIONS.items()},
     }
 
     def generate_early(self) -> None:
