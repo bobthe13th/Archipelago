@@ -4,6 +4,7 @@ from typing import Optional
 
 from BaseClasses import Location
 from . import collections_content_data
+from . import containersanity_content_data
 from . import core_loop_content_data
 from . import density
 from . import filler_content_data
@@ -68,6 +69,13 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
     tag_options={"class": "trainer_spell_class_pools", "expansion": "trainer_spell_expansion_pools"},
     locations_module=trainer_spells_content_data,
     items_module=trainer_spells_content_data,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="containersanity",
+    tag_options={"expansion": "containersanity_expansion_pools"},
+    locations_module=containersanity_content_data,
+    items_module=containersanity_content_data,
 ))
 
 

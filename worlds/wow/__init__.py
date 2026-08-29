@@ -5,6 +5,7 @@ from .rules import set_rules
 from . import goals
 from . import slot_data
 from . import collections_content_data
+from . import containersanity_content_data
 from . import core_loop_content_data
 from . import fish_content_data
 from . import gates_content_data
@@ -53,6 +54,7 @@ class WoWWorld(World):
         **{name: item_id for name, (item_id, _count) in recipes_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in trainer_spells_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in vendor_stock_content_data.ITEMS.items()},
+        **{name: item_id for name, (item_id, _count) in containersanity_content_data.ITEMS.items()},
     }
     location_name_to_id = {
         **{f"Reach Level {level}": loc_id for level, loc_id in core_loop_content_data.LEVEL_LOCATIONS.items()},
@@ -69,6 +71,7 @@ class WoWWorld(World):
         **{name: loc_id for name, loc_id in recipes_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in trainer_spells_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in vendor_stock_content_data.LOCATIONS.items()},
+        **{name: loc_id for name, loc_id in containersanity_content_data.LOCATIONS.items()},
     }
 
     def generate_early(self) -> None:
