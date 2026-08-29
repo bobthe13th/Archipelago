@@ -521,6 +521,15 @@ class VendorStockExpansionPools(OptionSet):
     default = valid_keys
 
 
+class ContainersanityExpansionPools(OptionSet):
+    """Which expansion tiers' containers Containersanity draws locations
+    from -- a container is tagged by every expansion where a real
+    gameobject spawn of its backing chest template exists (M4.10.1)."""
+    display_name = "Containersanity Expansion Pools"
+    valid_keys = ["vanilla", "tbc", "wotlk"]
+    default = valid_keys
+
+
 class QuestRewardWeight(Range):
     """Category weight for Quest Rewards (M4.8, replaces the removed
     include_quest_rewards boolean toggle and locations.py's former
@@ -793,6 +802,22 @@ class FillerEffectDistributionMode(Choice):
     default = 1
 
 
+class LootSlotCheckRepeatBehavior(Choice):
+    """What happens when a player re-loots an already-checked
+    Containersanity/Gathersanity slot -- real and reachable here (unlike
+    VendorCheckRepeatBehavior's now-mostly-dead-code modes, which are
+    blocked by vendor's native maxcount=1 stock limit): 20.1% of real
+    chest-type gameobjects in this checkout have a nonzero restock timer
+    (chestRestockTime), so a genuine repeat-loot of the same slot is a
+    real, common scenario, not a corner case."""
+    display_name = "Loot Slot Check Repeat Behavior"
+    option_suppress_entirely = 0
+    option_vanilla_item = 1
+    option_gold_conversion = 2
+    option_filler_consumable = 3
+    default = 0
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -826,6 +851,7 @@ class WoWOptions(PerGameCommonOptions):
     quest_reward_type_pools: QuestRewardTypePools
     quest_reward_expansion_pools: QuestRewardExpansionPools
     vendor_stock_expansion_pools: VendorStockExpansionPools
+    containersanity_expansion_pools: ContainersanityExpansionPools
     quest_reward_weight: QuestRewardWeight
     vendor_stock_weight: VendorStockWeight
     recipe_profession_pools: RecipeProfessionPools
@@ -837,4 +863,5 @@ class WoWOptions(PerGameCommonOptions):
     death_knight_level1_start: DeathKnightLevel1Start
     filler_category_pools: FillerCategoryPools
     filler_effect_distribution_mode: FillerEffectDistributionMode
+    loot_slot_check_repeat_behavior: LootSlotCheckRepeatBehavior
 

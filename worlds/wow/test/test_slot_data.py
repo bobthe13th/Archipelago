@@ -28,6 +28,10 @@ class _FakeVendorLocationsModule:
     LOCATIONS = {"Vendor: Fake NPC - Fake Item (#1)": 2500000}
 
 
+class _FakeContainersanityLocationsModule:
+    LOCATIONS = {"Container: Fake Chest - Fake Item (#1/1)": 8000000}
+
+
 class TestAddApItemDisplayData(unittest.TestCase):
     def setUp(self) -> None:
         # Finding I3: _add_ap_item_display_data now only includes locations
@@ -45,6 +49,11 @@ class TestAddApItemDisplayData(unittest.TestCase):
             locations_module.OptionalCategory(
                 key="vendor_stock", tag_options={}, weight_option="vendor_stock_weight",
                 locations_module=_FakeVendorLocationsModule, items_module=None,
+            ),
+            locations_module.OptionalCategory(
+                key="containersanity", tag_options={"expansion": "containersanity_expansion_pools"},
+                weight_option=None,
+                locations_module=_FakeContainersanityLocationsModule, items_module=None,
             ),
         ]
 
@@ -86,6 +95,29 @@ class TestAddApItemDisplayData(unittest.TestCase):
         slot_data_module._add_ap_item_display_data(world, data)
         self.assertEqual(data["ap_item_display"], {})
 
+    def test_includes_containersanity_locations(self) -> None:
+        # M4.10.1 final regression pass (Task 8): _AP_ITEM_DISPLAY_FAMILY_KEYS
+        # originally omitted "containersanity" entirely, which silently made
+        # SynthesizeAndRewireLocations (APItemDisplay.cpp) skip the whole
+        # family -- it iterates ONLY this slot_data map, so
+        # BuildLocationIdToGameobjectLootSlot's own map (built server-side
+        # from the exact same location ids) was never even consulted. A
+        # Containersanity location must appear in ap_item_display exactly
+        # like quest_rewards/vendor_stock locations do.
+        locations = [
+            _FakeLocation("Container: Fake Chest - Fake Item (#1/1)", 8000000, _FakeItem("Fishing Pole", player=1, classification=ItemClassification.useful)),
+        ]
+        world = SimpleNamespace(
+            player=1,
+            multiworld=SimpleNamespace(get_locations=lambda player: locations, get_player_name=lambda p: "Tester"),
+        )
+        data: dict = {}
+        slot_data_module._add_ap_item_display_data(world, data)
+        self.assertEqual(
+            data["ap_item_display"],
+            {8000000: {"name": "Tester's Fishing Pole", "flags": int(ItemClassification.useful)}},
+        )
+
     def test_excludes_locations_outside_quest_rewards_and_vendor_stock(self) -> None:
         # Finding I3's actual regression target: a location that has a real
         # item placed and a real address, but does NOT belong to either
@@ -121,3 +153,11 @@ class TestAddVendorCheckRepeatBehavior(unittest.TestCase):
         data: dict = {}
         slot_data_module._add_vendor_check_repeat_behavior(world, data)
         self.assertEqual(data["vendor_check_repeat_behavior"], "gold_conversion")
+
+
+class TestAddLootSlotCheckRepeatBehavior(unittest.TestCase):
+    def test_adds_loot_slot_check_repeat_behavior_current_key(self) -> None:
+        world = SimpleNamespace(options=SimpleNamespace(loot_slot_check_repeat_behavior=SimpleNamespace(current_key="vanilla_item")))
+        data: dict = {}
+        slot_data_module._add_loot_slot_check_repeat_behavior(world, data)
+        self.assertEqual(data["loot_slot_check_repeat_behavior"], "vanilla_item")
