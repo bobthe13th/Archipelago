@@ -23,6 +23,7 @@ def build_slot_data(world) -> dict:
     _add_instance_clear_mode(world, data)
     _add_ap_item_display_data(world, data)
     _add_vendor_check_repeat_behavior(world, data)
+    _add_loot_slot_check_repeat_behavior(world, data)
     return data
 
 
@@ -90,3 +91,7 @@ def _add_ap_item_display_data(world, data: dict) -> None:
 
 def _add_vendor_check_repeat_behavior(world, data: dict) -> None:
     data["vendor_check_repeat_behavior"] = world.options.vendor_check_repeat_behavior.current_key
+
+
+def _add_loot_slot_check_repeat_behavior(world, data: dict) -> None:
+    data["loot_slot_check_repeat_behavior"] = world.options.loot_slot_check_repeat_behavior.current_key

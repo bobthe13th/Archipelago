@@ -113,3 +113,11 @@ class TestAddVendorCheckRepeatBehavior(unittest.TestCase):
         data: dict = {}
         slot_data_module._add_vendor_check_repeat_behavior(world, data)
         self.assertEqual(data["vendor_check_repeat_behavior"], "gold_conversion")
+
+
+class TestAddLootSlotCheckRepeatBehavior(unittest.TestCase):
+    def test_adds_loot_slot_check_repeat_behavior_current_key(self) -> None:
+        world = SimpleNamespace(options=SimpleNamespace(loot_slot_check_repeat_behavior=SimpleNamespace(current_key="vanilla_item")))
+        data: dict = {}
+        slot_data_module._add_loot_slot_check_repeat_behavior(world, data)
+        self.assertEqual(data["loot_slot_check_repeat_behavior"], "vanilla_item")
