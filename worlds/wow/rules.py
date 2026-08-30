@@ -2,8 +2,10 @@
 import math
 
 from . import core_loop_content_data
+from . import enemysanity_content_data
 from . import fish_content_data
 from . import quest_rewards_content_data
+from . import world_state
 
 
 # M2: all 19 Northshire/Goldshire locations are always accessible (no
@@ -75,6 +77,37 @@ def set_rules(world):
                 world.get_location(name),
                 lambda state: state.has("Northrend Passage", world.player),
             )
+
+    # M4.12: Enemysanity's per-species kill locations must gate reachability
+    # on the same real expansion-zone-access items every other
+    # expansion-locked piece of content in this project already requires --
+    # a species tagged wotlk-only genuinely cannot be killed without first
+    # reaching Northrend, the same real constraint Fishing Quest's Northrend
+    # catches already enforce two blocks above. No level-based gate is added
+    # here (contrast Quest Rewards' min_level clamp just below) -- unlike
+    # accepting a quest, killing a creature has no real hard
+    # character-level mechanic blocking it, so a level requirement would be
+    # an artificial constraint, not a real one. Reads
+    # world_state.species_expansion_tags(world), the M4.12 Pipeline A/B
+    # interface -- if Pipeline B (M5) ever mutates a species' real zone
+    # placement, it writes its own tags there and this loop needs zero
+    # changes.
+    species_tags = world_state.species_expansion_tags(world)
+    for loc in world.multiworld.get_locations(world.player):
+        if loc.name not in enemysanity_content_data.LOCATIONS:
+            continue
+        creature_entry = enemysanity_content_data.TRIGGERS[loc.name]["creature_entry"]
+        expansions = species_tags.get(creature_entry, frozenset({"vanilla"}))
+        if "vanilla" in expansions:
+            continue  # always reachable, no gate needed
+        gate_items = tuple(
+            item for tag, item in (("tbc", "Dark Portal Access"), ("wotlk", "Northrend Passage"))
+            if tag in expansions
+        )
+        world.set_rule(
+            loc,
+            lambda state, items=gate_items: any(state.has(item, world.player) for item in items),
+        )
 
     # M4.5 Task 6 (Quest Rewards), M4.8.0: unconditional -- include_quest_rewards
     # was removed in favor of tag/weight filtering (options.py, locations.py),
