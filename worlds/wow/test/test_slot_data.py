@@ -32,6 +32,10 @@ class _FakeContainersanityLocationsModule:
     LOCATIONS = {"Container: Fake Chest - Fake Item (#1/1)": 8000000}
 
 
+class _FakeGathersanityLocationsModule:
+    LOCATIONS = {"Gathersanity: Fake Vein - Fake Ore (#1/1)": 9000000}
+
+
 class TestAddApItemDisplayData(unittest.TestCase):
     def setUp(self) -> None:
         # Finding I3: _add_ap_item_display_data now only includes locations
@@ -54,6 +58,15 @@ class TestAddApItemDisplayData(unittest.TestCase):
                 key="containersanity", tag_options={"expansion": "containersanity_expansion_pools"},
                 weight_option=None,
                 locations_module=_FakeContainersanityLocationsModule, items_module=None,
+            ),
+            locations_module.OptionalCategory(
+                key="gathersanity",
+                tag_options={
+                    "expansion": "gathersanity_expansion_pools",
+                    "source": "gathersanity_source_pools",
+                },
+                weight_option=None,
+                locations_module=_FakeGathersanityLocationsModule, items_module=None,
             ),
         ]
 
@@ -117,6 +130,45 @@ class TestAddApItemDisplayData(unittest.TestCase):
             data["ap_item_display"],
             {8000000: {"name": "Tester's Fishing Pole", "flags": int(ItemClassification.useful)}},
         )
+
+    def test_includes_gathersanity_locations(self) -> None:
+        # M4.10.2 final whole-branch review (C1): the SECOND occurrence of the
+        # exact bug test_includes_containersanity_locations above was written
+        # for -- _AP_ITEM_DISPLAY_FAMILY_KEYS omitted "gathersanity" too,
+        # silently making SynthesizeAndRewireLocations (APItemDisplay.cpp) a
+        # no-op for all 2,302 locations in the family. That C++ step iterates
+        # ONLY this slot_data map, so the server-side skinning/disenchant/
+        # gameobject loot-slot lookup maps (built from the exact same location
+        # ids) were never even consulted. A Gathersanity location must appear
+        # in ap_item_display exactly like the other three families' do.
+        # RED/GREEN verified against the real fix: this test fails with
+        # "gathersanity" removed from that frozenset and passes with it in.
+        locations = [
+            _FakeLocation("Gathersanity: Fake Vein - Fake Ore (#1/1)", 9000000, _FakeItem("Copper Ore", player=1, classification=ItemClassification.filler)),
+        ]
+        world = SimpleNamespace(
+            player=1,
+            multiworld=SimpleNamespace(get_locations=lambda player: locations, get_player_name=lambda p: "Tester"),
+        )
+        data: dict = {}
+        slot_data_module._add_ap_item_display_data(world, data)
+        self.assertEqual(
+            data["ap_item_display"],
+            {9000000: {"name": "Tester's Copper Ore", "flags": int(ItemClassification.filler)}},
+        )
+
+    def test_every_loot_slot_family_is_registered_for_ap_item_display(self) -> None:
+        # Generalized trip-wire for the bug class that has now recurred twice
+        # (M4.10.1 containersanity, M4.10.2 gathersanity): every family whose
+        # locations the C++ loot-slot trigger-lookup maps can resolve must be
+        # in _AP_ITEM_DISPLAY_FAMILY_KEYS, or the whole family is a runtime
+        # no-op. Checked against the REAL registry (not this class's fake
+        # one), so a third loot-slot family added without registering it here
+        # fails immediately instead of shipping silently broken.
+        for key in ("quest_rewards", "vendor_stock", "containersanity", "gathersanity"):
+            self.assertIn(key, slot_data_module._AP_ITEM_DISPLAY_FAMILY_KEYS)
+        real_keys = {c.key for c in self._original_categories}
+        self.assertTrue(slot_data_module._AP_ITEM_DISPLAY_FAMILY_KEYS <= real_keys)
 
     def test_excludes_locations_outside_quest_rewards_and_vendor_stock(self) -> None:
         # Finding I3's actual regression target: a location that has a real

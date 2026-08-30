@@ -33,7 +33,31 @@ from . import locations as locations_module
 # included containersanity as a positive case, and the C++ tests
 # (test_APItemDisplay.cpp) only exercise SynthesizedEntryFor's pure-function
 # idempotency, never the full family-dispatch loop.
-_AP_ITEM_DISPLAY_FAMILY_KEYS = frozenset({"quest_rewards", "vendor_stock", "containersanity"})
+#
+# M4.10.2 final whole-branch review (C1) -- SECOND OCCURRENCE of the exact
+# same bug, in the exact same frozenset: "gathersanity" was likewise omitted,
+# making all 2,302 Gathersanity locations a complete runtime no-op
+# (skinning_loot_template/disenchant_loot_template/gameobject_loot_template
+# .Item never rewritten, archipelago_lootslot_original_items never populated,
+# no check ever firing) despite all 7 implementation tasks being individually
+# reviewed and passed. The root cause of the recurrence is that this frozenset
+# is the ONLY place a new loot-slot family has to be registered, and nothing
+# in the test suite failed when it wasn't. Safeguards added by that fix, so a
+# third occurrence is caught mechanically:
+#   * test_slot_data.py::TestAddApItemDisplayData::test_includes_gathersanity_locations
+#     -- a direct positive case per family key, mirroring
+#     test_includes_containersanity_locations.
+#   * test_gathersanity.py::TestGathersanityRealGenerationDisenchantOnly::
+#     test_gathersanity_locations_appear_in_ap_item_display -- a REAL seed
+#     generation (no fakes) that asserts a real Gathersanity location id
+#     reaches build_slot_data's emitted ap_item_display map. This is the
+#     level at which both occurrences would have been caught: the fake-module
+#     unit tests can only ever prove the keys they were told about.
+# ANY new family whose locations the C++ trigger-lookup maps can resolve MUST
+# be added here AND given both of those tests.
+_AP_ITEM_DISPLAY_FAMILY_KEYS = frozenset(
+    {"quest_rewards", "vendor_stock", "containersanity", "gathersanity"}
+)
 
 
 def build_slot_data(world) -> dict:
