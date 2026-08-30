@@ -8,6 +8,7 @@ from . import collections_content_data
 from . import containersanity_content_data
 from . import core_loop_content_data
 from . import density
+from . import enemysanity_content_data
 from . import filler_content_data
 from . import fish_content_data
 from . import game_mode_profile
@@ -85,6 +86,13 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
     tag_options={"expansion": "gathersanity_expansion_pools", "source": "gathersanity_source_pools"},
     locations_module=gathersanity_content_data,
     items_module=gathersanity_content_data,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="enemysanity",
+    tag_options={"type": "enemysanity_type_pools", "expansion": "enemysanity_expansion_pools"},
+    locations_module=enemysanity_content_data,
+    items_module=None,
 ))
 
 

@@ -421,6 +421,22 @@ def create_optional_category_item_pool(world) -> list:
         # the eligibility check was redundant optimization, not a
         # correctness requirement.
         if category.items_module is None:
+            # First real consumer: Enemysanity (M4.10.3) has no synthesized/
+            # mailed item at all, so there is nothing to pool 1:1 the way
+            # every other category's ITEMS dict provides. Left as a bare
+            # `continue` (M4.8-era code), this silently contributes ZERO
+            # items for this category's sampled locations, corrupting the
+            # item/location parity every other family maintains --
+            # create_filler_item_pool (M4.9.3.1) is the existing, generic
+            # mechanism for exactly this shape of deficit (core_loop's own
+            # every-level granularity change already uses it the same way).
+            category_location_names = set(category.locations_module.LOCATIONS.keys())
+            sampled_count = sum(
+                1 for loc in world.multiworld.get_locations(world.player)
+                if loc.name in category_location_names
+            )
+            if sampled_count > 0:
+                pool.extend(create_filler_item_pool(world, sampled_count))
             continue
         location_names = list(category.locations_module.LOCATIONS.keys())
         item_rows = list(category.items_module.ITEMS.items())

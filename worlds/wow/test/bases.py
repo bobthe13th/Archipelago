@@ -97,6 +97,14 @@ class WoWTestBase(WorldTestBase):
             merged["gathersanity_expansion_pools"] = set()
         if "gathersanity_source_pools" not in merged:
             merged["gathersanity_source_pools"] = set()
+        # M4.10.3: enemysanity shares the exact same weight_option=None shape
+        # (every tag-matched row included unconditionally). Without this
+        # default, every WoWTestBase test would additionally sample/pool the
+        # full ~17,430-row enemysanity family on every single run.
+        if "enemysanity_type_pools" not in merged:
+            merged["enemysanity_type_pools"] = set()
+        if "enemysanity_expansion_pools" not in merged:
+            merged["enemysanity_expansion_pools"] = set()
         self.options = merged
         try:
             super().world_setup(seed)
