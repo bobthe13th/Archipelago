@@ -46,5 +46,25 @@ class TestGathersanitySourcePools(unittest.TestCase):
         )
 
 
+class TestEnemysanityTypePools(unittest.TestCase):
+    def test_default_selects_full_vocabulary(self) -> None:
+        from ..options import EnemysanityTypePools
+        self.assertEqual(EnemysanityTypePools.default, EnemysanityTypePools.valid_keys)
+
+    def test_valid_keys_are_boss_and_regular(self) -> None:
+        from ..options import EnemysanityTypePools
+        self.assertEqual(set(EnemysanityTypePools.valid_keys), {"boss", "regular"})
+
+
+class TestEnemysanityExpansionPools(unittest.TestCase):
+    def test_default_selects_full_vocabulary(self) -> None:
+        from ..options import EnemysanityExpansionPools
+        self.assertEqual(EnemysanityExpansionPools.default, EnemysanityExpansionPools.valid_keys)
+
+    def test_valid_keys_match_the_project_s_three_expansion_tiers(self) -> None:
+        from ..options import EnemysanityExpansionPools
+        self.assertEqual(set(EnemysanityExpansionPools.valid_keys), {"vanilla", "tbc", "wotlk"})
+
+
 if __name__ == "__main__":
     unittest.main()

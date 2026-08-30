@@ -558,6 +558,28 @@ class GathersanitySourcePools(OptionSet):
     default = valid_keys
 
 
+class EnemysanityTypePools(OptionSet):
+    """Which of Enemysanity's two type pools to include -- "regular" is
+    every creature_template.rank == 0 (CREATURE_ELITE_NORMAL) species with
+    a real spawn; "boss" is every nonzero rank (Elite/RareElite/WorldBoss/
+    Rare, SharedDefines.h's CreatureEliteType). Selecting both is this
+    dimension's "merge" behavior; selecting one is "separate" (M4.10.3).
+    Default selects every value (full vocabulary, zero-regression)."""
+    display_name = "Enemysanity Type Pools"
+    valid_keys = ["boss", "regular"]
+    default = valid_keys
+
+
+class EnemysanityExpansionPools(OptionSet):
+    """Which expansion tiers' species Enemysanity draws locations from -- a
+    species is tagged by every expansion where a real spawn exists, across
+    both its primary creature.id spawns and any alternate-difficulty
+    creature_multispawn entries (M4.10.3). Default selects every value."""
+    display_name = "Enemysanity Expansion Pools"
+    valid_keys = ["vanilla", "tbc", "wotlk"]
+    default = valid_keys
+
+
 class QuestRewardWeight(Range):
     """Category weight for Quest Rewards (M4.8, replaces the removed
     include_quest_rewards boolean toggle and locations.py's former
@@ -882,6 +904,8 @@ class WoWOptions(PerGameCommonOptions):
     containersanity_expansion_pools: ContainersanityExpansionPools
     gathersanity_expansion_pools: GathersanityExpansionPools
     gathersanity_source_pools: GathersanitySourcePools
+    enemysanity_type_pools: EnemysanityTypePools
+    enemysanity_expansion_pools: EnemysanityExpansionPools
     quest_reward_weight: QuestRewardWeight
     vendor_stock_weight: VendorStockWeight
     recipe_profession_pools: RecipeProfessionPools
