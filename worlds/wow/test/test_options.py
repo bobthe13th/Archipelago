@@ -66,5 +66,27 @@ class TestEnemysanityExpansionPools(unittest.TestCase):
         self.assertEqual(set(EnemysanityExpansionPools.valid_keys), {"vanilla", "tbc", "wotlk"})
 
 
+class TestCraftsanityProfessionPools(unittest.TestCase):
+    def test_default_selects_full_vocabulary(self) -> None:
+        from ..options import CraftsanityProfessionPools
+        self.assertEqual(CraftsanityProfessionPools.default, CraftsanityProfessionPools.valid_keys)
+
+    def test_valid_keys_match_the_project_s_profession_vocabulary(self) -> None:
+        from ..options import CraftsanityProfessionPools, RecipeProfessionPools
+        # Same profession vocabulary as recipes/trainer_spells -- Craftsanity's
+        # produced items come from the exact same spell universe.
+        self.assertEqual(set(CraftsanityProfessionPools.valid_keys), set(RecipeProfessionPools.valid_keys))
+
+
+class TestCraftsanityExpansionPools(unittest.TestCase):
+    def test_default_selects_full_vocabulary(self) -> None:
+        from ..options import CraftsanityExpansionPools
+        self.assertEqual(CraftsanityExpansionPools.default, CraftsanityExpansionPools.valid_keys)
+
+    def test_valid_keys_match_the_project_s_three_expansion_tiers(self) -> None:
+        from ..options import CraftsanityExpansionPools
+        self.assertEqual(set(CraftsanityExpansionPools.valid_keys), {"vanilla", "tbc", "wotlk"})
+
+
 if __name__ == "__main__":
     unittest.main()

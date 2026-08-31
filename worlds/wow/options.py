@@ -677,6 +677,24 @@ class RecipeExpansionPools(OptionSet):
     default = valid_keys
 
 
+class CraftsanityProfessionPools(OptionSet):
+    """Which professions Craftsanity draws "recipe crafted" locations from --
+    a location is tagged by the profession(s) of every recipe/trainer spell
+    that produces its item (M4.10.5). Same vocabulary as Learned Recipes'
+    RecipeProfessionPools, since Craftsanity's produced-item universe is
+    derived from that same spell set."""
+    display_name = "Craftsanity Profession Pools"
+    valid_keys = RecipeProfessionPools.valid_keys
+    default = valid_keys
+
+
+class CraftsanityExpansionPools(OptionSet):
+    """Which expansion tiers' crafted items Craftsanity draws locations from."""
+    display_name = "Craftsanity Expansion Pools"
+    valid_keys = ["vanilla", "tbc", "wotlk"]
+    default = valid_keys
+
+
 class TrainerSpellClassPools(OptionSet):
     """Which Trainer Spells & Abilities class pools to include (M4.9). A
     location is a candidate iff its own class tag(s) intersect this
@@ -931,6 +949,8 @@ class WoWOptions(PerGameCommonOptions):
     enemysanity_expansion_pools: EnemysanityExpansionPools
     repsanity_expansion_pools: RepsanityExpansionPools
     repsanity_rank_tier_pools: RepsanityRankTierPools
+    craftsanity_profession_pools: CraftsanityProfessionPools
+    craftsanity_expansion_pools: CraftsanityExpansionPools
     quest_reward_weight: QuestRewardWeight
     vendor_stock_weight: VendorStockWeight
     recipe_profession_pools: RecipeProfessionPools
