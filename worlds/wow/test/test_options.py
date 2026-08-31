@@ -78,6 +78,16 @@ class TestCraftsanityProfessionPools(unittest.TestCase):
         self.assertEqual(set(CraftsanityProfessionPools.valid_keys), set(RecipeProfessionPools.valid_keys))
 
 
+class TestCraftsanityClassPools(unittest.TestCase):
+    def test_default_selects_full_vocabulary(self) -> None:
+        from ..options import CraftsanityClassPools
+        self.assertEqual(CraftsanityClassPools.default, CraftsanityClassPools.valid_keys)
+
+    def test_valid_keys_are_mage_and_warlock(self) -> None:
+        from ..options import CraftsanityClassPools
+        self.assertEqual(set(CraftsanityClassPools.valid_keys), {"mage", "warlock"})
+
+
 class TestCraftsanityExpansionPools(unittest.TestCase):
     def test_default_selects_full_vocabulary(self) -> None:
         from ..options import CraftsanityExpansionPools

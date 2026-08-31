@@ -89,6 +89,16 @@ class TestOptionalCategoryRegistry(WoWTestBase):
         self.assertIsNone(_OPTIONAL_CATEGORIES[7].weight_option)
         self.assertIsNone(_OPTIONAL_CATEGORIES[7].items_module)
         self.assertEqual(_OPTIONAL_CATEGORIES[8].key, "craftsanity")
+        self.assertEqual(
+            _OPTIONAL_CATEGORIES[8].tag_options,
+            {
+                "profession": "craftsanity_profession_pools",
+                "class": "craftsanity_class_pools",
+                "expansion": "craftsanity_expansion_pools",
+            },
+        )
+        self.assertIsNone(_OPTIONAL_CATEGORIES[8].weight_option)
+        self.assertIsNotNone(_OPTIONAL_CATEGORIES[8].items_module)
         self.assertIn("craftsanity", {c.key for c in _OPTIONAL_CATEGORIES})
 
 
