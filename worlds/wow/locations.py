@@ -7,6 +7,7 @@ from . import achievements_content_data
 from . import collections_content_data
 from . import containersanity_content_data
 from . import core_loop_content_data
+from . import craftsanity_content_data
 from . import density
 from . import enemysanity_content_data
 from . import filler_content_data
@@ -103,6 +104,13 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
     items_module=None,
 ))
 
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="craftsanity",
+    tag_options={"profession": "craftsanity_profession_pools", "class": "craftsanity_class_pools", "expansion": "craftsanity_expansion_pools"},
+    locations_module=craftsanity_content_data,
+    items_module=craftsanity_content_data,
+))
+
 
 def _location_matches_pools(world, category: OptionalCategory, name: str) -> bool:
     """AND across dimensions, OR within a dimension's own selected values
@@ -110,11 +118,15 @@ def _location_matches_pools(world, category: OptionalCategory, name: str) -> boo
     M4.8.0, but the loop below degrades correctly to "always matches" if
     one ever does) still requires locations_module.TAGS[name] to resolve --
     every export_tags family unconditionally emits a TAGS entry per
-    location (Task 1), so this never KeyErrors for a real family."""
+    location (Task 1), so this never KeyErrors for a real family.
+    M4.10.5: craftsanity has items with either 'profession' or 'class' tags
+    but not both -- if a location lacks a required dimension, treat it as
+    non-matching (empty tag set)."""
     tags = category.locations_module.TAGS[name]
     for dimension, option_name in category.tag_options.items():
         selected = getattr(world.options, option_name).value
-        if not (tags[dimension] & selected):
+        location_tags = tags.get(dimension, frozenset())
+        if not (location_tags & selected):
             return False
     return True
 

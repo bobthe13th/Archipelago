@@ -113,6 +113,19 @@ class WoWTestBase(WorldTestBase):
             merged["repsanity_expansion_pools"] = set()
         if "repsanity_rank_tier_pools" not in merged:
             merged["repsanity_rank_tier_pools"] = set()
+        # M4.10.5: craftsanity shares the exact same weight_option=None shape
+        # (every tag-matched row included unconditionally). Without this
+        # default, every WoWTestBase test would additionally sample/pool the
+        # full ~1,698-row craftsanity family on every single run. Craftsanity
+        # items have either 'profession' or 'class' tags but not both, so we
+        # default both pools to empty for test speed (the AND across
+        # dimensions means nothing matches with empty pools).
+        if "craftsanity_profession_pools" not in merged:
+            merged["craftsanity_profession_pools"] = set()
+        if "craftsanity_class_pools" not in merged:
+            merged["craftsanity_class_pools"] = set()
+        if "craftsanity_expansion_pools" not in merged:
+            merged["craftsanity_expansion_pools"] = set()
         self.options = merged
         try:
             super().world_setup(seed)

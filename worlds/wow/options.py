@@ -695,6 +695,15 @@ class CraftsanityExpansionPools(OptionSet):
     default = valid_keys
 
 
+class CraftsanityClassPools(OptionSet):
+    """Which class-restricted crafted items (mage spells, warlock spells, etc.)
+    Craftsanity draws locations from. These are spell-based crafts that only
+    certain classes can create."""
+    display_name = "Craftsanity Class Pools"
+    valid_keys = ["death_knight", "druid", "hunter", "mage", "paladin", "priest", "rogue", "shaman", "warlock", "warrior"]
+    default = valid_keys
+
+
 class TrainerSpellClassPools(OptionSet):
     """Which Trainer Spells & Abilities class pools to include (M4.9). A
     location is a candidate iff its own class tag(s) intersect this
@@ -951,6 +960,7 @@ class WoWOptions(PerGameCommonOptions):
     repsanity_rank_tier_pools: RepsanityRankTierPools
     craftsanity_profession_pools: CraftsanityProfessionPools
     craftsanity_expansion_pools: CraftsanityExpansionPools
+    craftsanity_class_pools: CraftsanityClassPools
     quest_reward_weight: QuestRewardWeight
     vendor_stock_weight: VendorStockWeight
     recipe_profession_pools: RecipeProfessionPools
