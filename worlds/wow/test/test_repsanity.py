@@ -56,19 +56,56 @@ class TestRepsanityRankTierFiltering(WoWTestBase):
         self.assertIn("Reputation: Stormwind (Friendly)", location_names)
 
 
+class TestRepsanityExpansionFiltering(WoWTestBase):
+    """Only repsanity_rank_tier_pools has real-generation coverage above --
+    repsanity_expansion_pools has none. Set expansion_pools to {"tbc"} only
+    (and rank_tier_pools to its full vocabulary, so this class isolates the
+    expansion dimension exactly the way TestRepsanityRankTierFiltering
+    isolates the rank_tier dimension)."""
+
+    options = {
+        "game_mode": "sprint",
+        "check_density": 100,
+        "vendor_stock_weight": 0,
+        "repsanity_expansion_pools": {"tbc"},
+        "repsanity_rank_tier_pools": {"standard", "negative"},
+    }
+
+    def test_tbc_only_includes_tbc_faction_excludes_vanilla_faction(self) -> None:
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertIn("Reputation: The Sha'tar (Friendly)", location_names)
+        self.assertNotIn("Reputation: Stormwind (Friendly)", location_names)
+
+
 class TestRepsanityContentData(WoWTestBase):
     options = {"game_mode": "sprint", "check_density": 0, "vendor_stock_weight": 0}
 
+    def test_no_location_name_contains_junk_placeholder_text(self) -> None:
+        for name in repsanity_content_data.LOCATIONS:
+            self.assertNotIn("Test Faction", name)
+
+    def test_no_location_name_has_a_double_space(self) -> None:
+        for name in repsanity_content_data.LOCATIONS:
+            self.assertNotIn("  ", name)
+
+    def test_aldor_rank_floor_is_unfriendly_not_hostile_or_hated(self) -> None:
+        # Real-engine rank-computation fix from the M4.10.4 final review:
+        # The Aldor's lowest generated location must be Unfriendly (its
+        # true rank floor), not Hostile or Hated.
+        self.assertIn("Reputation: The Aldor (Unfriendly)", repsanity_content_data.LOCATIONS)
+        self.assertNotIn("Reputation: The Aldor (Hostile)", repsanity_content_data.LOCATIONS)
+        self.assertNotIn("Reputation: The Aldor (Hated)", repsanity_content_data.LOCATIONS)
+
     def test_content_data_has_real_row_count(self) -> None:
-        # Real count is 449, not the plan's original 561 estimate -- see
-        # Task 2's ledgered ruling/review: the plan's Global Constraints
-        # prose assumed 5 checkable ranks per faction including Neutral,
-        # but the real extraction algorithm (range(starting_rank + 1, 8))
-        # excludes a faction's own starting rank, so the ~93 factions that
-        # start at Neutral only yield 4 checkable ranks each. Independently
-        # reconciled: 93 non-curated factions x 4 + 12 curated
-        # negative-capable factions' real extra ranks = 449.
-        self.assertEqual(len(repsanity_content_data.LOCATIONS), 449)
+        # Real count is 339, not the plan's original 561 estimate, and not
+        # the 449 count Task 2's own review had reconciled either. The
+        # M4.10.4 final whole-branch review found 449 still included 108
+        # unobtainable DBC junk-faction locations (factions with no real,
+        # player-facing standing track -- since removed via a denylist in
+        # the module-repo extraction) plus 2 more rows from a rank-
+        # computation bug fix (e.g. The Aldor/The Scryers' true rank floor
+        # is Unfriendly, not Hated/Hostile). 449 - 108 - 2 = 339.
+        self.assertEqual(len(repsanity_content_data.LOCATIONS), 339)
 
     def test_no_faction_has_a_location_at_its_own_starting_rank_or_below(self) -> None:
         # Stormwind (starts Neutral) must never have a Hated/Hostile/Unfriendly

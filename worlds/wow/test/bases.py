@@ -108,7 +108,7 @@ class WoWTestBase(WorldTestBase):
         # M4.10.4: repsanity shares the exact same weight_option=None shape
         # (every tag-matched row included unconditionally). Without this
         # default, every WoWTestBase test would additionally sample/pool the
-        # full 449-row repsanity family on every single run.
+        # full 339-row repsanity family on every single run.
         if "repsanity_expansion_pools" not in merged:
             merged["repsanity_expansion_pools"] = set()
         if "repsanity_rank_tier_pools" not in merged:
