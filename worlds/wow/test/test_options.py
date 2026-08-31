@@ -131,5 +131,11 @@ class TestItemsanityPools(unittest.TestCase):
         self.assertEqual(set(ItemsanityExpansionPools.valid_keys), {"vanilla", "tbc", "wotlk"})
 
 
+class TestHolidaysanityStacking(unittest.TestCase):
+    def test_default_is_off(self) -> None:
+        from ..options import HolidaysanityStacking
+        self.assertEqual(HolidaysanityStacking.default, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -48,10 +48,21 @@ class TestNorthshireGeneration(WoWTestBase):
         create_core_loop_item_pool's own computation
         (LEVEL_LOCATIONS_BY_TRACK[track] + INSTANCE_CLEAR_LOCATIONS) rather
         than hardcoding a number, so this stays correct if the DB-derived
-        core_loop content tables are ever regenerated."""
+        core_loop content tables are ever regenerated.
+
+        M4.10.7 fix: Holidaysanity items are pure items-only content, same
+        "no location of its own" shape as gates -- this class never sets
+        combo_unlocks_scope, so it resolves to that option's real default
+        ("off"), under which 9 of Holidaysanity's 14 items are
+        unconditionally pooled (the other 5 need combo_unlocks_scope ==
+        "both", see items.py's _COMBO_SCOPE_GATED_HOLIDAYS). Computed via
+        count_enabled_holidaysanity_items (items.py) rather than hardcoding
+        9, so this stays correct if Holidaysanity's roster is ever
+        regenerated."""
         from .. import density
         from .. import quest_rewards_content_data
         from .. import vendor_stock_content_data
+        from ..items import count_enabled_holidaysanity_items
         is_dk_slot = bool(self.world.options.death_knight_slot)
         track = "death_knight" if is_dk_slot else "standard"
         core_loop_item_count = (
@@ -72,9 +83,11 @@ class TestNorthshireGeneration(WoWTestBase):
         # WoWTestBase test (test-speed convention), so it contributes zero
         # locations here and correctly has no term in this formula, same as
         # its weight_option=None siblings above.
+        holidaysanity_default_count = count_enabled_holidaysanity_items(self.world)
         expected = (
             fixed_count + always_present_count + quest_reward_sampled
             + vendor_stock_always_present_count + vendor_stock_sampled
+            + holidaysanity_default_count
         )
         self.assertEqual(len(self.multiworld.itempool), expected)
 
@@ -109,6 +122,30 @@ class TestGatesItemPool(WoWTestBase):
             "Flight Unlock: Northrend",
         ):
             self.assertEqual(len(self.get_items_by_name(tier_name)), 1)
+
+
+class TestHolidaysanityItemPoolYieldsAllFourteenByDefault(WoWTestBase):
+    # M4.10.7 Task 3: combo_unlocks_scope must be "both" to reach
+    # Holidaysanity's own full 14-item roster -- 5 of the 14 Holiday Unlock
+    # items are combo-scope-gated (see items.py's
+    # _COMBO_SCOPE_GATED_HOLIDAYS), so this class's own options dict wins
+    # the WoWTestBase.world_setup merge (see bases.py) to pool all 14, not
+    # just the 9 unconditional ones.
+    options = {"combo_unlocks_scope": "both"}
+
+    def test_create_holidaysanity_item_pool_yields_all_fourteen_by_default(self) -> None:
+        from ..items import create_holidaysanity_item_pool
+        pool = create_holidaysanity_item_pool(self.world)
+        self.assertEqual(len(pool), 14)
+
+
+class TestHolidaysanityItemPoolExcludesComboGatedWhenScopeOff(WoWTestBase):
+    options = {"combo_unlocks_scope": "off"}
+
+    def test_create_holidaysanity_item_pool_excludes_combo_gated_when_scope_off(self) -> None:
+        from ..items import create_holidaysanity_item_pool
+        pool = create_holidaysanity_item_pool(self.world)
+        self.assertEqual(len(pool), 9)  # 14 - the 5 combo_unlocks_scope-gated holidays
 
 
 _PROFICIENCY_ITEM_NAMES = (
@@ -495,17 +532,21 @@ class TestTrapDistributionModeChaos(WoWTestBase):
         self.assertEqual(actual, expected)
 
 
-class TestTrapsAndGatesCombinedParity(WoWTestBase):
+class TestTrapsGatesAndHolidaysanityCombinedParity(WoWTestBase):
     """Task 17's parity extension to Task 11's mechanism: traps and gates
     are two independently-sized optional families sharing one filler
-    ceiling (content/filler.yaml's 73 rows, grown from 62 by M4.9's 8 new
-    gate items: Bank Access, Gathering Access, 6x Progressive Glyph Slot --
-    62 itself grown from 60 by Task 21's two combo-unlock items).
-    Stress-tests both at their most extreme settings simultaneously
+    ceiling (content/filler.yaml's 122 rows, grown from 73 by M4.10.1's
+    per-level-milestone trap-ceiling fix). M4.10.7 (Holidaysanity) adds a
+    third such family -- same "no AP location of its own" shape as gates
+    and traps -- growing that shared ceiling again to 136 (122 + 14,
+    Holidaysanity's own worst case: content/holidaysanity.yaml's 14 Holiday
+    Unlock items, all pooled only when combo_unlocks_scope is "both").
+    Stress-tests all three at their most extreme settings simultaneously
     (including combo_unlocks_scope: "both", the setting that actually
-    reaches the full 37-item gates worst case) -- if the combined
-    count_enabled_gates_items() + count_enabled_trap_items() ever exceeds
-    73, or if the two counts are computed inconsistently between
+    reaches the full 37-item gates worst case AND Holidaysanity's full
+    14-item worst case) -- if the combined count_enabled_gates_items() +
+    count_enabled_trap_items() + count_enabled_holidaysanity_items() ever
+    exceeds 136, or if the three counts are computed inconsistently between
     create_items and create_regions' create_filler_locations, this is
     where it would show up as a FillError."""
     options = {
@@ -521,6 +562,15 @@ class TestTrapsAndGatesCombinedParity(WoWTestBase):
     def test_item_pool_matches_location_count_exactly(self) -> None:
         self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
 
+    def test_holidaysanity_is_actually_maxed_out_by_this_class_s_options(self) -> None:
+        # Confirms this class's existing options dict (unchanged from its
+        # pre-M4.10.7 gates/traps-only form) really does reach
+        # Holidaysanity's own worst case too, so the parity test above is
+        # exercising all three families' combined ceiling, not just two of
+        # three.
+        from .. import items as items_module
+        self.assertEqual(items_module.count_enabled_holidaysanity_items(self.world), 14)
+
     def test_all_quest_locations_still_reachable_with_zero_items(self) -> None:
         # Traps carry no access rule and gate no location -- sphere-0 safety
         # should be unaffected by traps_enabled, same guarantee
@@ -530,7 +580,8 @@ class TestTrapsAndGatesCombinedParity(WoWTestBase):
 
 
 class TestFillerPoolCoversWorstCaseGatesAndTraps(unittest.TestCase):
-    """M4.9.5 final review (Fix 12): TestTrapsAndGatesCombinedParity above is
+    """M4.9.5 final review (Fix 12): TestTrapsGatesAndHolidaysanityCombinedParity
+    above (renamed by M4.10.7 when Holidaysanity joined it) is
     the one test that would normally prove this milestone's most
     safety-critical invariant (enough filler locations exist for the
     worst-case combination of gate items + trap items) -- but it's

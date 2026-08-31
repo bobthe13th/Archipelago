@@ -366,6 +366,14 @@ class LethalTrapsEnabled(Toggle):
     default = False
 
 
+class HolidaysanityStacking(Toggle):
+    """When off (default), activating a new holiday via the Archipelago
+    Holiday Herald deactivates whichever holiday is currently running --
+    only one holiday active at a time. When on, multiple holidays can run
+    simultaneously (design spec §8a)."""
+    display_name = "Holidaysanity Stacking"
+
+
 class DeathLinkSend(Toggle):
     """When on, a player-caused death on your WoW realm broadcasts a
     DeathLink Bounce to the rest of the multiworld (spec §11). Independent
@@ -969,6 +977,7 @@ class WoWOptions(PerGameCommonOptions):
     trap_percentage_of_filler: TrapPercentageOfFiller
     trap_distribution_mode: TrapDistributionMode
     lethal_traps_enabled: LethalTrapsEnabled
+    holidaysanity_stacking: HolidaysanityStacking
     death_link_send: DeathLinkSend
     death_link_receive: DeathLinkReceive
     death_link_send_cooldown: DeathLinkSendCooldown

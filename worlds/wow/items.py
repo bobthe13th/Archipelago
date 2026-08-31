@@ -7,6 +7,7 @@ from . import filler_reward_items_content_data
 from . import filler_reward_effects_content_data
 from . import fish_content_data
 from . import gates_content_data
+from . import holidaysanity_content_data
 from . import professions_content_data
 from . import rares_content_data
 from . import traps_content_data
@@ -79,6 +80,22 @@ _OPTIONAL_ITEM_PREFIXES = [
 ]
 
 
+# M4.10.7 (Holidaysanity): the five holidays whose quest-chain components
+# require visiting BOTH a TBC capital (Shattrath) and a Northrend capital
+# (Dalaran) -- or, for Lunar Festival specifically, stepping inside
+# TBC/Northrend dungeons/raids (design spec §8a's combo_unlocks_scope
+# interaction section). Each of the five spec entries names BOTH expansion
+# tiers, not just one, so "both" is the correct scope requirement for every
+# one of them, not a per-holiday split.
+_COMBO_SCOPE_GATED_HOLIDAYS = {
+    "Holiday Unlock: Hallow's End",
+    "Holiday Unlock: Lunar Festival",
+    "Holiday Unlock: Children's Week",
+    "Holiday Unlock: Pilgrim's Bounty",
+    "Holiday Unlock: Winter Veil",
+}
+
+
 def _is_gate_item_enabled(world, name: str) -> bool:
     # Task 21 (design spec Sec5.5): combo_unlocks_scope is a 4-way Choice
     # (off/tbc/wotlk/both), not a plain Toggle, so it can't go through
@@ -91,6 +108,13 @@ def _is_gate_item_enabled(world, name: str) -> bool:
         return world.options.combo_unlocks_scope in ("tbc", "both")
     if name == "WotLK Combo Unlock":
         return world.options.combo_unlocks_scope in ("wotlk", "both")
+    # M4.10.7: five Holidaysanity holiday-unlock items share combo_unlocks_scope's
+    # gating too, but only at its "both" value -- each of these five holidays'
+    # own quest chain needs BOTH expansion tiers reachable (see
+    # _COMBO_SCOPE_GATED_HOLIDAYS's own docstring above), not "tbc" or
+    # "wotlk" alone.
+    if name in _COMBO_SCOPE_GATED_HOLIDAYS:
+        return world.options.combo_unlocks_scope == "both"
 
     option_name = next((opt for prefix, opt in _OPTIONAL_ITEM_PREFIXES if name.startswith(prefix)), None)
     return option_name is None or bool(getattr(world.options, option_name))
@@ -117,6 +141,36 @@ def count_enabled_gates_items(world) -> int:
 def create_gates_item_pool(world) -> list:
     pool = []
     for name, (item_id, count) in gates_content_data.ITEMS.items():
+        if not _is_gate_item_enabled(world, name):
+            continue
+        for _ in range(count):
+            pool.append(WoWItem(name, ItemClassification.progression, item_id, world.player))
+    return pool
+
+
+# M4.10.7 (Holidaysanity): architecturally identical to gates_content_data's
+# own items -- no AP location of their own, gated by the same
+# _is_gate_item_enabled function (now extended with _COMBO_SCOPE_GATED_HOLIDAYS
+# above). Needs the same count_enabled_* counterpart gates/traps already have
+# so locations.py's create_filler_locations can size its sink locations to
+# exact 1:1 item/location parity (see count_enabled_gates_items's own
+# docstring for why this is required, not optional, for every option
+# combination).
+def count_enabled_holidaysanity_items(world) -> int:
+    """Total holidaysanity_content_data item copies that
+    create_holidaysanity_item_pool will actually pool for this generation's
+    options -- same role as count_enabled_gates_items, for the Holidaysanity
+    family."""
+    return sum(
+        count
+        for name, (_item_id, count) in holidaysanity_content_data.ITEMS.items()
+        if _is_gate_item_enabled(world, name)
+    )
+
+
+def create_holidaysanity_item_pool(world) -> list:
+    pool = []
+    for name, (item_id, count) in holidaysanity_content_data.ITEMS.items():
         if not _is_gate_item_enabled(world, name):
             continue
         for _ in range(count):
