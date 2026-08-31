@@ -109,6 +109,7 @@ class TestOptionalCategoryRegistry(WoWTestBase):
             },
         )
         self.assertIsNone(_OPTIONAL_CATEGORIES[9].weight_option)
+        self.assertIsNotNone(_OPTIONAL_CATEGORIES[9].items_module)
         self.assertIn("craftsanity", {c.key for c in _OPTIONAL_CATEGORIES})
         self.assertIn("itemsanity", {c.key for c in _OPTIONAL_CATEGORIES})
 
