@@ -66,6 +66,7 @@ def build_slot_data(world) -> dict:
     _add_ap_item_display_data(world, data)
     _add_vendor_check_repeat_behavior(world, data)
     _add_loot_slot_check_repeat_behavior(world, data)
+    _add_holidaysanity_stacking(world, data)
     return data
 
 
@@ -139,3 +140,7 @@ def _add_vendor_check_repeat_behavior(world, data: dict) -> None:
 
 def _add_loot_slot_check_repeat_behavior(world, data: dict) -> None:
     data["loot_slot_check_repeat_behavior"] = world.options.loot_slot_check_repeat_behavior.current_key
+
+
+def _add_holidaysanity_stacking(world, data: dict) -> None:
+    data["holidaysanity_stacking"] = bool(world.options.holidaysanity_stacking)

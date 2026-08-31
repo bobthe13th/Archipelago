@@ -213,3 +213,11 @@ class TestAddLootSlotCheckRepeatBehavior(unittest.TestCase):
         data: dict = {}
         slot_data_module._add_loot_slot_check_repeat_behavior(world, data)
         self.assertEqual(data["loot_slot_check_repeat_behavior"], "vanilla_item")
+
+
+class TestAddHolidaysanityStacking(unittest.TestCase):
+    def test_adds_holidaysanity_stacking_bool(self) -> None:
+        world = SimpleNamespace(options=SimpleNamespace(holidaysanity_stacking=True))
+        data = {}
+        slot_data_module._add_holidaysanity_stacking(world, data)
+        self.assertTrue(data["holidaysanity_stacking"])
