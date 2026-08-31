@@ -708,6 +708,38 @@ class CraftsanityClassPools(OptionSet):
     default = valid_keys
 
 
+class ItemsanityClassPools(OptionSet):
+    """Which real item_template.class categories Itemsanity draws locations
+    from (M4.10.6). Real ItemClass enum values, one tag per item -- unlike
+    Gathersanity's source tag, an item's class is always exactly one value,
+    never a multi-value union."""
+    display_name = "Itemsanity Class Pools"
+    valid_keys = [
+        "consumable", "container", "weapon", "gem", "armor", "reagent",
+        "projectile", "trade_goods", "generic", "recipe", "money",
+        "quiver", "quest", "key", "permanent", "misc", "glyph",
+    ]
+    default = valid_keys
+
+
+class ItemsanityQualityPools(OptionSet):
+    """Which real item_template.Quality tiers Itemsanity draws locations
+    from (M4.10.6). Real ItemQualities enum values."""
+    display_name = "Itemsanity Quality Pools"
+    valid_keys = ["poor", "normal", "uncommon", "rare", "epic", "legendary", "artifact", "heirloom"]
+    default = valid_keys
+
+
+class ItemsanityExpansionPools(OptionSet):
+    """Which expansion tiers' items Itemsanity draws locations from -- an
+    item is tagged by a RequiredLevel bracket (no direct expansion column
+    exists on item_template, unlike every prior family's real spawn-map
+    join; see extract_itemsanity.py's _expansion_tag docstring) (M4.10.6)."""
+    display_name = "Itemsanity Expansion Pools"
+    valid_keys = ["vanilla", "tbc", "wotlk"]
+    default = valid_keys
+
+
 class TrainerSpellClassPools(OptionSet):
     """Which Trainer Spells & Abilities class pools to include (M4.9). A
     location is a candidate iff its own class tag(s) intersect this
@@ -965,6 +997,9 @@ class WoWOptions(PerGameCommonOptions):
     craftsanity_profession_pools: CraftsanityProfessionPools
     craftsanity_expansion_pools: CraftsanityExpansionPools
     craftsanity_class_pools: CraftsanityClassPools
+    itemsanity_class_pools: ItemsanityClassPools
+    itemsanity_quality_pools: ItemsanityQualityPools
+    itemsanity_expansion_pools: ItemsanityExpansionPools
     quest_reward_weight: QuestRewardWeight
     vendor_stock_weight: VendorStockWeight
     recipe_profession_pools: RecipeProfessionPools

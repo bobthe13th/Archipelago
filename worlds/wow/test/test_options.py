@@ -98,5 +98,38 @@ class TestCraftsanityExpansionPools(unittest.TestCase):
         self.assertEqual(set(CraftsanityExpansionPools.valid_keys), {"vanilla", "tbc", "wotlk"})
 
 
+class TestItemsanityPools(unittest.TestCase):
+    def test_class_pools_default_selects_full_vocabulary(self) -> None:
+        from ..options import ItemsanityClassPools
+        self.assertEqual(ItemsanityClassPools.default, ItemsanityClassPools.valid_keys)
+
+    def test_class_pools_valid_keys_match_the_real_item_class_enum(self) -> None:
+        from ..options import ItemsanityClassPools
+        self.assertEqual(set(ItemsanityClassPools.valid_keys), {
+            "consumable", "container", "weapon", "gem", "armor", "reagent",
+            "projectile", "trade_goods", "generic", "recipe", "money",
+            "quiver", "quest", "key", "permanent", "misc", "glyph",
+        })
+
+    def test_quality_pools_default_selects_full_vocabulary(self) -> None:
+        from ..options import ItemsanityQualityPools
+        self.assertEqual(ItemsanityQualityPools.default, ItemsanityQualityPools.valid_keys)
+
+    def test_quality_pools_valid_keys_match_the_real_item_quality_enum(self) -> None:
+        from ..options import ItemsanityQualityPools
+        self.assertEqual(set(ItemsanityQualityPools.valid_keys), {
+            "poor", "normal", "uncommon", "rare", "epic", "legendary",
+            "artifact", "heirloom",
+        })
+
+    def test_expansion_pools_default_selects_full_vocabulary(self) -> None:
+        from ..options import ItemsanityExpansionPools
+        self.assertEqual(ItemsanityExpansionPools.default, ItemsanityExpansionPools.valid_keys)
+
+    def test_expansion_pools_valid_keys_match_the_project_s_three_expansion_tiers(self) -> None:
+        from ..options import ItemsanityExpansionPools
+        self.assertEqual(set(ItemsanityExpansionPools.valid_keys), {"vanilla", "tbc", "wotlk"})
+
+
 if __name__ == "__main__":
     unittest.main()
