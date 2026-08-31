@@ -15,6 +15,7 @@ from . import filler_reward_items_content_data
 from . import enemysanity_content_data
 from . import gates_content_data
 from . import gathersanity_content_data
+from . import holidaysanity_content_data
 from . import itemsanity_content_data
 from . import filler_content_data
 from . import professions_content_data
@@ -50,6 +51,15 @@ class WoWWorld(World):
     item_name_to_id = {
         **{name: item_id for name, (item_id, _count) in core_loop_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in gates_content_data.ITEMS.items()},
+        # M4.10.7 final review fix (C1): Holidaysanity is architecturally
+        # identical to gates (realm-state flag items, no locations of its
+        # own -- holidaysanity_content_data exports ITEMS only), so it
+        # belongs right here next to gates. create_holidaysanity_item_pool
+        # was already wired into create_items below, but without this line
+        # the 14 Holiday Unlock items (831000-831013) never entered the
+        # datapackage's name->id map, so nothing (server, client, tracker)
+        # could resolve them.
+        **{name: item_id for name, (item_id, _count) in holidaysanity_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in traps_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in rares_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in fish_content_data.ITEMS.items()},

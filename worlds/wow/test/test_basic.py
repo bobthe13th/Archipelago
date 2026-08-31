@@ -579,12 +579,13 @@ class TestTrapsGatesAndHolidaysanityCombinedParity(WoWTestBase):
             self.assertTrue(self.can_reach_location(name))
 
 
-class TestFillerPoolCoversWorstCaseGatesAndTraps(unittest.TestCase):
+class TestFillerPoolCoversWorstCaseGatesTrapsAndHolidaysanity(unittest.TestCase):
     """M4.9.5 final review (Fix 12): TestTrapsGatesAndHolidaysanityCombinedParity
     above (renamed by M4.10.7 when Holidaysanity joined it) is
     the one test that would normally prove this milestone's most
     safety-critical invariant (enough filler locations exist for the
-    worst-case combination of gate items + trap items) -- but it's
+    worst-case combination of gate items + trap items + Holidaysanity
+    items) -- but it's
     currently red for an unrelated, pre-existing reason: an earlier,
     separate, still-in-progress milestone (M4.9.3) changed level milestones
     to per-level, which changed items.py's _trap_baseline_location_count()'s
@@ -602,11 +603,19 @@ class TestFillerPoolCoversWorstCaseGatesAndTraps(unittest.TestCase):
     test. Do not "fix" this test by changing the filler pool size; that
     belongs to whichever effort is already tracking the M4.9.3 drift."""
 
-    def test_filler_pool_covers_worst_case_gates_and_traps(self) -> None:
-        from .. import filler_content_data, gates_content_data
+    def test_filler_pool_covers_worst_case_gates_traps_and_holidaysanity(self) -> None:
+        from .. import filler_content_data, gates_content_data, holidaysanity_content_data
         from .. import items as items_module
 
         max_gate_items = len(gates_content_data.ITEMS)
+
+        # M4.10.7 final review fix (I1): Holidaysanity has NO enable/disable
+        # option -- create_holidaysanity_item_pool contributes to every
+        # seed, and its worst case is the full ITEMS count (all 14, i.e.
+        # combo_unlocks_scope wide enough to include the 5 gated holidays).
+        # Only the docstring above was updated for M4.10.7; the assertion
+        # below was still under-checking by these 14 items.
+        max_holidaysanity_items = len(holidaysanity_content_data.ITEMS)
 
         # Worst case trap count: trap_percentage_of_filler at its Range max
         # (100), whichever track's baseline location count is larger --
@@ -620,7 +629,10 @@ class TestFillerPoolCoversWorstCaseGatesAndTraps(unittest.TestCase):
             items_module._trap_baseline_location_count(dk_world),
         )
 
-        self.assertGreaterEqual(len(filler_content_data.LOCATIONS), max_gate_items + max_trap_items)
+        self.assertGreaterEqual(
+            len(filler_content_data.LOCATIONS),
+            max_gate_items + max_trap_items + max_holidaysanity_items,
+        )
 
 
 class TestDeathKnightOptionsExistAndDefaultOff(WoWTestBase):
