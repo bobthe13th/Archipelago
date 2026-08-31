@@ -696,11 +696,15 @@ class CraftsanityExpansionPools(OptionSet):
 
 
 class CraftsanityClassPools(OptionSet):
-    """Which class-restricted crafted items (mage spells, warlock spells, etc.)
-    Craftsanity draws locations from. These are spell-based crafts that only
-    certain classes can create."""
+    """Which class-restricted crafted items Craftsanity draws locations
+    from -- real class-trainer-taught crafting spells only exist for mage
+    (Conjure Food/Water) and warlock (Create Soulstone/Firestone/Spellstone)
+    in this checkout's live data (confirmed empirically, M4.10.5 Task 4);
+    scoped to exactly those two, not the full 10-class roster, matching
+    the project's own "scope valid_keys to real data" convention (e.g.
+    RepsanityRankTierPools, EnemysanityTypePools)."""
     display_name = "Craftsanity Class Pools"
-    valid_keys = ["death_knight", "druid", "hunter", "mage", "paladin", "priest", "rogue", "shaman", "warlock", "warrior"]
+    valid_keys = ["mage", "warlock"]
     default = valid_keys
 
 
