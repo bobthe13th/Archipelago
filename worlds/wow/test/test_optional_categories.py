@@ -362,3 +362,59 @@ class TestOptionalCategoriesFullyRegisteredInWorldDatapackage(WoWTestBase):
                     missing_items, set(),
                     f"{category.key}: items missing from WoWWorld.item_name_to_id",
                 )
+
+
+class TestCraftsanityRealGeneration(WoWTestBase):
+    # M4.10.5: regression test for craftsanity's tag dimension handling.
+    # Craftsanity has items with mutually exclusive tag dimensions (either
+    # 'profession' or 'class', never both). A bug in _location_matches_pools
+    # where missing dimensions were treated as empty sets would cause ALL
+    # 1698 craftsanity items to fail matching under full inclusion, making
+    # the family completely non-functional. This test verifies that under
+    # full inclusion (all profession/class/expansion values selected),
+    # craftsanity produces real locations of both types, and under full
+    # exclusion (empty pools), produces zero craftsanity locations.
+    options = {
+        "game_mode": "sprint",
+        "check_density": 100,
+        "vendor_stock_weight": 0,
+        "craftsanity_profession_pools": {
+            "alchemy", "blacksmithing", "cooking", "enchanting", "engineering",
+            "first_aid", "inscription", "jewelcrafting", "leatherworking",
+            "mining", "other", "tailoring"
+        },
+        "craftsanity_class_pools": {"mage", "warlock"},
+        "craftsanity_expansion_pools": {"vanilla", "tbc", "wotlk"},
+    }
+
+    def test_craftsanity_includes_profession_tagged_items_under_full_inclusion(self) -> None:
+        # Under full profession pool inclusion, profession-tagged locations
+        # must appear (verify at least one real profession-tagged craft).
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.world.player)}
+        self.assertIn("Craft: Goretusk Liver Pie (#724)", location_names)
+
+    def test_craftsanity_includes_class_tagged_items_under_full_inclusion(self) -> None:
+        # Under full class pool inclusion, class-tagged (mage/warlock) items
+        # must appear (verify at least one real class-tagged craft).
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.world.player)}
+        self.assertIn("Craft: Conjured Bread (#1113)", location_names)
+
+
+class TestCraftsanityExcludedWithEmptyPools(WoWTestBase):
+    # M4.10.5: verify inverse -- with empty craftsanity pools (test speed
+    # defaults), zero craftsanity locations should be created.
+    options = {
+        "game_mode": "sprint",
+        "check_density": 100,
+        "vendor_stock_weight": 0,
+        "craftsanity_profession_pools": set(),
+        "craftsanity_class_pools": set(),
+        "craftsanity_expansion_pools": set(),
+    }
+
+    def test_craftsanity_produces_zero_locations_with_empty_pools(self) -> None:
+        # With all pools empty, AND-across-dimensions logic ensures no
+        # craftsanity items match.
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.world.player)}
+        craftsanity_locs = {name for name in location_names if name.startswith("Craft:")}
+        self.assertEqual(len(craftsanity_locs), 0)

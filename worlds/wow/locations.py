@@ -120,13 +120,16 @@ def _location_matches_pools(world, category: OptionalCategory, name: str) -> boo
     every export_tags family unconditionally emits a TAGS entry per
     location (Task 1), so this never KeyErrors for a real family.
     M4.10.5: craftsanity has items with either 'profession' or 'class' tags
-    but not both -- if a location lacks a required dimension, treat it as
-    non-matching (empty tag set)."""
+    but not both -- if a location's tags dict lacks a dimension entirely,
+    that dimension doesn't apply to this location, so it's skipped (treated
+    as an automatic pass), not defaulted to an empty set (which would
+    always fail regardless of player selection)."""
     tags = category.locations_module.TAGS[name]
     for dimension, option_name in category.tag_options.items():
+        if dimension not in tags:
+            continue
         selected = getattr(world.options, option_name).value
-        location_tags = tags.get(dimension, frozenset())
-        if not (location_tags & selected):
+        if not (tags[dimension] & selected):
             return False
     return True
 
