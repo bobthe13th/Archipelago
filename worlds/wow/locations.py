@@ -14,6 +14,7 @@ from . import filler_content_data
 from . import fish_content_data
 from . import game_mode_profile
 from . import gathersanity_content_data
+from . import itemsanity_content_data
 from . import professions_content_data
 from . import quest_rewards_content_data
 from . import rares_content_data
@@ -109,6 +110,17 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
     tag_options={"profession": "craftsanity_profession_pools", "class": "craftsanity_class_pools", "expansion": "craftsanity_expansion_pools"},
     locations_module=craftsanity_content_data,
     items_module=craftsanity_content_data,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="itemsanity",
+    tag_options={
+        "class": "itemsanity_class_pools",
+        "quality": "itemsanity_quality_pools",
+        "expansion": "itemsanity_expansion_pools",
+    },
+    locations_module=itemsanity_content_data,
+    items_module=itemsanity_content_data,
 ))
 
 
