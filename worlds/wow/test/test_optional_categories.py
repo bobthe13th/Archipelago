@@ -30,11 +30,11 @@ class TestOptionalCategoryRegistry(WoWTestBase):
     # weight_option proxy -- see each one's own comment.
     options = {"game_mode": "sprint", "check_density": 100, "vendor_stock_weight": 0}
 
-    def test_registry_holds_all_seven_families_after_m4_10_3(self) -> None:
-        # Locks in the registry's SHAPE after M4.10.3's new family -- forces
+    def test_registry_holds_all_eight_families_after_m4_10_4(self) -> None:
+        # Locks in the registry's SHAPE after M4.10.4's new family -- forces
         # every future new-family task to touch this file consciously
         # rather than silently drifting.
-        self.assertEqual(len(_OPTIONAL_CATEGORIES), 7)
+        self.assertEqual(len(_OPTIONAL_CATEGORIES), 8)
         self.assertEqual(_OPTIONAL_CATEGORIES[0].key, "quest_rewards")
         self.assertEqual(
             _OPTIONAL_CATEGORIES[0].tag_options,
@@ -78,6 +78,16 @@ class TestOptionalCategoryRegistry(WoWTestBase):
         )
         self.assertIsNone(_OPTIONAL_CATEGORIES[6].weight_option)
         self.assertIsNone(_OPTIONAL_CATEGORIES[6].items_module)
+        self.assertEqual(_OPTIONAL_CATEGORIES[7].key, "repsanity")
+        self.assertEqual(
+            _OPTIONAL_CATEGORIES[7].tag_options,
+            {
+                "expansion": "repsanity_expansion_pools",
+                "rank_tier": "repsanity_rank_tier_pools",
+            },
+        )
+        self.assertIsNone(_OPTIONAL_CATEGORIES[7].weight_option)
+        self.assertIsNone(_OPTIONAL_CATEGORIES[7].items_module)
 
 
 class TestLocationMatchesPools(WoWTestBase):

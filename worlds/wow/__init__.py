@@ -19,6 +19,7 @@ from . import professions_content_data
 from . import quest_rewards_content_data
 from . import rares_content_data
 from . import recipes_content_data
+from . import repsanity_content_data
 from . import traps_content_data
 from . import trainer_spells_content_data
 from . import vendor_stock_content_data
@@ -92,6 +93,7 @@ class WoWWorld(World):
         **{name: loc_id for name, loc_id in containersanity_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in gathersanity_content_data.LOCATIONS.items()},
         **{name: loc_id for name, loc_id in enemysanity_content_data.LOCATIONS.items()},
+        **{name: loc_id for name, loc_id in repsanity_content_data.LOCATIONS.items()},
     }
 
     def generate_early(self) -> None:

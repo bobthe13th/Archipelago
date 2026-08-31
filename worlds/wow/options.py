@@ -580,6 +580,29 @@ class EnemysanityExpansionPools(OptionSet):
     default = valid_keys
 
 
+class RepsanityExpansionPools(OptionSet):
+    """Which expansion tiers' factions Repsanity draws locations from -- a
+    faction is tagged by the expansion its reputation was introduced in
+    (vanilla/tbc/wotlk), hand-curated against real Faction.dbc data since
+    this checkout's faction_dbc SQL mirror carries no expansion field at
+    all. Default selects every value (full vocabulary, zero-regression)."""
+    display_name = "Repsanity Expansion Pools"
+    valid_keys = ["vanilla", "tbc", "wotlk"]
+    default = valid_keys
+
+
+class RepsanityRankTierPools(OptionSet):
+    """Whether Repsanity includes "standard" rank locations (Neutral through
+    Exalted, real for every reputation-tracking faction) and/or "negative"
+    rank locations (Hated/Hostile/Unfriendly, real only for the curated
+    subset of factions that actually start below Neutral -- see this
+    family's extraction script for the real, hand-verified roster). Default
+    selects both."""
+    display_name = "Repsanity Rank Tier Pools"
+    valid_keys = ["standard", "negative"]
+    default = valid_keys
+
+
 class QuestRewardWeight(Range):
     """Category weight for Quest Rewards (M4.8, replaces the removed
     include_quest_rewards boolean toggle and locations.py's former
@@ -906,6 +929,8 @@ class WoWOptions(PerGameCommonOptions):
     gathersanity_source_pools: GathersanitySourcePools
     enemysanity_type_pools: EnemysanityTypePools
     enemysanity_expansion_pools: EnemysanityExpansionPools
+    repsanity_expansion_pools: RepsanityExpansionPools
+    repsanity_rank_tier_pools: RepsanityRankTierPools
     quest_reward_weight: QuestRewardWeight
     vendor_stock_weight: VendorStockWeight
     recipe_profession_pools: RecipeProfessionPools

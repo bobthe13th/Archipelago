@@ -17,6 +17,7 @@ from . import professions_content_data
 from . import quest_rewards_content_data
 from . import rares_content_data
 from . import recipes_content_data
+from . import repsanity_content_data
 from . import trainer_spells_content_data
 from . import vendor_stock_content_data
 from .items import count_enabled_gates_items, count_enabled_trap_items
@@ -92,6 +93,13 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
     key="enemysanity",
     tag_options={"type": "enemysanity_type_pools", "expansion": "enemysanity_expansion_pools"},
     locations_module=enemysanity_content_data,
+    items_module=None,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="repsanity",
+    tag_options={"expansion": "repsanity_expansion_pools", "rank_tier": "repsanity_rank_tier_pools"},
+    locations_module=repsanity_content_data,
     items_module=None,
 ))
 

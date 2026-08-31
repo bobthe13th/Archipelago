@@ -52,6 +52,7 @@ class TestNorthshireGeneration(WoWTestBase):
         from .. import density
         from .. import quest_rewards_content_data
         from .. import vendor_stock_content_data
+        from .. import repsanity_content_data
         is_dk_slot = bool(self.world.options.death_knight_slot)
         track = "death_knight" if is_dk_slot else "standard"
         core_loop_item_count = (
@@ -65,9 +66,11 @@ class TestNorthshireGeneration(WoWTestBase):
         vendor_stock_always_present_count = len(vendor_stock_content_data.ALWAYS_PRESENT)
         vendor_stock_candidates = len(vendor_stock_content_data.LOCATIONS) - vendor_stock_always_present_count
         vendor_stock_sampled = density.predict_sample_size(25, 100, vendor_stock_candidates)
+        repsanity_count = len(repsanity_content_data.LOCATIONS)  # M4.10.4: weight_option=None means all are included unconditionally
         expected = (
             fixed_count + always_present_count + quest_reward_sampled
             + vendor_stock_always_present_count + vendor_stock_sampled
+            + repsanity_count
         )
         self.assertEqual(len(self.multiworld.itempool), expected)
 
