@@ -5,6 +5,7 @@ for it -- see docs/m4-plan.md Group 6 for which modes are Tier 1/2/3."""
 from __future__ import annotations
 
 import math
+import typing
 
 from Options import OptionError
 
@@ -14,8 +15,11 @@ from . import core_loop_content_data
 from . import density
 from . import fish_content_data
 from . import game_mode_profile
+from . import golden_boar_statues_content_data
 from . import professions_content_data
+from . import quest_rewards_content_data
 from . import rares_content_data
+from . import zone_leveler_content_data
 from .locations import _OPTIONAL_CATEGORIES
 
 
@@ -422,34 +426,130 @@ def _set_completion_rule_explorer(world) -> None:
     )
 
 
-# M4.11.1 (Task 9): Zone Leveler (option_zone_leveler = 13) placeholder
-# validator/completion rule. This is deliberately partial -- Task 11 owns
-# the real zone_leveler_goals-driven validator/completion rule, which must
-# combine up to four goal kinds (reach_zone_level_cap, clear_all_zone_quests,
-# golden_boar_statues, instance_clears per options.py's ZoneLevelerGoals),
-# three of which have no buildable content in this checkout yet
-# (golden_boar_statues.yaml is Task 10's own job; clear_all_zone_quests/
-# instance_clears completion wiring is explicitly Task 11's per this plan's
-# pre-flight cross-task table). Without SOME entry registered for value 13
-# here, generate_early's `_VALIDATORS[world.options.game_mode.value]` and
-# set_rules' `_COMPLETION_RULES[...]` dispatch both raise a bare KeyError
-# for any zone_leveler slot -- before locations.py/rules.py's own Task 9
-# track-selection code (the actual subject of this task) ever runs. This
-# stub covers ONLY the one goal kind Task 9's own content makes real
-# (reach_zone_level_cap, via the zone's own level-cap track total) so a
-# zone_leveler slot can complete real generation end-to-end; Task 11
-# replaces this wholesale with the full zone_leveler_goals combination.
+# M4.11.1 (Task 11, BarrensBeater): Zone Leveler's real, full validator/
+# completion rule -- replaces Task 9's own deliberately-partial placeholder
+# (which covered ONLY reach_zone_level_cap, just enough for a zone_leveler
+# slot to complete real generation end-to-end while this task was pending).
+# zone_leveler_goals (options.py's ZoneLevelerGoals OptionSet) selects any
+# non-empty subset of up to four independent goal kinds, ANDed together --
+# same "N goals ANDed" shape this file already uses in a couple of other
+# places (Key Hunt's keys-AND-instances, 100%'s level-cap-AND-remaining),
+# just generalized here to a dynamic, options-driven list of sub-rules
+# instead of a fixed two.
+def _quest_reward_item_names_for_zone(zone_data) -> frozenset[str]:
+    """clear_all_zone_quests' own completion signal is receiving each
+    zone quest's REWARD ITEM, not a bare "Quest: <name>" item -- but
+    quest_rewards_content_data's LOCATIONS ("Quest: <name> Reward (#N)")
+    and ITEMS ("Quest Reward: <name> (#N)") dicts do NOT share a common
+    name/key to string-match against (different name templates). The real
+    pairing mechanism this project already establishes for exactly this
+    LOCATIONS<->ITEMS relationship, for every OptionalCategory, is POSITIONAL:
+    matching insertion-order position within each dict, not name equality --
+    see locations.py's create_optional_category_locations, which builds
+    row_index_by_location_name from `list(category.locations_module.LOCATIONS.items())`
+    and then reads `item_rows[row_index_by_location_name[name]][0]` from
+    `list(category.items_module.ITEMS.items())`. Reused verbatim here rather
+    than re-deriving an ad-hoc (and, as a prior draft of this task proved,
+    incorrect) string-matching scheme."""
+    all_rows = list(quest_rewards_content_data.LOCATIONS.items())
+    item_rows = list(quest_rewards_content_data.ITEMS.items())
+    row_index_by_location_name = {name: i for i, (name, _) in enumerate(all_rows)}
+    return frozenset(
+        item_rows[row_index_by_location_name[name]][0]
+        for name in zone_data.quest_reward_location_names
+    )
+
+
 def _validate_zone_leveler(world) -> None:
-    pass  # no dependency yet: Task 9's own level-cap track always exists
+    selected_goals = world.options.zone_leveler_goals.value
+    if not selected_goals:
+        raise OptionError(
+            "WoW: game_mode 'zone_leveler' needs at least one zone_leveler_goals "
+            "entry selected -- reach_zone_level_cap, clear_all_zone_quests, "
+            "golden_boar_statues, and/or instance_clears."
+        )
+
+    zone_key = world.options.zone_leveler_starting_zone.current_key
+    zone_data = zone_leveler_content_data.ZONES[zone_key]
+
+    if "clear_all_zone_quests" in selected_goals and not zone_data.quest_reward_location_names:
+        raise OptionError(
+            f"WoW: game_mode 'zone_leveler' with zone_leveler_goals including "
+            f"'clear_all_zone_quests' needs at least one zone-tagged Quest Rewards "
+            f"location for zone '{zone_key}', but it has none in quest_rewards.yaml."
+        )
+
+    if "instance_clears" in selected_goals:
+        required = world.options.zone_leveler_instances_required.value
+        available = len(zone_data.instance_keys)
+        if required > available:
+            raise OptionError(
+                f"WoW: game_mode 'zone_leveler' with zone_leveler_instances_required="
+                f"{required} needs at least that many curated instances for zone "
+                f"'{zone_key}', but it only has {available} "
+                f"({', '.join(zone_data.instance_keys) if zone_data.instance_keys else 'none'})."
+            )
+
+    if "golden_boar_statues" in selected_goals:
+        predicted = density.predict_sample_size(
+            game_mode_profile.effective_check_density(world),
+            category_weight=100,
+            row_count=len(golden_boar_statues_content_data.LOCATIONS),
+        )
+        required = world.options.zone_leveler_statues_required.value
+        if predicted < required:
+            raise OptionError(
+                f"WoW: game_mode 'zone_leveler' with zone_leveler_statues_required="
+                f"{required} needs at least that many Golden Boar Statue locations "
+                f"sampled, but check_density={world.options.check_density.value} "
+                f"would only sample {predicted} of the "
+                f"{len(golden_boar_statues_content_data.LOCATIONS)} curated statue "
+                f"locations -- raise check_density or lower zone_leveler_statues_required."
+            )
 
 
 def _set_completion_rule_zone_leveler(world) -> None:
     zone_key = world.options.zone_leveler_starting_zone.current_key
-    track = f"zone_leveler_{zone_key}"
-    total_needed = core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK[track]
-    world.set_completion_rule(
-        lambda state: state.has("Progressive Level Cap", world.player, total_needed)
-    )
+    zone_data = zone_leveler_content_data.ZONES[zone_key]
+    selected_goals = world.options.zone_leveler_goals.value
+    # Explicit Callable[..., bool] annotation (not a bare `[]`, which mypy
+    # would infer from the FIRST appended lambda's own exact parameter
+    # count/defaults): each goal kind below appends a lambda with a
+    # different number of default-valued capture params (count vs. names vs.
+    # names+count), and without this annotation mypy flags every append
+    # after the first as an incompatible Callable[[Any, Any], Any] vs.
+    # [[Any, Any, Any], Any] mismatch, even though every one of them is only
+    # ever CALLED with a single `state` argument (set_completion_rule below
+    # calls each via `rule(state)`).
+    sub_rules: list[typing.Callable[..., bool]] = []
+
+    if "reach_zone_level_cap" in selected_goals:
+        total_caps = core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK[f"zone_leveler_{zone_key}"]
+        sub_rules.append(
+            lambda state, count=total_caps: state.has("Progressive Level Cap", world.player, count)
+        )
+
+    if "clear_all_zone_quests" in selected_goals:
+        quest_item_names = _quest_reward_item_names_for_zone(zone_data)
+        sub_rules.append(lambda state, names=quest_item_names: state.has_all(names, world.player))
+
+    if "golden_boar_statues" in selected_goals:
+        required = world.options.zone_leveler_statues_required.value
+        sub_rules.append(
+            lambda state, count=required: state.has("Golden Boar Statue", world.player, count)
+        )
+
+    if "instance_clears" in selected_goals:
+        required = world.options.zone_leveler_instances_required.value
+        instance_item_names = frozenset(
+            f"Instance Unlock: {_INSTANCE_KEY_DISPLAY_NAMES[key]}" for key in zone_data.instance_keys
+        )
+        sub_rules.append(
+            lambda state, names=instance_item_names, count=required:
+                state.has_from_list_unique(names, world.player, count)
+        )
+
+    world.set_completion_rule(lambda state: all(rule(state) for rule in sub_rules))
 
 
 # GameMode.value -> bare option name, for every mode without real content
@@ -482,7 +582,7 @@ _VALIDATORS = {
     10: _validate_explorer,
     11: _validate_fishing_quest,
     12: _validate_hundred_percent,  # option_hundred_percent
-    13: _validate_zone_leveler,  # option_zone_leveler (M4.11.1 Task 9 placeholder)
+    13: _validate_zone_leveler,  # option_zone_leveler (M4.11.1 Task 11)
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
     **{value: _not_buildable(name, reason) for value, (name, reason) in _NOT_BUILDABLE_MODES.items()},
 }
@@ -499,7 +599,7 @@ _COMPLETION_RULES = {
     10: _set_completion_rule_explorer,
     11: _set_completion_rule_fishing_quest,
     12: _set_completion_rule_hundred_percent,  # option_hundred_percent
-    13: _set_completion_rule_zone_leveler,  # option_zone_leveler (M4.11.1 Task 9 placeholder)
+    13: _set_completion_rule_zone_leveler,  # option_zone_leveler (M4.11.1 Task 11)
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
     **{value: _not_buildable(name, reason) for value, (name, reason) in _NOT_BUILDABLE_MODES.items()},
 }

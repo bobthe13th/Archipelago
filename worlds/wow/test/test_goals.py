@@ -812,3 +812,174 @@ class TestHundredPercentCompletionRuleStructure(WoWTestBase):
         for name in goals._INSTANCE_KEY_DISPLAY_NAMES.values():
             self.collect_by_name(f"Instance Unlock: {name}")
         self.assertFalse(self.multiworld.completion_condition[self.player](state))
+
+
+# M4.11.1 Task 11 (BarrensBeater): Zone Leveler's real, full validator/
+# completion rule, replacing Task 9's own reach_zone_level_cap-only
+# placeholder. zone_leveler_goals (options.py's ZoneLevelerGoals OptionSet)
+# selects any non-empty subset of up to four independent goal kinds, ANDed
+# together -- these classes cover: the empty-selection validation failure,
+# each of the four goal kinds' own completion behavior in isolation (except
+# clear_all_zone_quests, covered separately below at the pure-data level --
+# see that class's own docstring for why), and the AND-combination across
+# two goal kinds at once (mirroring TestKeyHuntCompletionRequiresKeysAndInstances'
+# own two-unrelated-families shape).
+#
+# Every class below sets zone_leveler_starting_zone explicitly even though
+# "barrens" is ZoneLevelerStartingZone's own default -- same "be explicit
+# about the one thing this test actually depends on" discipline the rest of
+# this file already follows.
+class TestZoneLevelerAtLeastOneGoalRequired(WoWTestBase):
+    """An explicit empty zone_leveler_goals selection must fail loudly at
+    generate_early, not silently resolve to an always-true completion rule
+    (Python's `all(...)` over zero sub_rules is vacuously True)."""
+    run_default_tests = False
+    auto_construct = False
+    options = {
+        "game_mode": "zone_leveler",
+        "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_goals": set(),
+    }
+
+    def test_empty_goals_fails_validation(self) -> None:
+        self.assertRaises(OptionError, self.world_setup)
+
+
+class TestZoneLevelerReachLevelCapOnlyCompletion(WoWTestBase):
+    """reach_zone_level_cap alone: completion requires holding at least the
+    20 Progressive Level Cap copies Barrens' own zone_leveler track total
+    demands (core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK
+    ["zone_leveler_barrens"]) -- NOT "all pooled copies": Progressive Level
+    Cap's own pooled count is a flat 70 for EVERY track/game_mode
+    (core_loop_content_data.ITEMS -- core_loop_item_surplus's own docstring
+    explains why: LEVEL_CAP_STEP=1 made this item's real per-level pooled
+    count track-independent), so 70, not 20, is the real len() here
+    (confirmed empirically -- the brief's own illustrative "len(caps) == 20"
+    assumption was wrong). state.has's own semantics (>= count, not ==)
+    still make 20 the real completion threshold; this collects a precise
+    19-then-1 split to prove that exact threshold, not merely "collecting
+    everything eventually completes it"."""
+    options = {
+        "game_mode": "zone_leveler",
+        "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_goals": {"reach_zone_level_cap"},
+    }
+
+    def test_reach_zone_level_cap_only_completes_on_all_track_copies(self) -> None:
+        state = self.multiworld.state
+        caps = self.get_items_by_name("Progressive Level Cap")
+        self.assertEqual(len(caps), 70)
+        self.collect(caps[:19])
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+        self.collect(caps[19:20])
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+
+class TestZoneLevelerMultipleGoalsAreAnded(WoWTestBase):
+    """reach_zone_level_cap AND instance_clears selected together: neither
+    goal alone should satisfy the completion condition -- only both."""
+    options = {
+        "game_mode": "zone_leveler",
+        "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_goals": {"reach_zone_level_cap", "instance_clears"},
+        "zone_leveler_instances_required": 1,
+    }
+
+    def test_multiple_selected_goals_are_anded(self) -> None:
+        state = self.multiworld.state
+        self.collect(self.get_items_by_name("Progressive Level Cap"))
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))  # level cap alone isn't enough
+        self.collect_by_name("Instance Unlock: Wailing Caverns")
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+
+class TestZoneLevelerGoldenBoarStatuesGoal(WoWTestBase):
+    """golden_boar_statues alone, at every other option's own default:
+    check_density's default of 25 against golden_boar_statues.yaml's 20-row
+    roster predicts exactly ceil(20 * 0.25) == 5 sampled locations/items,
+    matching ZoneLevelerStatuesRequired's own default of 5 -- satisfiable
+    out of the box (options.py's own docstring reasoning for that default),
+    so this class needs no non-default overrides to exercise the goal."""
+    options = {
+        "game_mode": "zone_leveler",
+        "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_goals": {"golden_boar_statues"},
+    }
+
+    def test_completion_requires_all_required_statue_copies(self) -> None:
+        state = self.multiworld.state
+        statues = self.get_items_by_name("Golden Boar Statue")
+        self.assertEqual(len(statues), 5)
+        self.collect(statues[:4])
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+        self.collect(statues[4:])
+        self.assertTrue(self.multiworld.completion_condition[self.player](state))
+
+
+class TestZoneLevelerGoldenBoarStatuesTooLowDensityFailsValidation(WoWTestBase):
+    """golden_boar_statues' own validator (same shape as Key Hunt's
+    predict_sample_size-vs-required check): a check_density too low to
+    sample zone_leveler_statues_required statue locations must fail
+    generation loudly at generate_early, not surface later as an
+    unsatisfiable completion condition discovered only during play."""
+    run_default_tests = False
+    auto_construct = False
+    options = {
+        "game_mode": "zone_leveler",
+        "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_goals": {"golden_boar_statues"},
+        "check_density": 5,  # ceil(20 * 0.05) == 1, below the default zone_leveler_statues_required=5
+    }
+
+    def test_too_low_density_fails_generation(self) -> None:
+        self.assertRaises(OptionError, self.world_setup)
+
+
+class TestZoneLevelerClearAllZoneQuestsItemNamePairing(unittest.TestCase):
+    """Task 11's own real bug fix (found by this task's own controller
+    review, not by the brief's own first-draft illustrative code):
+    quest_rewards_content_data's LOCATIONS ("Quest: <name> Reward (#N)") and
+    ITEMS ("Quest Reward: <name> (#N)") dicts do NOT share a common
+    name/key to string-match clear_all_zone_quests' target item names
+    against. The real, already-established pairing mechanism for this exact
+    LOCATIONS<->ITEMS relationship (confirmed directly against
+    locations.py's create_optional_category_locations, used by every
+    OptionalCategory) is POSITIONAL: matching insertion-order position
+    within each dict, not name equality.
+
+    Deliberately a plain unittest.TestCase, not a WoWTestBase generation
+    test: exercising this end-to-end would require quest_reward_weight=100
+    and check_density=100 to guarantee every one of Barrens' 103 zone-tagged
+    quest locations actually samples into the pool (quest_rewards.yaml has
+    no zone-tag dimension to sample-restrict against, only type/expansion),
+    which would also sample quest_rewards' full ~9,207-row table at those
+    same settings -- exactly the multi-hour test blowup WoWTestBase's own
+    docstring warns against. Testing the pure pairing function directly
+    gives the same correctness guarantee at negligible cost."""
+
+    def test_pairing_matches_locations_py_own_positional_mechanism(self) -> None:
+        from .. import quest_rewards_content_data, zone_leveler_content_data
+        zone_data = zone_leveler_content_data.ZONES["barrens"]
+        all_rows = list(quest_rewards_content_data.LOCATIONS.items())
+        item_rows = list(quest_rewards_content_data.ITEMS.items())
+        row_index_by_location_name = {name: i for i, (name, _) in enumerate(all_rows)}
+        expected = frozenset(
+            item_rows[row_index_by_location_name[name]][0]
+            for name in zone_data.quest_reward_location_names
+        )
+        self.assertEqual(len(expected), 103)  # Barrens' real zone-tagged quest reward count
+        self.assertEqual(goals._quest_reward_item_names_for_zone(zone_data), expected)
+
+    def test_pairing_is_not_naive_location_name_string_matching(self) -> None:
+        # Confirms the fix guards against exactly the bug the brief's own
+        # first-draft illustrative code fell into: none of
+        # clear_all_zone_quests' target item names are literally a "Quest:
+        # ..." LOCATION name -- every real target name instead uses ITEMS'
+        # own distinct "Quest Reward: ..." template.
+        from .. import zone_leveler_content_data
+        zone_data = zone_leveler_content_data.ZONES["barrens"]
+        names = goals._quest_reward_item_names_for_zone(zone_data)
+        self.assertTrue(names)
+        for name in names:
+            self.assertTrue(name.startswith("Quest Reward: "))
+        self.assertFalse(names & set(zone_data.quest_reward_location_names))

@@ -758,9 +758,25 @@ class TestZoneLevelerBarrensLevelTrack(WoWTestBase):
     Caverns, Razorfen Kraul, Razorfen Downs) -- not all 8 of core_loop's
     real instances (that full set is what standard/death_knight slots get;
     see TestStandardSlotLevelMilestoneTracks/TestDeathKnightSlotLevelMilestoneTracks
-    above)."""
+    above).
 
-    options = {"game_mode": "zone_leveler", "zone_leveler_starting_zone": "barrens"}
+    zone_leveler_goals is narrowed to reach_zone_level_cap alone (Task 11):
+    this class is only about level-cap/instance-clear LOCATION structure,
+    not full goal-completion semantics (see test_goals.py's own
+    TestZoneLeveler* classes for that). Left at its default (all four goal
+    kinds ANDed), WoWTestBase's own generic beatable-game check (run
+    automatically for every WoWTestBase subclass, per bases.py's own
+    docstring) would also require clear_all_zone_quests' full item set --
+    but WoWTestBase's fast-test default zeroes quest_reward_weight, so none
+    of Barrens' own quest-reward locations/items would ever be pooled,
+    making that goal permanently unsatisfiable and this class's own
+    unrelated location-structure tests collaterally unbeatable."""
+
+    options = {
+        "game_mode": "zone_leveler",
+        "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_goals": {"reach_zone_level_cap"},
+    }
 
     def test_reach_level_30_needs_twenty_of_the_pooled_progressive_level_caps(self) -> None:
         # Progressive Level Cap's pooled copy count (70, core_loop.yaml's
@@ -819,9 +835,25 @@ class TestGoldenBoarStatues(WoWTestBase):
     rares_content_data. check_density: 100 forces
     density.predict_sample_size(20 rows, weight 100) to ceil(20*1*1) == 20,
     i.e. every curated row, so both tests below can assert against the full
-    roster size rather than a random subset."""
+    roster size rather than a random subset.
 
-    options = {"game_mode": "zone_leveler", "zone_leveler_starting_zone": "barrens", "check_density": 100}
+    zone_leveler_goals is narrowed to golden_boar_statues alone (Task 11):
+    this class is only about statue location/item parity, not full
+    goal-completion semantics (see test_goals.py's own TestZoneLeveler*
+    classes for that). Left at its default (all four goal kinds ANDed),
+    WoWTestBase's own generic beatable-game check would also require
+    clear_all_zone_quests' full item set -- but WoWTestBase's fast-test
+    default zeroes quest_reward_weight, so none of Barrens' own
+    quest-reward locations/items would ever be pooled, making that goal
+    permanently unsatisfiable and this class's own unrelated statue tests
+    collaterally unbeatable."""
+
+    options = {
+        "game_mode": "zone_leveler",
+        "zone_leveler_starting_zone": "barrens",
+        "check_density": 100,
+        "zone_leveler_goals": {"golden_boar_statues"},
+    }
 
     def test_all_curated_statue_locations_sampled_at_density_100(self) -> None:
         names = {
