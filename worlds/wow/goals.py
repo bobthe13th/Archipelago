@@ -422,6 +422,36 @@ def _set_completion_rule_explorer(world) -> None:
     )
 
 
+# M4.11.1 (Task 9): Zone Leveler (option_zone_leveler = 13) placeholder
+# validator/completion rule. This is deliberately partial -- Task 11 owns
+# the real zone_leveler_goals-driven validator/completion rule, which must
+# combine up to four goal kinds (reach_zone_level_cap, clear_all_zone_quests,
+# golden_boar_statues, instance_clears per options.py's ZoneLevelerGoals),
+# three of which have no buildable content in this checkout yet
+# (golden_boar_statues.yaml is Task 10's own job; clear_all_zone_quests/
+# instance_clears completion wiring is explicitly Task 11's per this plan's
+# pre-flight cross-task table). Without SOME entry registered for value 13
+# here, generate_early's `_VALIDATORS[world.options.game_mode.value]` and
+# set_rules' `_COMPLETION_RULES[...]` dispatch both raise a bare KeyError
+# for any zone_leveler slot -- before locations.py/rules.py's own Task 9
+# track-selection code (the actual subject of this task) ever runs. This
+# stub covers ONLY the one goal kind Task 9's own content makes real
+# (reach_zone_level_cap, via the zone's own level-cap track total) so a
+# zone_leveler slot can complete real generation end-to-end; Task 11
+# replaces this wholesale with the full zone_leveler_goals combination.
+def _validate_zone_leveler(world) -> None:
+    pass  # no dependency yet: Task 9's own level-cap track always exists
+
+
+def _set_completion_rule_zone_leveler(world) -> None:
+    zone_key = world.options.zone_leveler_starting_zone.current_key
+    track = f"zone_leveler_{zone_key}"
+    total_needed = core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK[track]
+    world.set_completion_rule(
+        lambda state: state.has("Progressive Level Cap", world.player, total_needed)
+    )
+
+
 # GameMode.value -> bare option name, for every mode without real content
 # yet (scheduling gap, not a data-availability problem). Mirrors
 # options.py's GameMode option_* attributes exactly -- keep both in sync
@@ -452,6 +482,7 @@ _VALIDATORS = {
     10: _validate_explorer,
     11: _validate_fishing_quest,
     12: _validate_hundred_percent,  # option_hundred_percent
+    13: _validate_zone_leveler,  # option_zone_leveler (M4.11.1 Task 9 placeholder)
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
     **{value: _not_buildable(name, reason) for value, (name, reason) in _NOT_BUILDABLE_MODES.items()},
 }
@@ -468,6 +499,7 @@ _COMPLETION_RULES = {
     10: _set_completion_rule_explorer,
     11: _set_completion_rule_fishing_quest,
     12: _set_completion_rule_hundred_percent,  # option_hundred_percent
+    13: _set_completion_rule_zone_leveler,  # option_zone_leveler (M4.11.1 Task 9 placeholder)
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
     **{value: _not_buildable(name, reason) for value, (name, reason) in _NOT_BUILDABLE_MODES.items()},
 }

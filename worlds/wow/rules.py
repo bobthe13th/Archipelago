@@ -41,8 +41,17 @@ def set_rules(world):
     # pool for that slot to collapse away -- every location (on whichever
     # track this slot actually created) can use its own natural per-level
     # threshold.
-    is_dk_slot = bool(world.options.death_knight_slot)
-    track = "death_knight" if is_dk_slot else "standard"
+    # M4.11.1 (Task 9): zone_leveler resolves to its own
+    # f"zone_leveler_{zone_key}" track instead of the shared
+    # standard/death_knight pair -- extends the same track-resolution shape
+    # Task 3 set up, gated on game_mode instead of death_knight_slot,
+    # matching locations.py's create_core_loop_locations split exactly.
+    if world.options.game_mode == "zone_leveler":
+        zone_key = world.options.zone_leveler_starting_zone.current_key
+        track = f"zone_leveler_{zone_key}"
+    else:
+        is_dk_slot = bool(world.options.death_knight_slot)
+        track = "death_knight" if is_dk_slot else "standard"
     # M4.11.1 (Task 3): starting_cap is now per-track (STARTING_LEVEL_CAP_BY_TRACK)
     # instead of a single flat STARTING_LEVEL_CAP -- both current tracks share
     # the same value (10) today, but Zone Leveler's own track (Task 9) tops
@@ -61,14 +70,22 @@ def set_rules(world):
                 ),
             )
 
-    world.set_rule(
-        world.get_location("Clear Ragefire Chasm"),
-        lambda state: state.has("Instance Unlock: Ragefire Chasm", world.player),
-    )
-    world.set_rule(
-        world.get_location("Clear Deadmines"),
-        lambda state: state.has("Instance Unlock: Deadmines", world.player),
-    )
+    # M4.11.1 (Task 9): Ragefire Chasm/Deadmines are NOT among Zone
+    # Leveler's own curated instance-clear locations (only Wailing
+    # Caverns/Razorfen Kraul/Razorfen Downs are, for the Barrens zone --
+    # see locations.py's create_core_loop_locations zone_leveler branch), so
+    # a zone_leveler slot never has these two locations in its pool at all;
+    # world.get_location would KeyError for that slot, same idiom as the
+    # fishing_quest gate below.
+    if world.options.game_mode != "zone_leveler":
+        world.set_rule(
+            world.get_location("Clear Ragefire Chasm"),
+            lambda state: state.has("Instance Unlock: Ragefire Chasm", world.player),
+        )
+        world.set_rule(
+            world.get_location("Clear Deadmines"),
+            lambda state: state.has("Instance Unlock: Deadmines", world.player),
+        )
     world.set_rule(
         world.get_location("Clear Wailing Caverns"),
         lambda state: state.has("Instance Unlock: Wailing Caverns", world.player),

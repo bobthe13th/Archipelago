@@ -22,6 +22,7 @@ from . import recipes_content_data
 from . import repsanity_content_data
 from . import trainer_spells_content_data
 from . import vendor_stock_content_data
+from . import zone_leveler_content_data
 from .items import (
     core_loop_item_surplus,
     count_enabled_gates_items,
@@ -231,6 +232,28 @@ def create_core_loop_locations(world, region) -> list:
     # accepted, documented limitation identical in shape to
     # starting_choice/combo_unlocks_scope's existing "honor your own
     # option" trust model, not a new kind of gap.
+    # M4.11.1 (Task 9): zone_leveler is a third, distinct track family --
+    # unlike standard/death_knight (which both draw from the SAME
+    # INSTANCE_CLEAR_LOCATIONS, every one of core_loop's 8 instances), a
+    # zone_leveler slot only ever creates the SELECTED zone's own curated
+    # instance-clear locations (Barrens' own 3, not all 8), per
+    # zone_leveler_content_data.ZONES[zone_key].instance_keys. This mirrors
+    # the standard/death_knight split's own "one exclusive content set per
+    # slot" shape, just gated on game_mode instead of death_knight_slot.
+    if world.options.game_mode == "zone_leveler":
+        zone_key = world.options.zone_leveler_starting_zone.current_key
+        track = f"zone_leveler_{zone_key}"
+        locations = []
+        for level, location_id in core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track].items():
+            name = core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK[track][level]
+            locations.append(WoWLocation(world.player, name, location_id, region))
+        zone_data = zone_leveler_content_data.ZONES[zone_key]
+        for instance_key in zone_data.instance_keys:
+            location_id = core_loop_content_data.INSTANCE_CLEAR_LOCATIONS[instance_key]
+            name = core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES[instance_key]
+            locations.append(WoWLocation(world.player, name, location_id, region))
+        return locations
+
     is_dk_slot = bool(world.options.death_knight_slot)
     track = "death_knight" if is_dk_slot else "standard"
     locations = []

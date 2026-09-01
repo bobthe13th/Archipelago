@@ -747,3 +747,64 @@ class TestStandardSlotLevelMilestoneTracks(WoWTestBase):
 
     def test_item_pool_matches_location_count_exactly(self) -> None:
         self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
+class TestZoneLevelerBarrensLevelTrack(WoWTestBase):
+    """M4.11.1 (Task 9): Zone Leveler's own Barrens level-cap track (levels
+    11-30) must be gated by Progressive Level Cap copies the same way as
+    the standard/death_knight tracks, and a zone_leveler slot must create
+    only Barrens' own three curated instance-clear locations (Wailing
+    Caverns, Razorfen Kraul, Razorfen Downs) -- not all 8 of core_loop's
+    real instances (that full set is what standard/death_knight slots get;
+    see TestStandardSlotLevelMilestoneTracks/TestDeathKnightSlotLevelMilestoneTracks
+    above)."""
+
+    options = {"game_mode": "zone_leveler", "zone_leveler_starting_zone": "barrens"}
+
+    def test_reach_level_30_needs_twenty_of_the_pooled_progressive_level_caps(self) -> None:
+        # Progressive Level Cap's pooled copy count (70, core_loop.yaml's
+        # own item `count:`) is flat and track-independent -- same
+        # "independently-sized, not derived from the track" invariant
+        # TestSprintGoal.test_core_loop_item_pool_matches_expected_total
+        # documents for the standard track. Only the REQUIRED threshold to
+        # reach a given level is track-specific
+        # (LEVEL_CAP_TOTAL_BY_TRACK["zone_leveler_barrens"] == 30 - 10 ==
+        # 20), exercised here the same "collect N-1, then the Nth" way
+        # TestCoreLoopAccessRules.test_reach_level_55_needs_forty_five_progressive_level_caps
+        # does for the standard track.
+        caps = self.get_items_by_name("Progressive Level Cap")
+        self.assertEqual(len(caps), 70)
+        self.collect(caps[:19])
+        self.assertFalse(self.can_reach_location("Reach Level 30 (Zone Leveler)"))
+        self.collect(caps[19:20])
+        self.assertTrue(self.can_reach_location("Reach Level 30 (Zone Leveler)"))
+
+    def test_barrens_track_creates_only_its_three_curated_instances(self) -> None:
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertIn("Clear Wailing Caverns", names)
+        self.assertIn("Clear Razorfen Kraul", names)
+        self.assertIn("Clear Razorfen Downs", names)
+        self.assertNotIn("Clear Molten Core", names)
+        self.assertNotIn("Clear Ragefire Chasm", names)
+        self.assertNotIn("Clear Deadmines", names)
+        self.assertNotIn("Clear Sunwell Plateau", names)
+        self.assertNotIn("Clear Icecrown Citadel", names)
+
+    def test_standard_and_death_knight_tracks_are_entirely_absent(self) -> None:
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        for level in range(1, 81):
+            self.assertNotIn(f"Reach Level {level}", names)
+        for level in range(55, 81):
+            self.assertNotIn(f"Reach Level {level} (Death Knight)", names)
+
+    def test_core_loop_location_count_is_twenty_three(self) -> None:
+        # 20 zone_leveler_barrens level milestones (11-30) + 3 curated
+        # instance clears (Wailing Caverns, Razorfen Kraul, Razorfen Downs).
+        core_loop_names = set(
+            core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK["zone_leveler_barrens"].values()
+        ) | {
+            core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES[key]
+            for key in ("wailing_caverns", "razorfen_kraul", "razorfen_downs")
+        }
+        present = {loc.name for loc in self.multiworld.get_locations(self.player)} & core_loop_names
+        self.assertEqual(len(present), 23)

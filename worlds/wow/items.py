@@ -11,6 +11,7 @@ from . import holidaysanity_content_data
 from . import professions_content_data
 from . import rares_content_data
 from . import traps_content_data
+from . import zone_leveler_content_data
 
 
 class WoWItem(Item):
@@ -48,13 +49,12 @@ def create_core_loop_item_pool(world) -> list:
     # M4.11.1 Task 4's 3 new instance clears -- was 85/31) well past
     # its own fixed item count (21) -- pad the pool to close the deficit
     # exactly, the same track-aware sizing _trap_baseline_location_count
-    # already established for the trap family's own baseline.
-    is_dk_slot = bool(world.options.death_knight_slot)
-    track = "death_knight" if is_dk_slot else "standard"
-    location_count = (
-        len(core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track])
-        + len(core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
-    )
+    # already established for the trap family's own baseline. (M4.11.1
+    # Task 9: now calls that same function directly instead of
+    # re-deriving the count inline, so zone_leveler's own much smaller
+    # 23-location floor -- and any future track -- only needs to be taught
+    # to _trap_baseline_location_count once.)
+    location_count = _trap_baseline_location_count(world)
     deficit = location_count - len(pool)
     if deficit > 0:
         pool.extend(create_filler_item_pool(world, deficit))
@@ -231,11 +231,28 @@ def _trap_baseline_location_count(world) -> int:
     # docstring note about the standalone `quests` family's 19 locations no
     # longer being part of this baseline still applies -- unaffected by
     # this task.)
-    is_dk_slot = bool(world.options.death_knight_slot)
-    track = "death_knight" if is_dk_slot else "standard"
+    #
+    # M4.11.1 (Task 9): a zone_leveler slot is a third, much smaller floor
+    # -- only its own zone's level-cap track PLUS that zone's own curated
+    # instance-clear subset (Barrens: 20 + 3 = 23), not all 8 of
+    # core_loop's real instances (locations.py's create_core_loop_locations
+    # zone_leveler branch never creates the other 5). getattr (not direct
+    # attribute access) since this function is also called directly by
+    # test_basic.py's TestFillerPoolCoversWorstCaseGatesTrapsAndHolidaysanity
+    # with a bare `types.SimpleNamespace(options=...)` fake world that has
+    # no game_mode attribute at all -- that fake world must keep resolving
+    # to the standard/death_knight branch exactly as before.
+    if getattr(world.options, "game_mode", None) == "zone_leveler":
+        zone_key = world.options.zone_leveler_starting_zone.current_key
+        track = f"zone_leveler_{zone_key}"
+        instance_count = len(zone_leveler_content_data.ZONES[zone_key].instance_keys)
+    else:
+        is_dk_slot = bool(world.options.death_knight_slot)
+        track = "death_knight" if is_dk_slot else "standard"
+        instance_count = len(core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
     return (
         len(core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track])
-        + len(core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
+        + instance_count
     )
 
 
