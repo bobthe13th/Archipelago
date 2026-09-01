@@ -196,15 +196,20 @@ class ZoneLevelerAllowHubZone(Toggle):
 
 class ZoneLevelerContentScope(Choice):
     """Only relevant when game_mode is zone_leveler (M4.11.1). "zone_only"
-    (default) restricts every optional category to the selected zone's own
-    zone-tagged/level-range-filtered rows. "whole_game_scaled" additionally
-    widens the possession-triggered families (Itemsanity, Craftsanity,
-    Repsanity, Recipes, Trainer Spells -- these fire on pickup/craft/learn
-    regardless of physical zone) to any item/recipe/spell whose own level
-    requirement falls inside the selected zone's level band, project-wide.
-    Zone-bound families (Quest Rewards, instance clears) are unaffected by
-    this option either way, since the player physically cannot leave the
-    locked zone."""
+    (default) excludes every possession-triggered family's rows entirely
+    (Itemsanity, Craftsanity, Repsanity, Recipes, Trainer Spells -- these
+    fire on pickup/craft/learn regardless of physical zone, and their own
+    real zone-of-origin isn't tagged yet, M4.11.2). "whole_game_scaled"
+    widens only THREE of those five -- Itemsanity, Recipes, and Trainer
+    Spells -- to any item/recipe/spell whose own real level requirement
+    (item_template.RequiredLevel / trainer_spell.ReqLevel) falls inside the
+    selected zone's level band, project-wide (Task 12). Craftsanity and
+    Repsanity have no real level-requirement data to widen by (crafting is
+    skill-tier-gated, not player-level-gated; reputation ranks aren't
+    level-gated at all) and stay fully excluded under whole_game_scaled too,
+    same as zone_only. Zone-bound families (Quest Rewards, instance clears)
+    are unaffected by this option either way, since the player physically
+    cannot leave the locked zone."""
     display_name = "Zone Leveler: Content Scope"
     option_zone_only = 0
     option_whole_game_scaled = 1

@@ -1,7 +1,14 @@
 # Archipelago/worlds/wow/test/test_optional_categories.py
 from .bases import WoWTestBase
 from .. import WoWWorld
-from ..locations import _OPTIONAL_CATEGORIES, OptionalCategory, create_optional_category_locations, _location_matches_pools
+from .. import (
+    craftsanity_content_data, itemsanity_content_data, options, recipes_content_data,
+    repsanity_content_data, trainer_spells_content_data, zone_leveler_content_data,
+)
+from ..locations import (
+    _OPTIONAL_CATEGORIES, OptionalCategory, create_optional_category_locations, _location_matches_pools,
+    _POSSESSION_TRIGGERED_CATEGORY_KEYS, _zone_leveler_possession_family_min_level, _zone_leveler_scope_matches,
+)
 
 
 class _FakeLocationsModule:
@@ -440,3 +447,164 @@ class TestCraftsanityExcludedWithEmptyPools(WoWTestBase):
         location_names = {loc.name for loc in self.multiworld.get_locations(self.world.player)}
         craftsanity_locs = {name for name in location_names if name.startswith("Craft:")}
         self.assertEqual(len(craftsanity_locs), 0)
+
+
+class TestZoneLevelerPossessionFamilyMinLevel(WoWTestBase):
+    """M4.11.1 Task 12: unit-level coverage of the min_level lookup helper
+    itself, calling module data directly rather than paying for a full
+    zone_leveler slot generation."""
+    options = {}
+
+    def test_itemsanity_row_carries_a_real_int_min_level(self) -> None:
+        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "itemsanity")
+        name = next(iter(itemsanity_content_data.LOCATIONS))
+        min_level = _zone_leveler_possession_family_min_level(name, category)
+        self.assertIsInstance(min_level, int)
+
+    def test_trainer_spells_row_carries_a_real_int_min_level(self) -> None:
+        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "trainer_spells")
+        name = next(iter(trainer_spells_content_data.LOCATIONS))
+        min_level = _zone_leveler_possession_family_min_level(name, category)
+        self.assertIsInstance(min_level, int)
+
+    def test_recipes_row_carries_a_real_int_min_level(self) -> None:
+        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "recipes")
+        name = next(iter(recipes_content_data.LOCATIONS))
+        min_level = _zone_leveler_possession_family_min_level(name, category)
+        self.assertIsInstance(min_level, int)
+
+    def test_craftsanity_has_no_real_min_level_data(self) -> None:
+        # By design, not an oversight -- crafting requirements are
+        # skill-tier-gated, not player-level-gated; see
+        # _zone_leveler_possession_family_min_level's own docstring.
+        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "craftsanity")
+        name = next(iter(craftsanity_content_data.LOCATIONS))
+        self.assertIsNone(_zone_leveler_possession_family_min_level(name, category))
+
+    def test_repsanity_has_no_real_min_level_data(self) -> None:
+        # By design -- reputation ranks are not level-gated at all.
+        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "repsanity")
+        name = next(iter(repsanity_content_data.LOCATIONS))
+        self.assertIsNone(_zone_leveler_possession_family_min_level(name, category))
+
+
+class TestZoneLevelerScopeMatchesUnaffectsNonPossessionCategories(WoWTestBase):
+    """M4.11.1 Task 12: _zone_leveler_scope_matches always returns True for
+    a category outside _POSSESSION_TRIGGERED_CATEGORY_KEYS, independent of
+    content_scope -- Quest Rewards/instance clears are inherently zone-bound
+    already (rules.py/zone_leveler_content_data own that), so this generic
+    path doesn't touch them either way. Exercised via a fake world/options
+    object (same types.SimpleNamespace pattern test_goals.py's own
+    TestValidateZoneLevelerFullDensity already uses) rather than a full slot
+    generation, since this is a pure function-behavior fact."""
+    options = {}
+
+    def test_non_possession_category_always_matches_under_zone_only(self) -> None:
+        import types
+
+        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "quest_rewards")
+        world = types.SimpleNamespace(options=types.SimpleNamespace(
+            zone_leveler_content_scope="zone_only",
+            zone_leveler_starting_zone=types.SimpleNamespace(current_key="barrens"),
+        ))
+        self.assertTrue(_zone_leveler_scope_matches(world, category, "irrelevant-name"))
+
+
+# M4.11.1 Task 12: every possession-triggered family's own tag pools widened
+# to their full real default -- bases.py's WoWTestBase otherwise zeroes
+# several of them for test speed. Widening them here isolates the
+# zone-scope filter itself as the thing excluding/including rows below, not
+# an incidental empty/narrow tag pool.
+#
+# NOTE: deliberately NOT shared via subclassing between the two content_scope
+# test classes below (zone_only vs. whole_game_scaled) -- an earlier draft
+# had TestZoneLevelerWholeGameScaledWidensTractableFamilies subclass
+# TestZoneLevelerContentScope for its options, but unittest then also
+# inherits (and re-runs) the PARENT's own zone_only-specific test method
+# under the SUBCLASS's whole_game_scaled options, where it legitimately
+# fails (itemsanity rows ARE present under whole_game_scaled). Two sibling
+# classes sharing this same base-options constant avoids that trap.
+_ZONE_LEVELER_BASE_OPTIONS = {
+    "game_mode": "zone_leveler",
+    "zone_leveler_starting_zone": "barrens",
+    "zone_leveler_goals": {"reach_zone_level_cap"},
+    "itemsanity_class_pools": set(options.ItemsanityClassPools.default),
+    "itemsanity_quality_pools": set(options.ItemsanityQualityPools.default),
+    "itemsanity_expansion_pools": set(options.ItemsanityExpansionPools.default),
+    "craftsanity_profession_pools": set(options.CraftsanityProfessionPools.default),
+    "craftsanity_class_pools": set(options.CraftsanityClassPools.default),
+    "craftsanity_expansion_pools": set(options.CraftsanityExpansionPools.default),
+    "repsanity_expansion_pools": set(options.RepsanityExpansionPools.default),
+    "repsanity_rank_tier_pools": set(options.RepsanityRankTierPools.default),
+    "recipe_profession_pools": set(options.RecipeProfessionPools.default),
+    "recipe_expansion_pools": set(options.RecipeExpansionPools.default),
+    "trainer_spell_class_pools": set(options.TrainerSpellClassPools.default),
+    "trainer_spell_expansion_pools": set(options.TrainerSpellExpansionPools.default),
+}
+
+
+class TestZoneLevelerContentScope(WoWTestBase):
+    """M4.11.1 Task 12: zone_only excludes every possession-triggered
+    family's rows entirely, regardless of tag-pool selection.
+    zone_leveler_goals is narrowed to reach_zone_level_cap alone -- same
+    reasoning test_basic.py's TestZoneLevelerCoreLoop/TestGoldenBoarStatues
+    already document: the default goal set requires quest_reward pooling,
+    which WoWTestBase zeroes for speed, making the game unbeatable unless a
+    class also narrows the goal set."""
+    options = {**_ZONE_LEVELER_BASE_OPTIONS, "zone_leveler_content_scope": "zone_only"}
+
+    def test_zone_only_excludes_every_possession_triggered_family(self) -> None:
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        for key in _POSSESSION_TRIGGERED_CATEGORY_KEYS:
+            category = next(c for c in _OPTIONAL_CATEGORIES if c.key == key)
+            overlap = names & set(category.locations_module.LOCATIONS)
+            self.assertEqual(len(overlap), 0, f"{key} rows leaked through zone_only")
+
+
+class TestZoneLevelerWholeGameScaledWidensTractableFamilies(WoWTestBase):
+    """M4.11.1 Task 12: whole_game_scaled widens exactly the 3 tractable
+    possession-triggered families (Itemsanity, Recipes, Trainer Spells) to
+    rows whose own real min_level falls inside Barrens' level band
+    (10-30, zone_leveler_content_data.ZONES["barrens"]), and leaves
+    Craftsanity/Repsanity fully excluded -- same as zone_only for those two
+    -- since neither carries real min_level data to widen by."""
+    options = {**_ZONE_LEVELER_BASE_OPTIONS, "zone_leveler_content_scope": "whole_game_scaled"}
+
+    def test_itemsanity_widens_to_rows_inside_barrens_level_band(self) -> None:
+        band = zone_leveler_content_data.ZONES["barrens"]
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        widened = names & set(itemsanity_content_data.LOCATIONS)
+        self.assertGreater(len(widened), 0)
+        for name in widened:
+            min_level = itemsanity_content_data.TRIGGERS[name]["min_level"]
+            self.assertGreaterEqual(min_level, band.min_level)
+            self.assertLessEqual(min_level, band.max_level)
+
+    def test_trainer_spells_widens_to_rows_inside_barrens_level_band(self) -> None:
+        band = zone_leveler_content_data.ZONES["barrens"]
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        widened = names & set(trainer_spells_content_data.LOCATIONS)
+        self.assertGreater(len(widened), 0)
+        for name in widened:
+            min_level = trainer_spells_content_data.TRIGGERS[name]["min_level"]
+            self.assertGreaterEqual(min_level, band.min_level)
+            self.assertLessEqual(min_level, band.max_level)
+
+    def test_recipes_widens_to_rows_inside_barrens_level_band(self) -> None:
+        band = zone_leveler_content_data.ZONES["barrens"]
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        widened = names & set(recipes_content_data.LOCATIONS)
+        self.assertGreater(len(widened), 0)
+        for name in widened:
+            min_level = recipes_content_data.TRIGGERS[name]["min_level"]
+            self.assertGreaterEqual(min_level, band.min_level)
+            self.assertLessEqual(min_level, band.max_level)
+
+    def test_craftsanity_and_repsanity_stay_fully_excluded(self) -> None:
+        # Craftsanity/Repsanity have no real min_level data to widen by
+        # (see _zone_leveler_possession_family_min_level's own docstring) --
+        # whole_game_scaled behaves identically to zone_only for these two
+        # families, even with their own tag pools wide open.
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertEqual(len(names & set(craftsanity_content_data.LOCATIONS)), 0)
+        self.assertEqual(len(names & set(repsanity_content_data.LOCATIONS)), 0)

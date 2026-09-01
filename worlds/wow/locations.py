@@ -153,6 +153,89 @@ def _location_matches_pools(world, category: OptionalCategory, name: str) -> boo
     return True
 
 
+# M4.11.1 Task 12: possession-triggered categories -- these fire on
+# pickup/craft/learn (item_first_held, recipe_craft, reputation_rank,
+# learn_spell trigger kinds) regardless of the player's physical zone, unlike
+# quest_rewards/instance clears which are inherently zone-bound already.
+# Only relevant when game_mode is zone_leveler; see
+# _zone_leveler_scope_matches below for the actual filtering behavior.
+_POSSESSION_TRIGGERED_CATEGORY_KEYS = frozenset({
+    "itemsanity", "craftsanity", "repsanity", "recipes", "trainer_spells",
+})
+
+
+def _zone_leveler_possession_family_min_level(name: str, category: OptionalCategory) -> int | None:
+    """The real, DB-sourced level requirement for one possession-triggered
+    row, if this family tracks one at all (M4.11.1 Task 12). Read from
+    TRIGGERS[name]["min_level"], NOT TAGS -- TAGS is exported as
+    dict[str, frozenset[str]] (generate_content.py's export_tags emission,
+    string-only, meant for OR-within-dimension pool selection), which can't
+    hold a numeric value; TRIGGERS keeps the raw `trigger` sub-dict verbatim
+    (repr()'d as-is), the same real placement extract_quest_rewards.py's own
+    min_level/zone_id keys already established and locations.py has read
+    from since M4.7.1.3/M4.11.1 Task 2.
+
+    Real per-family sourcing (only 3 of the 5 possession-triggered families
+    actually carry this key):
+      - itemsanity: item_template.RequiredLevel (extract_itemsanity.py).
+      - trainer_spells: MIN(trainer_spell.ReqLevel) across every class
+        trainer that teaches the spell (extract_trainer_spells.py).
+      - recipes: item_template.RequiredLevel of the recipe ITEM that teaches
+        the spell (extract_recipes.py) -- distinct from RequiredSkillRank,
+        which drives this family's own expansion tag instead.
+      - craftsanity: NOT tractable with real data -- crafting requirements
+        are skill-tier-gated (skill_line_ability-style), and no official,
+        real 1:1 skill-tier-to-player-level mapping exists in this game's
+        actual data. Fabricating an approximate mapping would violate this
+        project's "real DB column, cited, not guessed" discipline.
+      - repsanity: NOT tractable -- reputation ranks are not level-gated by
+        design; there is no real per-row level-requirement concept for this
+        family at all.
+    Craftsanity/repsanity's own TRIGGERS dicts simply never gain a
+    "min_level" key, so this returns None for them like any other row
+    missing the key -- see _zone_leveler_scope_matches for how that
+    naturally excludes both families under whole_game_scaled."""
+    return category.locations_module.TRIGGERS[name].get("min_level")
+
+
+def _zone_leveler_scope_matches(world, category: OptionalCategory, name: str) -> bool:
+    """Only called when game_mode is zone_leveler (M4.11.1 Task 12).
+    Categories outside _POSSESSION_TRIGGERED_CATEGORY_KEYS always match here
+    (True unconditionally) -- Quest Rewards/instance clears are inherently
+    zone-bound already (the player physically cannot leave the locked zone),
+    so this generic path doesn't touch them either way; other optional
+    categories not curated with zone data at all (containersanity,
+    gathersanity, enemysanity, ...) are simply not scoped by content_scope --
+    that's M4.11.2's full-breadth follow-up, not this task.
+
+    zone_only (default): every possession-triggered row is excluded
+    entirely, since these families fire on pickup/craft/learn regardless of
+    physical zone and their own real zone-of-origin isn't tagged yet
+    (M4.11.2).
+
+    whole_game_scaled: a possession-triggered row is included if its own
+    real level requirement falls inside the selected zone's level band.
+    Craftsanity and Repsanity have NO real min_level data at all (by design,
+    not an oversight -- see _zone_leveler_possession_family_min_level's own
+    docstring), so _zone_leveler_possession_family_min_level always returns
+    None for their rows and they fall through the `min_level is None` branch
+    below -- identical, excluded, behavior to zone_only for those two
+    families specifically, same as it is for every other family's rows that
+    happen to carry no real min_level (there are none among the 3 tractable
+    families, since every DB row has a real, if sometimes 0, RequiredLevel/
+    ReqLevel)."""
+    if category.key not in _POSSESSION_TRIGGERED_CATEGORY_KEYS:
+        return True
+    if world.options.zone_leveler_content_scope == "zone_only":
+        return False
+    zone_key = world.options.zone_leveler_starting_zone.current_key
+    zone_data = zone_leveler_content_data.ZONES[zone_key]
+    min_level = _zone_leveler_possession_family_min_level(name, category)
+    if min_level is None:
+        return False
+    return zone_data.min_level <= min_level <= zone_data.max_level
+
+
 def create_optional_category_locations(world, region) -> list:
     created = []
     profile = game_mode_profile.get_profile(world.options.game_mode.value)
@@ -192,7 +275,15 @@ def create_optional_category_locations(world, region) -> list:
 
         candidates = [
             (name, location_id) for name, location_id in all_rows
-            if name not in always_present_names and (force_all or _location_matches_pools(world, category, name))
+            if name not in always_present_names
+            and (force_all or _location_matches_pools(world, category, name))
+            # M4.11.1 Task 12: zone_leveler's own zone_only/whole_game_scaled
+            # content-scope filter, ANDed in alongside tag-pool matching
+            # (not bypassed by force_all -- zone_leveler's own
+            # GameModeProfile never sets force_all_categories, see
+            # game_mode_profile.py, so this never actually interacts with a
+            # force_all slot in practice).
+            and (world.options.game_mode != "zone_leveler" or _zone_leveler_scope_matches(world, category, name))
         ]
         if category.weight_option is None:
             # M4.9: no check_density/weight sampling stage at all for this
