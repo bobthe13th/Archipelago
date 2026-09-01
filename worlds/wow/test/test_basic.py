@@ -6,6 +6,7 @@ from .bases import WoWTestBase
 from .. import quest_rewards_content_data
 from .. import core_loop_content_data
 from .. import traps_content_data
+from .. import golden_boar_statues_content_data
 
 
 class TestDefault(WoWTestBase):
@@ -808,3 +809,31 @@ class TestZoneLevelerBarrensLevelTrack(WoWTestBase):
         }
         present = {loc.name for loc in self.multiworld.get_locations(self.player)} & core_loop_names
         self.assertEqual(len(present), 23)
+
+
+class TestGoldenBoarStatues(WoWTestBase):
+    """M4.11.1 (Task 10): golden_boar_statues.yaml's 20 curated Barrens
+    rare-kill locations, and the "Golden Boar Statue" item pool that must
+    exactly parallel however many of them got density-sampled -- same
+    location/item parity shape TestSprintGoal and the Key Hunt tests use for
+    rares_content_data. check_density: 100 forces
+    density.predict_sample_size(20 rows, weight 100) to ceil(20*1*1) == 20,
+    i.e. every curated row, so both tests below can assert against the full
+    roster size rather than a random subset."""
+
+    options = {"game_mode": "zone_leveler", "zone_leveler_starting_zone": "barrens", "check_density": 100}
+
+    def test_all_curated_statue_locations_sampled_at_density_100(self) -> None:
+        names = {
+            loc.name for loc in self.multiworld.get_locations(self.player)
+            if loc.name.startswith("Golden Boar Statue Kill:")
+        }
+        self.assertEqual(len(names), len(golden_boar_statues_content_data.LOCATIONS))
+
+    def test_statue_item_count_matches_sampled_location_count(self) -> None:
+        statues = self.get_items_by_name("Golden Boar Statue")
+        statue_locations = [
+            loc for loc in self.multiworld.get_locations(self.player)
+            if loc.name.startswith("Golden Boar Statue Kill:")
+        ]
+        self.assertEqual(len(statues), len(statue_locations))

@@ -1,6 +1,6 @@
 # Archipelago/worlds/wow/regions.py
 from BaseClasses import Region
-from .locations import create_core_loop_locations, create_filler_locations, create_rares_locations, create_fish_locations, create_professions_locations, create_collections_locations, create_optional_category_locations, create_achievement_locations, create_explorer_locations
+from .locations import create_core_loop_locations, create_filler_locations, create_rares_locations, create_golden_boar_statues_locations, create_fish_locations, create_professions_locations, create_collections_locations, create_optional_category_locations, create_achievement_locations, create_explorer_locations
 
 
 def create_regions(world):
@@ -18,6 +18,10 @@ def create_regions(world):
     # sampled rare count on `world` for items.py's create_key_hunt_item_pool
     # to read later (see create_rares_locations' own comment for why).
     northshire.locations += create_rares_locations(world, northshire)
+    # Same "stash the sampled count on `world` before create_items reads it
+    # back" reason as create_rares_locations above -- see
+    # create_golden_boar_statues_locations' own comment (locations.py).
+    northshire.locations += create_golden_boar_statues_locations(world, northshire)
     northshire.locations += create_fish_locations(world, northshire)
     northshire.locations += create_professions_locations(world, northshire)
     northshire.locations += create_collections_locations(world, northshire)

@@ -14,6 +14,7 @@ from . import filler_content_data
 from . import fish_content_data
 from . import game_mode_profile
 from . import gathersanity_content_data
+from . import golden_boar_statues_content_data
 from . import itemsanity_content_data
 from . import professions_content_data
 from . import quest_rewards_content_data
@@ -348,6 +349,42 @@ def create_rares_locations(world, region) -> list:
         game_mode_profile.effective_check_density(world), category_weight=100, all_rows=all_rows, rng=world.random,
     )
     world.key_hunt_sampled_rare_count = len(sampled)
+    return [
+        WoWLocation(world.player, name, location_id, region)
+        for name, location_id in sampled
+    ]
+
+
+def create_golden_boar_statues_locations(world, region) -> list:
+    # M4.11.1 Task 10 (Zone Leveler's Barrens flagship, golden_boar_statues
+    # goal): structurally identical to create_rares_locations above --
+    # game_mode-gated (zone_leveler here, key_hunt there) AND, unlike rares,
+    # ALSO gated on whether golden_boar_statues is one of the selected
+    # zone_leveler_goals (a slot can play Zone Leveler with this specific
+    # goal deselected, in which case the family contributes zero locations/
+    # items, same "N goals ANDed together" shape ZoneLevelerGoals'
+    # docstring describes). Density-sampled the same way (density.sample_category,
+    # weight 100) -- no zone-tag filter needed here, unlike Key Hunt's
+    # key_hunt_zone_pools, since every one of this family's 20 rows is
+    # already Barrens-only by curation (golden_boar_statues.yaml has no
+    # `tags:` block at all).
+    #
+    # The sampled COUNT (not the specific rows) is stashed on `world` so
+    # items.py's create_golden_boar_statues_item_pool, which runs later
+    # during create_items, pools EXACTLY this many "Golden Boar Statue"
+    # copies -- same world.<family>_sampled_count convention
+    # world.key_hunt_sampled_rare_count established above.
+    world.golden_boar_statues_sampled_count = 0
+    if world.options.game_mode != "zone_leveler":
+        return []
+    if "golden_boar_statues" not in world.options.zone_leveler_goals.value:
+        return []
+
+    all_rows = list(golden_boar_statues_content_data.LOCATIONS.items())
+    sampled = density.sample_category(
+        game_mode_profile.effective_check_density(world), category_weight=100, all_rows=all_rows, rng=world.random,
+    )
+    world.golden_boar_statues_sampled_count = len(sampled)
     return [
         WoWLocation(world.player, name, location_id, region)
         for name, location_id in sampled

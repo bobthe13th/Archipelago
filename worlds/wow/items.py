@@ -7,6 +7,7 @@ from . import filler_reward_items_content_data
 from . import filler_reward_effects_content_data
 from . import fish_content_data
 from . import gates_content_data
+from . import golden_boar_statues_content_data
 from . import holidaysanity_content_data
 from . import professions_content_data
 from . import rares_content_data
@@ -395,6 +396,30 @@ def create_key_hunt_item_pool(world) -> list:
         return []
     item_id, _ceiling = rares_content_data.ITEMS["Key Hunt: Key"]
     return [WoWItem("Key Hunt: Key", ItemClassification.progression, item_id, world.player) for _ in range(count)]
+
+
+# M4.11.1 Task 10: "Golden Boar Statue" is only pooled when game_mode is
+# zone_leveler AND golden_boar_statues is one of the selected
+# zone_leveler_goals, and only as many copies as create_golden_boar_statues_locations
+# (locations.py, which runs first during create_regions) actually sampled --
+# same shape as count_enabled_rares_items/create_key_hunt_item_pool above.
+def count_enabled_golden_boar_statues_items(world) -> int:
+    """Total "Golden Boar Statue" copies create_golden_boar_statues_item_pool
+    will pool for this generation -- 0 unless game_mode is zone_leveler and
+    golden_boar_statues is selected, in which case it's whatever
+    create_golden_boar_statues_locations (locations.py) sampled and stashed
+    on `world`. Not a pure function of options alone (like
+    count_enabled_rares_items above, this depends on create_regions having
+    already run -- always true by the time create_items runs)."""
+    return getattr(world, "golden_boar_statues_sampled_count", 0)
+
+
+def create_golden_boar_statues_item_pool(world) -> list:
+    count = count_enabled_golden_boar_statues_items(world)
+    if count == 0:
+        return []
+    item_id, _ceiling = golden_boar_statues_content_data.ITEMS["Golden Boar Statue"]
+    return [WoWItem("Golden Boar Statue", ItemClassification.progression, item_id, world.player) for _ in range(count)]
 
 
 # Task 26 (Fishing Quest): all 46 "Fish: <name>" items are pooled
