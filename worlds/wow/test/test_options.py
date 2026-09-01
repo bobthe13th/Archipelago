@@ -137,5 +137,11 @@ class TestHolidaysanityStacking(unittest.TestCase):
         self.assertEqual(HolidaysanityStacking.default, 0)
 
 
+class TestGameModeZoneLeveler(unittest.TestCase):
+    def test_zone_leveler_is_a_real_game_mode_value(self) -> None:
+        from ..options import GameMode
+        self.assertEqual(GameMode.option_zone_leveler, 13)
+
+
 if __name__ == "__main__":
     unittest.main()

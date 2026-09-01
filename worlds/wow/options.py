@@ -17,7 +17,9 @@ class GameMode(Choice):
     hundred_percent: one-click theoretical maximum -- forces every optional
     category on at effective check_density 100, ignoring check_density and
     every include_* toggle. A true one-click maximum, not a
-    default-but-overridable convenience."""
+    default-but-overridable convenience. zone_leveler (M4.11.1): a short,
+    vertical leveling slice inside one locked zone -- BarrensBeater is its one
+    curated instance (zone_leveler_starting_zone=barrens)."""
     display_name = "Game Mode"
     option_sprint = 0
     option_key_hunt = 1
@@ -31,6 +33,7 @@ class GameMode(Choice):
     option_explorer = 10
     option_fishing_quest = 11
     option_hundred_percent = 12
+    option_zone_leveler = 13
     default = 0
 
 
@@ -123,6 +126,89 @@ class KeyHuntZonePools(OptionSet):
         zone for tags in rares_content_data.TAGS.values() for zone in tags.get("zone", frozenset())
     )
     default = valid_keys
+
+
+class ZoneLevelerStartingZone(Choice):
+    """Only relevant when game_mode is zone_leveler (M4.11.1). Which zone's
+    curated Zone Leveler entry to play -- only "barrens" (BarrensBeater) is
+    curated as of this milestone (docs/superpowers/specs/2026-08-31-archipelago-
+    wow-m4.11.1-zone-leveler-barrensbeater-design.md). Adding a zone later is a
+    pure zone_leveler_content_data.py curation task, not new engineering."""
+    display_name = "Zone Leveler: Starting Zone"
+    option_barrens = 0
+    default = 0
+
+
+class ZoneLevelerGoals(OptionSet):
+    """Only relevant when game_mode is zone_leveler (M4.11.1). Which win
+    conditions must ALL be met to complete the goal -- at least one required
+    (validated at generate_early). Rough check-count contribution per goal
+    (Barrens' own concrete numbers; other zones will differ once curated):
+    reach_zone_level_cap ~= 20 checks (one per level, the zone's own
+    max_level - min_level), clear_all_zone_quests ~= the zone's real Barrens-
+    tagged Quest Rewards row count (see Task 2's Step 5 verification output),
+    golden_boar_statues ~= zone_leveler_statues_required checks (density-
+    sampled, Task 10), instance_clears ~= zone_leveler_instances_required
+    checks (0-3 for Barrens)."""
+    display_name = "Zone Leveler: Goals"
+    valid_keys = frozenset({"reach_zone_level_cap", "clear_all_zone_quests", "golden_boar_statues", "instance_clears"})
+    default = valid_keys
+
+
+class ZoneLevelerStatuesRequired(Range):
+    """Only relevant when game_mode is zone_leveler and golden_boar_statues is
+    selected in zone_leveler_goals (M4.11.1). How many "Golden Boar Statue"
+    items must be received to satisfy that goal. Capped at 20 -- Barrens'
+    curated golden_boar_statues.yaml roster size (Task 10); a future zone or a
+    widened Barrens roster must widen this range_end to match, same coupling
+    KeyHuntKeysRequired's own docstring documents for rares.yaml."""
+    display_name = "Zone Leveler: Statues Required"
+    range_start = 1
+    range_end = 20
+    # At the global CheckDensity default of 25, density.predict_sample_size(20
+    # rows, weight 100) predicts ceil(20 * 0.25) == 5 -- satisfiable out of the
+    # box, same reasoning KeyHuntKeysRequired's own default documents.
+    default = 5
+
+
+class ZoneLevelerInstancesRequired(Range):
+    """Only relevant when game_mode is zone_leveler and instance_clears is
+    selected in zone_leveler_goals (M4.11.1). How many of the selected zone's
+    own curated instances must be cleared -- 0-3 for Barrens (Wailing Caverns,
+    Razorfen Kraul, Razorfen Downs; Task 4). 0 makes instance_clears a no-op
+    even if selected, matching KeyHuntInstancesRequired's own "0 disables the
+    requirement" convention."""
+    display_name = "Zone Leveler: Instances Required"
+    range_start = 0
+    range_end = 3
+    default = 1
+
+
+class ZoneLevelerAllowHubZone(Toggle):
+    """Only relevant when game_mode is zone_leveler (M4.11.1). Whether the
+    selected zone's curated allowed-hub-zone exception (Durotar/Orgrimmar for
+    Barrens) is reachable, in addition to the locked zone itself. Off by
+    default -- the zone lock (a new C++ PlayerScript, M4.11.1 Task 14) enforces
+    whichever this resolves to."""
+    display_name = "Zone Leveler: Allow Hub Zone"
+    default = False
+
+
+class ZoneLevelerContentScope(Choice):
+    """Only relevant when game_mode is zone_leveler (M4.11.1). "zone_only"
+    (default) restricts every optional category to the selected zone's own
+    zone-tagged/level-range-filtered rows. "whole_game_scaled" additionally
+    widens the possession-triggered families (Itemsanity, Craftsanity,
+    Repsanity, Recipes, Trainer Spells -- these fire on pickup/craft/learn
+    regardless of physical zone) to any item/recipe/spell whose own level
+    requirement falls inside the selected zone's level band, project-wide.
+    Zone-bound families (Quest Rewards, instance clears) are unaffected by
+    this option either way, since the player physically cannot leave the
+    locked zone."""
+    display_name = "Zone Leveler: Content Scope"
+    option_zone_only = 0
+    option_whole_game_scaled = 1
+    default = 0
 
 
 class ArtisanPrimaryProfessionsRequired(Range):
@@ -1010,6 +1096,12 @@ class WoWOptions(PerGameCommonOptions):
     key_hunt_keys_required: KeyHuntKeysRequired
     key_hunt_instances_required: KeyHuntInstancesRequired
     key_hunt_zone_pools: KeyHuntZonePools
+    zone_leveler_starting_zone: ZoneLevelerStartingZone
+    zone_leveler_goals: ZoneLevelerGoals
+    zone_leveler_statues_required: ZoneLevelerStatuesRequired
+    zone_leveler_instances_required: ZoneLevelerInstancesRequired
+    zone_leveler_allow_hub_zone: ZoneLevelerAllowHubZone
+    zone_leveler_content_scope: ZoneLevelerContentScope
     artisan_primary_professions_required: ArtisanPrimaryProfessionsRequired
     collector_items_required: CollectorItemsRequired
     achievement_hunt_tier: AchievementHuntTier
