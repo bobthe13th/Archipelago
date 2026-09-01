@@ -472,12 +472,44 @@ def _validate_zone_leveler(world) -> None:
     zone_key = world.options.zone_leveler_starting_zone.current_key
     zone_data = zone_leveler_content_data.ZONES[zone_key]
 
-    if "clear_all_zone_quests" in selected_goals and not zone_data.quest_reward_location_names:
-        raise OptionError(
-            f"WoW: game_mode 'zone_leveler' with zone_leveler_goals including "
-            f"'clear_all_zone_quests' needs at least one zone-tagged Quest Rewards "
-            f"location for zone '{zone_key}', but it has none in quest_rewards.yaml."
-        )
+    if "clear_all_zone_quests" in selected_goals:
+        if not zone_data.quest_reward_location_names:
+            raise OptionError(
+                f"WoW: game_mode 'zone_leveler' with zone_leveler_goals including "
+                f"'clear_all_zone_quests' needs at least one zone-tagged Quest Rewards "
+                f"location for zone '{zone_key}', but it has none in quest_rewards.yaml."
+            )
+        # clear_all_zone_quests' completion sub-rule (_set_completion_rule_zone_leveler
+        # below) needs ALL of the zone's quest-reward items, unconditionally --
+        # unlike golden_boar_statues, which only needs a predicted-count
+        # THRESHOLD (density.predict_sample_size, checked below). But
+        # quest_rewards locations go through the same check_density x
+        # quest_reward_weight sampling every other quest_rewards location
+        # does (locations.py's OptionalCategory mechanism, M4.8) -- at
+        # anything less than full density AND full weight, only a random
+        # subset of the zone's own quest-reward locations actually lands in
+        # the pool, and a required item whose location was never sampled can
+        # never be obtained, permanently softlocking this goal. The only
+        # sampling settings that GUARANTEE every one of the zone's rows is
+        # included are check_density=100 and quest_reward_weight=100 (the
+        # `wanted == row_count` case in density.sample_category, the only
+        # one where rng.sample is forced to return literally everything) --
+        # so, unlike golden_boar_statues' "predict a partial count is
+        # enough" check, this one just requires those two settings outright.
+        effective_density = game_mode_profile.effective_check_density(world)
+        quest_reward_weight = world.options.quest_reward_weight.value
+        if effective_density != 100 or quest_reward_weight != 100:
+            raise OptionError(
+                f"WoW: game_mode 'zone_leveler' with zone_leveler_goals including "
+                f"'clear_all_zone_quests' needs ALL {len(zone_data.quest_reward_location_names)} "
+                f"of zone '{zone_key}''s zone-tagged Quest Rewards locations sampled into "
+                f"the pool -- quest_rewards locations are density/weight-sampled the same "
+                f"as every other quest_rewards location, so a partial sample would leave "
+                f"this goal permanently unsatisfiable. This requires check_density=100 and "
+                f"quest_reward_weight=100 (currently check_density={effective_density}, "
+                f"quest_reward_weight={quest_reward_weight}) -- raise both, or deselect "
+                f"'clear_all_zone_quests'."
+            )
 
     if "instance_clears" in selected_goals:
         required = world.options.zone_leveler_instances_required.value

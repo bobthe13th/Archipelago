@@ -935,6 +935,74 @@ class TestZoneLevelerGoldenBoarStatuesTooLowDensityFailsValidation(WoWTestBase):
         self.assertRaises(OptionError, self.world_setup)
 
 
+class TestZoneLevelerClearAllZoneQuestsPartialSamplingFailsValidation(WoWTestBase):
+    """Controller review's own confirmed Critical finding: clear_all_zone_quests'
+    completion sub-rule needs ALL 103 of Barrens' zone-tagged quest-reward
+    items, unconditionally -- but quest_rewards locations go through the
+    same check_density x quest_reward_weight sampling every other
+    quest_rewards location does (quest_rewards.yaml has no zone-tag
+    dimension to zone-restrict sampling against, unlike golden_boar_statues'
+    own dedicated, zone-exclusive 20-row table). At WoWTestBase's own
+    fast-test defaults (quest_reward_weight=0, check_density=25), zero (or
+    at best a random partial subset) of the zone's own quest-reward
+    locations would ever land in the pool -- a required item whose location
+    was never sampled can never be obtained, permanently softlocking the
+    goal. _validate_zone_leveler's clear_all_zone_quests branch now catches
+    this at generate_early, the same predict-then-validate shape
+    golden_boar_statues' own branch already uses, just requiring the exact
+    settings (check_density=100 AND quest_reward_weight=100) that guarantee
+    full sampling rather than predicting a partial count."""
+    run_default_tests = False
+    auto_construct = False
+    options = {
+        "game_mode": "zone_leveler",
+        "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_goals": {"clear_all_zone_quests"},
+        # Left at WoWTestBase's own fast-test defaults (quest_reward_weight=0,
+        # check_density=25) -- both well short of the 100/100 this goal needs.
+    }
+
+    def test_partial_sampling_settings_fail_generation(self) -> None:
+        self.assertRaises(OptionError, self.world_setup)
+
+
+class TestZoneLevelerClearAllZoneQuestsFullSamplingValidatesCleanly(unittest.TestCase):
+    """The other half of the fix above: check_density=100 AND
+    quest_reward_weight=100 together are the ONE settings combination that
+    actually guarantees every one of Barrens' 103 zone-tagged quest-reward
+    locations gets sampled (density.sample_category's `wanted == row_count`
+    case is the only one where rng.sample is forced to return literally
+    every row) -- _validate_zone_leveler must accept that combination
+    cleanly, not just reject everything below it.
+
+    Deliberately a plain unittest.TestCase driving _validate_zone_leveler
+    directly against a minimal mock `world` (types.SimpleNamespace), not a
+    full WoWTestBase generation test: at check_density=100 and
+    quest_reward_weight=100, quest_rewards' own OptionalCategory sampling
+    (no zone-tag dimension to restrict against) would sample its ENTIRE
+    ~9,207-row table, not just Barrens' 103 -- exactly the multi-hour test
+    blowup WoWTestBase's own docstring warns against. Calling the validator
+    function directly proves the exact thing this fix changed (it no longer
+    raises at 100/100) without paying for full generation;
+    TestValidateHundredPercentEmptyRegistry above already establishes this
+    "no real World object needed" pattern for a sibling validator."""
+
+    def test_full_density_and_weight_does_not_raise(self) -> None:
+        import types
+
+        def _opt(value):
+            return types.SimpleNamespace(value=value)
+
+        world = types.SimpleNamespace(options=types.SimpleNamespace(
+            game_mode=_opt(13),  # option_zone_leveler
+            zone_leveler_goals=_opt({"clear_all_zone_quests"}),
+            zone_leveler_starting_zone=types.SimpleNamespace(value=0, current_key="barrens"),
+            check_density=_opt(100),
+            quest_reward_weight=_opt(100),
+        ))
+        goals._validate_zone_leveler(world)  # must not raise
+
+
 class TestZoneLevelerClearAllZoneQuestsItemNamePairing(unittest.TestCase):
     """Task 11's own real bug fix (found by this task's own controller
     review, not by the brief's own first-draft illustrative code):
