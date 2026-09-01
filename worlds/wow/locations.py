@@ -155,10 +155,14 @@ def _location_matches_pools(world, category: OptionalCategory, name: str) -> boo
 
 # M4.11.1 Task 12: possession-triggered categories -- these fire on
 # pickup/craft/learn (item_first_held, recipe_craft, reputation_rank,
-# learn_spell trigger kinds) regardless of the player's physical zone, unlike
-# quest_rewards/instance clears which are inherently zone-bound already.
-# Only relevant when game_mode is zone_leveler; see
+# learn_spell trigger kinds) regardless of the player's physical zone.
+# Quest Rewards/instance clears are, unlike these 5, real physically
+# zone-bound families (a real quest-giver NPC/instance entrance somewhere
+# specific), so their own restriction is unconditional whenever game_mode
+# is zone_leveler rather than gated by zone_leveler_content_scope the way
+# these 5 are -- see _zone_leveler_quest_reward_zone_matches and
 # _zone_leveler_scope_matches below for the actual filtering behavior.
+# Only relevant when game_mode is zone_leveler.
 _POSSESSION_TRIGGERED_CATEGORY_KEYS = frozenset({
     "itemsanity", "craftsanity", "repsanity", "recipes", "trainer_spells",
 })
@@ -198,15 +202,65 @@ def _zone_leveler_possession_family_min_level(name: str, category: OptionalCateg
     return category.locations_module.TRIGGERS[name].get("min_level")
 
 
+def _zone_leveler_quest_reward_zone_matches(world, name: str) -> bool:
+    """M4.11.1 Task 12 fix (post-hoc defect found after the task was
+    originally closed): Quest Rewards is a REAL, physically zone-bound
+    family -- each row is tied to a real quest-giver NPC standing
+    somewhere specific in the world -- but nothing about the zone_leveler
+    lock mechanism (a C++ PlayerScript hook that stops the PLAYER from
+    walking outside the selected zone) actually restricts which Quest
+    Rewards LOCATIONS get sampled into the check pool at generation time.
+    Without this filter, a Barrens slot could sample a quest whose
+    real-world quest-giver stands in, say, Redridge Mountains: AP's own
+    logic considers that location reachable once its min_level is
+    satisfied (there's no equivalent of Dark Portal Access/Northrend
+    Passage gating same-continent vanilla travel), but the player is
+    physically locked to Barrens and can never actually walk there to
+    trigger it -- a real unreachable-location bug, not a cosmetic
+    "too many items" one.
+
+    Unlike the 5 possession-triggered families in
+    _POSSESSION_TRIGGERED_CATEGORY_KEYS (which fire on pickup/craft/learn
+    regardless of physical zone, and whose inclusion is governed by
+    zone_leveler_content_scope), Quest Rewards' restriction here is
+    UNCONDITIONAL whenever game_mode is zone_leveler -- it applies the
+    same way under both zone_only and whole_game_scaled, since the toggle
+    only ever widens/narrows the possession-triggered families, and Quest
+    Rewards was never one of them.
+
+    A row only matches if its own real TRIGGERS[name]["zone_id"] equals
+    the selected zone's own real zone_id (quest_rewards_content_data.py,
+    DB-extracted by extract_quest_rewards.py). zone_id == 0 is this data's
+    own "unresolvable, real zone unknown" sentinel (~2,210 of ~9,208 rows
+    game-wide) -- since no real zone has zone_id 0, such a row can never
+    equal a real zone's zone_id and is naturally excluded here, matching
+    this project's "unknown zone means excluded, not included" default
+    for a physically zone-locked game mode."""
+    zone_key = world.options.zone_leveler_starting_zone.current_key
+    zone_data = zone_leveler_content_data.ZONES[zone_key]
+    row_zone_id = quest_rewards_content_data.TRIGGERS[name].get("zone_id")
+    return row_zone_id == zone_data.zone_id
+
+
 def _zone_leveler_scope_matches(world, category: OptionalCategory, name: str) -> bool:
-    """Only called when game_mode is zone_leveler (M4.11.1 Task 12).
-    Categories outside _POSSESSION_TRIGGERED_CATEGORY_KEYS always match here
-    (True unconditionally) -- Quest Rewards/instance clears are inherently
-    zone-bound already (the player physically cannot leave the locked zone),
-    so this generic path doesn't touch them either way; other optional
-    categories not curated with zone data at all (containersanity,
-    gathersanity, enemysanity, ...) are simply not scoped by content_scope --
-    that's M4.11.2's full-breadth follow-up, not this task.
+    """Only called when game_mode is zone_leveler (M4.11.1 Task 12; Quest
+    Rewards restriction added by Task 12's own post-hoc fix round).
+
+    Quest Rewards (category.key == "quest_rewards") is handled first and
+    separately, via _zone_leveler_quest_reward_zone_matches above -- it's a
+    real, physically zone-bound family (a real quest-giver NPC), unlike the
+    5 possession-triggered families below, so it is restricted to the
+    selected zone's own real zone_id UNCONDITIONALLY (both zone_only and
+    whole_game_scaled), not gated by zone_leveler_content_scope at all.
+
+    Every other category outside _POSSESSION_TRIGGERED_CATEGORY_KEYS always
+    matches here (True unconditionally) -- instance clears are inherently
+    zone-bound already via a different mechanism (rules.py/
+    zone_leveler_content_data's own instance_keys), so this generic path
+    doesn't touch them; other optional categories not curated with zone
+    data at all (containersanity, gathersanity, enemysanity, vendor_stock,
+    ...) are simply not scoped by content_scope -- that's M4.11.2's
+    full-breadth follow-up, not this task.
 
     zone_only (default): every possession-triggered row is excluded
     entirely, since these families fire on pickup/craft/learn regardless of
@@ -224,6 +278,8 @@ def _zone_leveler_scope_matches(world, category: OptionalCategory, name: str) ->
     happen to carry no real min_level (there are none among the 3 tractable
     families, since every DB row has a real, if sometimes 0, RequiredLevel/
     ReqLevel)."""
+    if category.key == "quest_rewards":
+        return _zone_leveler_quest_reward_zone_matches(world, name)
     if category.key not in _POSSESSION_TRIGGERED_CATEGORY_KEYS:
         return True
     if world.options.zone_leveler_content_scope == "zone_only":

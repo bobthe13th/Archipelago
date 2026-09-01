@@ -2,12 +2,13 @@
 from .bases import WoWTestBase
 from .. import WoWWorld
 from .. import (
-    craftsanity_content_data, itemsanity_content_data, options, recipes_content_data,
+    craftsanity_content_data, itemsanity_content_data, options, quest_rewards_content_data, recipes_content_data,
     repsanity_content_data, trainer_spells_content_data, zone_leveler_content_data,
 )
 from ..locations import (
     _OPTIONAL_CATEGORIES, OptionalCategory, create_optional_category_locations, _location_matches_pools,
     _POSSESSION_TRIGGERED_CATEGORY_KEYS, _zone_leveler_possession_family_min_level, _zone_leveler_scope_matches,
+    _zone_leveler_quest_reward_zone_matches,
 )
 
 
@@ -489,20 +490,27 @@ class TestZoneLevelerPossessionFamilyMinLevel(WoWTestBase):
 
 
 class TestZoneLevelerScopeMatchesUnaffectsNonPossessionCategories(WoWTestBase):
-    """M4.11.1 Task 12: _zone_leveler_scope_matches always returns True for
-    a category outside _POSSESSION_TRIGGERED_CATEGORY_KEYS, independent of
-    content_scope -- Quest Rewards/instance clears are inherently zone-bound
-    already (rules.py/zone_leveler_content_data own that), so this generic
-    path doesn't touch them either way. Exercised via a fake world/options
-    object (same types.SimpleNamespace pattern test_goals.py's own
-    TestValidateZoneLevelerFullDensity already uses) rather than a full slot
-    generation, since this is a pure function-behavior fact."""
+    """M4.11.1 Task 12 (post-hoc fix round): _zone_leveler_scope_matches
+    always returns True for a category that is BOTH outside
+    _POSSESSION_TRIGGERED_CATEGORY_KEYS AND not "quest_rewards",
+    independent of content_scope -- vendor_stock has no real zone data
+    curated at all (that's M4.11.2's full-breadth follow-up), so this
+    generic path doesn't touch it either way. Quest Rewards used to be
+    covered by this same always-True generic path too, but the fix round
+    gave it its own dedicated, real zone-id-based restriction instead (see
+    TestZoneLevelerQuestRewardZoneMatches/
+    TestZoneLevelerQuestRewardsRestrictedToSelectedZoneRegardlessOfContentScope
+    below) -- it is deliberately no longer exercised by this class.
+    Exercised via a fake world/options object (same types.SimpleNamespace
+    pattern test_goals.py's own TestValidateZoneLevelerFullDensity already
+    uses) rather than a full slot generation, since this is a pure
+    function-behavior fact."""
     options = {}
 
-    def test_non_possession_category_always_matches_under_zone_only(self) -> None:
+    def test_non_possession_non_quest_reward_category_always_matches_under_zone_only(self) -> None:
         import types
 
-        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "quest_rewards")
+        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "vendor_stock")
         world = types.SimpleNamespace(options=types.SimpleNamespace(
             zone_leveler_content_scope="zone_only",
             zone_leveler_starting_zone=types.SimpleNamespace(current_key="barrens"),
@@ -608,3 +616,223 @@ class TestZoneLevelerWholeGameScaledWidensTractableFamilies(WoWTestBase):
         names = {loc.name for loc in self.multiworld.get_locations(self.player)}
         self.assertEqual(len(names & set(craftsanity_content_data.LOCATIONS)), 0)
         self.assertEqual(len(names & set(repsanity_content_data.LOCATIONS)), 0)
+
+
+class TestZoneLevelerQuestRewardZoneMatches(WoWTestBase):
+    """M4.11.1 Task 12 post-hoc fix round: unit-level coverage of
+    _zone_leveler_quest_reward_zone_matches itself, calling it directly
+    against real quest_rewards_content_data.TRIGGERS rows (same fake-world
+    types.SimpleNamespace pattern
+    TestZoneLevelerScopeMatchesUnaffectsNonPossessionCategories uses)
+    rather than paying for a full zone_leveler slot generation.
+
+    The confirmed bug: Quest Rewards is a real, physically zone-bound
+    family (a real quest-giver NPC), but the OLD code let
+    category.key == "quest_rewards" fall through
+    _zone_leveler_scope_matches' "not in
+    _POSSESSION_TRIGGERED_CATEGORY_KEYS -> always True" branch, so a
+    Barrens slot could sample a quest whose quest-giver stands in a
+    totally different, unreachable zone -- reachable per AP's own logic
+    (no equivalent of Dark Portal Access gates same-continent vanilla
+    travel) but physically un-walkable-to given the zone lock. These tests
+    confirm the fix: only a row whose own real zone_id equals the
+    selected zone's real zone_id matches, and this holds regardless of
+    zone_leveler_content_scope (unlike the 5 possession-triggered
+    families, Quest Rewards' restriction is not gated by that toggle at
+    all)."""
+    options = {}
+
+    @staticmethod
+    def _fake_world(content_scope: str, zone_key: str = "barrens"):
+        import types
+
+        return types.SimpleNamespace(options=types.SimpleNamespace(
+            zone_leveler_content_scope=content_scope,
+            zone_leveler_starting_zone=types.SimpleNamespace(current_key=zone_key),
+        ))
+
+    def test_row_in_selected_zone_matches_under_zone_only(self) -> None:
+        # "Quest: Chen's Empty Keg Reward (#819)" -- real zone_id 17
+        # (The Barrens), confirmed by direct TRIGGERS inspection.
+        name = "Quest: Chen's Empty Keg Reward (#819)"
+        self.assertEqual(quest_rewards_content_data.TRIGGERS[name]["zone_id"], 17)
+        world = self._fake_world("zone_only")
+        self.assertTrue(_zone_leveler_quest_reward_zone_matches(world, name))
+
+    def test_row_in_selected_zone_matches_under_whole_game_scaled(self) -> None:
+        # Same row, but under whole_game_scaled -- must still match; the
+        # content_scope toggle never affects Quest Rewards at all.
+        name = "Quest: Chen's Empty Keg Reward (#819)"
+        world = self._fake_world("whole_game_scaled")
+        self.assertTrue(_zone_leveler_quest_reward_zone_matches(world, name))
+
+    def test_row_in_a_different_real_zone_is_excluded(self) -> None:
+        # "Quest: Kanrethad's Quest Reward (#1)" -- real zone_id 151
+        # (a real, resolved zone, just not Barrens), confirmed by direct
+        # TRIGGERS inspection. Must be excluded under BOTH content_scope
+        # values -- this is not the possession-triggered widening path.
+        name = "Quest: Kanrethad's Quest Reward (#1)"
+        self.assertEqual(quest_rewards_content_data.TRIGGERS[name]["zone_id"], 151)
+        self.assertFalse(_zone_leveler_quest_reward_zone_matches(self._fake_world("zone_only"), name))
+        self.assertFalse(_zone_leveler_quest_reward_zone_matches(self._fake_world("whole_game_scaled"), name))
+
+    def test_row_with_unresolvable_zone_sentinel_is_excluded(self) -> None:
+        # "Quest: A Lesson to Learn Reward (#26)" -- real zone_id 0, this
+        # data's own "unresolvable, real zone unknown" sentinel. The safe
+        # default for a physically zone-locked game mode is exclusion, not
+        # inclusion, since we genuinely don't know this row's real zone.
+        name = "Quest: A Lesson to Learn Reward (#26)"
+        self.assertEqual(quest_rewards_content_data.TRIGGERS[name]["zone_id"], 0)
+        self.assertFalse(_zone_leveler_quest_reward_zone_matches(self._fake_world("zone_only"), name))
+        self.assertFalse(_zone_leveler_quest_reward_zone_matches(self._fake_world("whole_game_scaled"), name))
+
+
+# M4.11.1 Task 12 post-hoc fix round: a lighter options base than
+# _ZONE_LEVELER_BASE_OPTIONS above -- this class is only about Quest
+# Rewards' own zone restriction, so only quest_reward_type_pools/
+# quest_reward_expansion_pools need to be wide open (they already default
+# to their full vocabulary, per QuestRewardTypePools/
+# QuestRewardExpansionPools's own docstrings, so nothing needs widening
+# there at all) and quest_reward_weight/check_density need to be turned up
+# from WoWTestBase's fast-test zero. Every possession-triggered family's
+# own pools are deliberately left at WoWTestBase's fast-test-default empty
+# sets (unrelated to this fix, and leaving them empty keeps this class
+# fast). check_density=100 + quest_reward_weight=100 makes
+# density.predict_sample_size deterministic (ceil(candidates * 1 * 1) ==
+# every candidate that survived the scope filter), so the sampled set can
+# be compared for EXACT equality against the real zone-17 roster, not just
+# "some subset of it".
+_ZONE_LEVELER_QUEST_REWARD_OPTIONS = {
+    "game_mode": "zone_leveler",
+    "zone_leveler_starting_zone": "barrens",
+    "zone_leveler_goals": {"reach_zone_level_cap"},
+    "quest_reward_weight": 100,
+    "check_density": 100,
+}
+
+
+class TestZoneLevelerQuestRewardsRestrictedToSelectedZoneUnderZoneOnly(WoWTestBase):
+    """M4.11.1 Task 12 post-hoc fix round: under zone_only, a Barrens slot's
+    Quest Rewards location pool contains ONLY quests whose real zone_id is
+    17 (The Barrens) -- the exact same real roster
+    zone_leveler_content_data.ZONES["barrens"].quest_reward_location_names
+    already computes and clear_all_zone_quests (goals.py) already depends
+    on, confirming this fix's filter and that pre-existing goal machinery
+    agree on what "Barrens' own quest rewards" means."""
+    options = {**_ZONE_LEVELER_QUEST_REWARD_OPTIONS, "zone_leveler_content_scope": "zone_only"}
+
+    def test_quest_reward_pool_exactly_matches_barrens_zone_id_roster(self) -> None:
+        # ALWAYS_PRESENT quest_reward rows (the 19 migrated Northshire/
+        # Goldshire starting quests) are excluded from this comparison --
+        # they bypass ALL scoping (tag pools, content_scope, AND this new
+        # zone filter) unconditionally, via create_optional_category_locations'
+        # own separate always_present loop, which runs BEFORE
+        # _zone_leveler_scope_matches is ever consulted. That bypass is
+        # pre-existing, documented (QuestRewardWeight's own docstring), and
+        # entirely out of this fix's scope -- confirmed empirically: every
+        # row this filter actually lets through DOES match Barrens' own
+        # zone_id, and ALWAYS_PRESENT rows are the only ones that don't.
+        expected = set(zone_leveler_content_data.ZONES["barrens"].quest_reward_location_names)
+        self.assertGreater(len(expected), 0)
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        sampled_quest_rewards = (
+            names & set(quest_rewards_content_data.LOCATIONS)
+        ) - quest_rewards_content_data.ALWAYS_PRESENT
+        self.assertEqual(sampled_quest_rewards, expected)
+        for name in sampled_quest_rewards:
+            self.assertEqual(quest_rewards_content_data.TRIGGERS[name]["zone_id"], 17)
+
+    def test_quest_with_unresolvable_zone_sentinel_never_appears(self) -> None:
+        # Same ALWAYS_PRESENT exclusion as above -- a handful of the 19
+        # always-present rows legitimately carry zone_id 0 themselves (they
+        # bypass this filter entirely, pre-existing/out of scope), so this
+        # only asserts the NEW filter's own behavior: no non-always-present
+        # zero-zone row is ever let through by
+        # _zone_leveler_quest_reward_zone_matches.
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        sampled_quest_rewards = (
+            names & set(quest_rewards_content_data.LOCATIONS)
+        ) - quest_rewards_content_data.ALWAYS_PRESENT
+        zero_zone_names = {
+            name for name, trigger in quest_rewards_content_data.TRIGGERS.items()
+            if trigger.get("zone_id") == 0
+        }
+        self.assertGreater(len(zero_zone_names), 0)
+        self.assertEqual(len(sampled_quest_rewards & zero_zone_names), 0)
+
+
+class TestZoneLevelerQuestRewardsRestrictedToSelectedZoneUnderWholeGameScaled(WoWTestBase):
+    """M4.11.1 Task 12 post-hoc fix round: the same restriction as
+    TestZoneLevelerQuestRewardsRestrictedToSelectedZoneUnderZoneOnly, but
+    under whole_game_scaled -- confirms Quest Rewards' zone restriction is
+    genuinely unconditional on content_scope, unlike the 5
+    possession-triggered families the toggle actually widens/narrows."""
+    options = {**_ZONE_LEVELER_QUEST_REWARD_OPTIONS, "zone_leveler_content_scope": "whole_game_scaled"}
+
+    def test_quest_reward_pool_exactly_matches_barrens_zone_id_roster(self) -> None:
+        # ALWAYS_PRESENT quest_reward rows (the 19 migrated Northshire/
+        # Goldshire starting quests) are excluded from this comparison --
+        # they bypass ALL scoping (tag pools, content_scope, AND this new
+        # zone filter) unconditionally, via create_optional_category_locations'
+        # own separate always_present loop, which runs BEFORE
+        # _zone_leveler_scope_matches is ever consulted. That bypass is
+        # pre-existing, documented (QuestRewardWeight's own docstring), and
+        # entirely out of this fix's scope -- confirmed empirically: every
+        # row this filter actually lets through DOES match Barrens' own
+        # zone_id, and ALWAYS_PRESENT rows are the only ones that don't.
+        expected = set(zone_leveler_content_data.ZONES["barrens"].quest_reward_location_names)
+        self.assertGreater(len(expected), 0)
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        sampled_quest_rewards = (
+            names & set(quest_rewards_content_data.LOCATIONS)
+        ) - quest_rewards_content_data.ALWAYS_PRESENT
+        self.assertEqual(sampled_quest_rewards, expected)
+        for name in sampled_quest_rewards:
+            self.assertEqual(quest_rewards_content_data.TRIGGERS[name]["zone_id"], 17)
+
+    def test_quest_with_unresolvable_zone_sentinel_never_appears(self) -> None:
+        # Same ALWAYS_PRESENT exclusion as above -- a handful of the 19
+        # always-present rows legitimately carry zone_id 0 themselves (they
+        # bypass this filter entirely, pre-existing/out of scope), so this
+        # only asserts the NEW filter's own behavior: no non-always-present
+        # zero-zone row is ever let through by
+        # _zone_leveler_quest_reward_zone_matches.
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        sampled_quest_rewards = (
+            names & set(quest_rewards_content_data.LOCATIONS)
+        ) - quest_rewards_content_data.ALWAYS_PRESENT
+        zero_zone_names = {
+            name for name, trigger in quest_rewards_content_data.TRIGGERS.items()
+            if trigger.get("zone_id") == 0
+        }
+        self.assertGreater(len(zero_zone_names), 0)
+        self.assertEqual(len(sampled_quest_rewards & zero_zone_names), 0)
+
+
+class TestZoneLevelerQuestRewardRestrictionDoesNotAffectOtherGameModes(WoWTestBase):
+    """M4.11.1 Task 12 post-hoc fix round: the new Quest Rewards zone
+    restriction is zone_leveler-specific -- game_mode defaults to sprint
+    (option_sprint) here, so it must NOT apply: the full, unrestricted
+    ~9,208-row Quest Rewards pool must remain available, spanning every
+    real zone_id including 0 (unresolvable) and every real zone other than
+    Barrens' 17, exactly like before this fix round. check_density=100 +
+    quest_reward_weight=100 again makes the sample deterministic (every
+    row is a candidate, since game_mode != "zone_leveler" means
+    _zone_leveler_scope_matches is never even consulted -- see its call
+    site in create_optional_category_locations), so this compares against
+    the real, full LOCATIONS roster for exact equality."""
+    options = {"quest_reward_weight": 100, "check_density": 100}
+
+    def test_full_unrestricted_quest_reward_pool_is_sampled(self) -> None:
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        sampled_quest_rewards = names & set(quest_rewards_content_data.LOCATIONS)
+        self.assertEqual(sampled_quest_rewards, set(quest_rewards_content_data.LOCATIONS))
+
+    def test_rows_outside_barrens_zone_id_are_present(self) -> None:
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        sampled_quest_rewards = names & set(quest_rewards_content_data.LOCATIONS)
+        non_barrens = {
+            name for name in sampled_quest_rewards
+            if quest_rewards_content_data.TRIGGERS[name].get("zone_id") != 17
+        }
+        self.assertGreater(len(non_barrens), 0)
