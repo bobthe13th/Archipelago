@@ -60,6 +60,26 @@ def create_core_loop_item_pool(world) -> list:
     return pool
 
 
+def core_loop_item_surplus(world) -> int:
+    """M4.11.1 (Task 3): the mirror image of create_core_loop_item_pool's
+    own deficit-padding above. LEVEL_CAP_STEP dropped from 5 to 1, growing
+    Progressive Level Cap's flat, track-independent pooled copy count from
+    14 to 70 (core_loop.yaml) -- combined with the 7 unconditional unlock
+    items, core_loop's own natural item count is now 77 for EVERY slot,
+    regardless of track. The standard track's own 85 locations still
+    exceed that (a deficit, already padded with filler above), but the
+    death_knight track's own 31 locations (26 level milestones (55-80) + 5
+    instance clears) do not -- a real 46-item surplus with nowhere of its
+    own family to live. Used by locations.py's create_filler_locations to
+    size its own sink-location count, same role
+    count_enabled_gates_items/count_enabled_trap_items/
+    count_enabled_holidaysanity_items already play for their own families'
+    "no AP location of its own" items -- 0 for the standard track (whose
+    own deficit already covers it), nonzero only for death_knight."""
+    natural_item_count = sum(count for _, count in core_loop_content_data.ITEMS.values())
+    return max(0, natural_item_count - _trap_baseline_location_count(world))
+
+
 # (name prefix, WoWOptions field name) pairs identifying gates.yaml items
 # that belong to an optional gate family -- only pooled when the matching
 # toggle is on. Riding and Flight Unlock items match no prefix here, so they

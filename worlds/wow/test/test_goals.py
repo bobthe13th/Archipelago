@@ -606,14 +606,16 @@ class TestHundredPercentModeGeneratesAndRequiresAllLevelCaps(WoWTestBase):
     is not enough (mirrors Key Hunt's/Artisan's own "neither alone is
     enough" shape from TestKeyHuntCompletionRequiresKeysAndInstances
     above). M4.9: the total grew from 10 to 14 (core_loop.yaml, to support
-    the every-level milestone track's own level-80 ceiling) -- unlike
-    Sprint (goals.py's _set_completion_rule_sprint, fixed to require only
-    the level-60-specific threshold), 100% mode's own completion rule
-    (_set_completion_rule_hundred_percent) deliberately still reads
-    ITEMS["Progressive Level Cap"][1] directly (ALL copies, whatever that
-    total is) -- "collect literally everything" is exactly 100% mode's own
-    definition, so no threshold-derivation fix was needed there, only this
-    test's own hardcoded expectation of what "all" currently means.
+    the every-level milestone track's own level-80 ceiling); M4.11.1
+    (Task 3): LEVEL_CAP_STEP dropped from 5 to 1, growing the total again
+    from 14 to 70 -- unlike Sprint (goals.py's _set_completion_rule_sprint,
+    fixed to require only the level-60-specific threshold), 100% mode's own
+    completion rule (_set_completion_rule_hundred_percent) deliberately
+    still reads ITEMS["Progressive Level Cap"][1] directly (ALL copies,
+    whatever that total is) -- "collect literally everything" is exactly
+    100% mode's own definition, so no threshold-derivation fix was needed
+    there, only this test's own hardcoded expectation of what "all"
+    currently means.
 
     run_default_tests previously defaulted to True here (no override):
     WorldTestBase's own automatic test_all_state_can_reach_everything/
@@ -645,11 +647,11 @@ class TestHundredPercentModeGeneratesAndRequiresAllLevelCaps(WoWTestBase):
     def test_generates_successfully_with_registered_optional_categories(self) -> None:
         self.assertTrue(self.constructed)
 
-    def test_thirteen_of_fourteen_level_cap_copies_is_not_enough(self) -> None:
+    def test_sixty_nine_of_seventy_level_cap_copies_is_not_enough(self) -> None:
         state = self.multiworld.state
         level_caps = self.get_items_by_name("Progressive Level Cap")
-        self.assertEqual(len(level_caps), 14)
-        self.collect(level_caps[:13])
+        self.assertEqual(len(level_caps), 70)
+        self.collect(level_caps[:69])
         self.assertFalse(self.multiworld.completion_condition[self.player](state))
 
     def test_optional_category_sampled_names_is_populated(self) -> None:
@@ -664,10 +666,10 @@ class TestHundredPercentModeGeneratesAndRequiresAllLevelCaps(WoWTestBase):
 
 class TestHundredPercentCompletionRuleStructure(WoWTestBase):
     """Confirms _set_completion_rule_hundred_percent's completion lambda is
-    wired up correctly (requires Progressive Level Cap x10 AND all instance
-    unlocks AND world.optional_category_sampled_names) using a minimal,
-    fully-controlled fixture rather than this checkout's real quest_rewards/
-    vendor_stock categories.
+    wired up correctly (requires ALL pooled Progressive Level Cap copies AND
+    all instance unlocks AND world.optional_category_sampled_names) using a
+    minimal, fully-controlled fixture rather than this checkout's real
+    quest_rewards/vendor_stock categories.
 
     Historical note: world.optional_category_sampled_names originally held
     LOCATION names (from locations.py's create_optional_category_locations),

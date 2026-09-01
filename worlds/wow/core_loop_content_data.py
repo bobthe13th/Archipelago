@@ -2,12 +2,11 @@
 # Regenerate with: python modules/archipelago_wow/tools/generate_content.py content/core_loop.yaml
 
 
-STARTING_LEVEL_CAP = 10
-LEVEL_CAP_STEP = 5
+LEVEL_CAP_STEP = 1
 SPRINT_GOAL_LEVEL = 60
 
 ITEMS: dict[str, tuple[int, int]] = {
-    "Progressive Level Cap": (810000, 14),
+    "Progressive Level Cap": (810000, 70),
     "Instance Unlock: Ragefire Chasm": (810001, 1),
     "Instance Unlock: Deadmines": (810002, 1),
     "Dark Portal Access": (810003, 1),
@@ -36,6 +35,26 @@ INSTANCE_UNLOCK_ITEM_TO_KEY: dict[int, str] = {
 LEVEL_LOCATIONS_BY_TRACK: dict[str, dict[int, int]] = {
     "standard": {1: 710001, 2: 710002, 3: 710003, 4: 710004, 5: 710005, 6: 710006, 7: 710007, 8: 710008, 9: 710009, 10: 710010, 11: 710011, 12: 710012, 13: 710013, 14: 710014, 15: 710015, 16: 710016, 17: 710017, 18: 710018, 19: 710019, 20: 710020, 21: 710021, 22: 710022, 23: 710023, 24: 710024, 25: 710025, 26: 710026, 27: 710027, 28: 710028, 29: 710029, 30: 710030, 31: 710031, 32: 710032, 33: 710033, 34: 710034, 35: 710035, 36: 710036, 37: 710037, 38: 710038, 39: 710039, 40: 710040, 41: 710041, 42: 710042, 43: 710043, 44: 710044, 45: 710045, 46: 710046, 47: 710047, 48: 710048, 49: 710049, 50: 710050, 51: 710051, 52: 710052, 53: 710053, 54: 710054, 55: 710055, 56: 710056, 57: 710057, 58: 710058, 59: 710059, 60: 710060, 61: 710061, 62: 710062, 63: 710063, 64: 710064, 65: 710065, 66: 710066, 67: 710067, 68: 710068, 69: 710069, 70: 710070, 71: 710071, 72: 710072, 73: 710073, 74: 710074, 75: 710075, 76: 710076, 77: 710077, 78: 710078, 79: 710079, 80: 710080},
     "death_knight": {55: 711055, 56: 711056, 57: 711057, 58: 711058, 59: 711059, 60: 711060, 61: 711061, 62: 711062, 63: 711063, 64: 711064, 65: 711065, 66: 711066, 67: 711067, 68: 711068, 69: 711069, 70: 711070, 71: 711071, 72: 711072, 73: 711073, 74: 711074, 75: 711075, 76: 711076, 77: 711077, 78: 711078, 79: 711079, 80: 711080},
+}
+
+# M4.11.1 (Task 3): per-track starting Progressive Level Cap value, read
+# directly from core_loop.yaml's level_cap_tracks: block -- NOT derived from
+# a track's own lowest level_milestone level, since standard/death_knight both
+# emit 'Reach Level N' locations below their real starting cap too (free,
+# no-item-required checks), so the lowest milestone level in a track does not
+# reliably equal starting_cap + 1.
+STARTING_LEVEL_CAP_BY_TRACK: dict[str, int] = {
+    "standard": 10,
+    "death_knight": 10,
+}
+
+# M4.11.1 (Task 3): pooled Progressive Level Cap copy count needed to reach
+# a track's own level-milestone ceiling from its starting cap, at
+# LEVEL_CAP_STEP == 1 (total = ceiling - starting_cap, the step==1
+# simplification of ceil((ceiling - starting_cap) / LEVEL_CAP_STEP)).
+LEVEL_CAP_TOTAL_BY_TRACK: dict[str, int] = {
+    "standard": 70,
+    "death_knight": 70,
 }
 
 # M4.9: name for each (track, level) pair, generated directly from each

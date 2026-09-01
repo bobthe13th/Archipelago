@@ -22,7 +22,12 @@ from . import recipes_content_data
 from . import repsanity_content_data
 from . import trainer_spells_content_data
 from . import vendor_stock_content_data
-from .items import count_enabled_gates_items, count_enabled_holidaysanity_items, count_enabled_trap_items
+from .items import (
+    core_loop_item_surplus,
+    count_enabled_gates_items,
+    count_enabled_holidaysanity_items,
+    count_enabled_trap_items,
+)
 
 
 class WoWLocation(Location):
@@ -257,10 +262,21 @@ def create_filler_locations(world, region) -> list:
     # ordering) -- all sides derive their counts from the same options each
     # pool function reads, which is what keeps them from drifting apart
     # despite running at different pipeline stages.
+    #
+    # M4.11.1 (Task 3): core_loop_item_surplus adds a 4th term -- a
+    # death_knight_slot generation's own core-loop item count (77, flat
+    # and track-independent since LEVEL_CAP_STEP dropped to 1) now exceeds
+    # its own 31-location core-loop floor by 46, a real surplus with no
+    # family of its own to live in (the standard track's own 85-location
+    # floor still absorbs its 77 items with room to spare, so this term is
+    # always 0 there). Same "no AP location of its own" sink-location role
+    # as the three terms above, just for an item surplus rather than a
+    # whole optional family.
     needed = (
         count_enabled_gates_items(world)
         + count_enabled_trap_items(world)
         + count_enabled_holidaysanity_items(world)
+        + core_loop_item_surplus(world)
     )
     return [
         WoWLocation(world.player, name, location_id, region)

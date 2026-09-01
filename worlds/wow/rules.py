@@ -29,7 +29,6 @@ from . import world_state
 # create_core_loop_locations for the real mechanism and its own trust-model
 # caveat.
 def set_rules(world):
-    starting_cap = core_loop_content_data.STARTING_LEVEL_CAP
     step = core_loop_content_data.LEVEL_CAP_STEP
     # M4.9: the M2.1-era Death Knight "safety collapse" (every level < 55
     # location required the SAME copy count as level 55, so a required
@@ -44,6 +43,12 @@ def set_rules(world):
     # threshold.
     is_dk_slot = bool(world.options.death_knight_slot)
     track = "death_knight" if is_dk_slot else "standard"
+    # M4.11.1 (Task 3): starting_cap is now per-track (STARTING_LEVEL_CAP_BY_TRACK)
+    # instead of a single flat STARTING_LEVEL_CAP -- both current tracks share
+    # the same value (10) today, but Zone Leveler's own track (Task 9) tops
+    # out at 30 with a different starting cap, so this can no longer be a
+    # bare module-level constant.
+    starting_cap = core_loop_content_data.STARTING_LEVEL_CAP_BY_TRACK[track]
     for level, _location_id in core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track].items():
         copies_needed = max(0, math.ceil((level - starting_cap) / step))
         name = core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK[track][level]
@@ -119,7 +124,13 @@ def set_rules(world):
     # with zero extra code -- they're ordinary quest_rewards rows with real
     # DB-derived min_level values, so this exact clamp applies to them the
     # same as every other quest_reward.
-    total_caps = core_loop_content_data.ITEMS["Progressive Level Cap"][1]
+    # M4.11.1 (Task 3): total_caps now comes from LEVEL_CAP_TOTAL_BY_TRACK
+    # (per-track pooled total) instead of the flat ITEMS["Progressive Level
+    # Cap"][1] count -- quest_rewards locations are only ever created for the
+    # standard/death_knight core-loop pool (never Zone Leveler's), so this
+    # clamp stays anchored to whichever track the connected slot uses, reusing
+    # the same starting_cap/step/track locals already computed above.
+    total_caps = core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK[track]
     for loc in world.multiworld.get_locations(world.player):
         if not loc.name.startswith("Quest:") or loc.name not in quest_rewards_content_data.LOCATIONS:
             continue

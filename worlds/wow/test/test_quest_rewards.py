@@ -104,8 +104,9 @@ class TestQuestRewardsRules(WoWTestBase):
 
     # "Quest: Morbent Fel Reward (#55)" has trigger.min_level == 20 in the
     # real DB-extracted content/quest_rewards.yaml (quest_id 55). With
-    # core_loop's STARTING_LEVEL_CAP=10 and LEVEL_CAP_STEP=5, that requires
-    # ceil((20-10)/5) == 2 Progressive Level Cap copies -- picked because
+    # core_loop's standard-track STARTING_LEVEL_CAP_BY_TRACK["standard"]=10
+    # and LEVEL_CAP_STEP=1 (M4.11.1, was 5), that requires
+    # ceil((20-10)/1) == 10 Progressive Level Cap copies -- picked because
     # it's a real, moderate (not 0, not extreme) min_level, not a
     # hand-picked edge case.
     _GATED_LOCATION = "Quest: Morbent Fel Reward (#55)"
@@ -130,9 +131,9 @@ class TestQuestRewardsRules(WoWTestBase):
         # Behavioral check, the actual RED/GREEN evidence: unreachable with
         # too few Progressive Level Cap copies, reachable with enough.
         progressive_caps = self.get_items_by_name("Progressive Level Cap")
-        self.collect(progressive_caps[:1])
+        self.collect(progressive_caps[:9])
         self.assertFalse(self.can_reach_location(self._GATED_LOCATION))
-        self.collect(progressive_caps[1:2])
+        self.collect(progressive_caps[9:10])
         self.assertTrue(self.can_reach_location(self._GATED_LOCATION))
 
     def test_at_least_one_location_is_min_level_gated(self) -> None:
@@ -156,9 +157,9 @@ class TestQuestRewardsAvailableOutsideSprint(WoWTestBase):
     Every other test in this file only ever exercises Sprint, so
     nothing prior to this class actually ran the family, its rule (whose
     total_caps clamp assumes core_loop's Progressive Level Cap item pool is
-    always 14 regardless of mode -- true because create_core_loop_item_pool
-    is called unconditionally in create_items, but never checked from the
-    Quest Rewards side), or its registry's interaction with an existing
+    always 70 (M4.11.1, was 14) regardless of mode -- true because
+    create_core_loop_item_pool is called unconditionally in create_items,
+    but never checked from the Quest Rewards side), or its registry's interaction with an existing
     mode-owned sampler, under any other mode. Key Hunt is the sharpest case:
     it's the one other mode whose own create_rares_locations also samples
     through density and sets world.key_hunt_sampled_rare_count as a side

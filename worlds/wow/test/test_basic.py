@@ -366,12 +366,16 @@ class TestCoreLoopAccessRules(WoWTestBase):
     can never reach it (that class gets its own, separate death_knight
     track instead -- see TestDeathKnightSlotLevelMilestoneTracks, Task 5)."""
 
-    def test_reach_level_80_needs_all_fourteen_progressive_level_caps(self) -> None:
+    def test_reach_level_80_needs_all_seventy_progressive_level_caps(self) -> None:
+        # M4.11.1 (Task 3): LEVEL_CAP_STEP dropped from 5 to 1, so the
+        # standard track's total grew from 14 to 70 (LEVEL_CAP_TOTAL_BY_TRACK
+        # ["standard"] == 80 - 10 == 70) -- same "hold ALL copies to reach
+        # the ceiling" invariant, just a bigger raw copy count.
         progressive_caps = self.get_items_by_name("Progressive Level Cap")
-        self.assertEqual(len(progressive_caps), 14)
-        self.collect(progressive_caps[:13])
+        self.assertEqual(len(progressive_caps), 70)
+        self.collect(progressive_caps[:69])
         self.assertFalse(self.can_reach_location("Reach Level 80"))
-        self.collect(progressive_caps[13:])
+        self.collect(progressive_caps[69:])
         self.assertTrue(self.can_reach_location("Reach Level 80"))
 
     def test_clear_ragefire_chasm_needs_its_instance_unlock(self) -> None:
@@ -387,7 +391,8 @@ class TestCoreLoopAccessRules(WoWTestBase):
         self.assertTrue(self.can_reach_location("Clear Deadmines"))
 
     def test_reach_level_10_and_below_need_no_progressive_level_cap(self) -> None:
-        # M4.9: levels 1-10 are already within STARTING_LEVEL_CAP (10), so
+        # M4.9: levels 1-10 are already within the standard track's starting
+        # cap (STARTING_LEVEL_CAP_BY_TRACK["standard"] == 10, M4.11.1), so
         # they need zero Progressive Level Cap copies -- unlike the old
         # DK-safety-collapsed threshold (9 copies), the standard track's own
         # natural math applies now that Death Knight no longer shares this
@@ -395,50 +400,54 @@ class TestCoreLoopAccessRules(WoWTestBase):
         self.assertTrue(self.can_reach_location("Reach Level 1"))
         self.assertTrue(self.can_reach_location("Reach Level 10"))
 
-    def test_reach_level_55_needs_nine_progressive_level_caps(self) -> None:
+    def test_reach_level_55_needs_forty_five_progressive_level_caps(self) -> None:
+        # M4.11.1 (Task 3): (55 - 10) / 1 == 45 copies (was 9 at step 5).
         progressive_caps = self.get_items_by_name("Progressive Level Cap")
-        self.collect(progressive_caps[:8])
+        self.collect(progressive_caps[:44])
         self.assertFalse(self.can_reach_location("Reach Level 55"))
-        self.collect(progressive_caps[8:9])
+        self.collect(progressive_caps[44:45])
         self.assertTrue(self.can_reach_location("Reach Level 55"))
 
 
 class TestSprintGoal(WoWTestBase):
-    def test_sprint_goal_requires_ten_of_fourteen_progressive_level_caps(self) -> None:
-        """M4.9: Progressive Level Cap's total pooled copy count grew from
-        10 to 14 (core_loop.yaml, to support the every-level milestone
-        track's own level-80 ceiling), but Sprint's own goal is still
-        level 60 -- goals.py's _set_completion_rule_sprint now derives the
-        real level-60 threshold (10) instead of requiring ALL copies, so
-        the remaining 4 copies are collectible but not required to win.
+    def test_sprint_goal_requires_fifty_of_seventy_progressive_level_caps(self) -> None:
+        """M4.11.1 (Task 3): LEVEL_CAP_STEP dropped from 5 to 1, so
+        Progressive Level Cap's total pooled copy count grew from 14 to 70
+        (core_loop.yaml, to support the every-level milestone track's own
+        level-80 ceiling), but Sprint's own goal is still level 60 --
+        goals.py's _set_completion_rule_sprint now derives the real
+        level-60 threshold ((60 - 10) / 1 == 50) instead of requiring ALL
+        copies, so the remaining 20 copies are collectible but not required
+        to win.
 
         Note: WorldTestBase.collect_by_name collects *every* matching item
         in the pool in one call (it is not "collect one copy"), so to
-        exercise the 9-vs-10 boundary we must collect specific item objects
+        exercise the 49-vs-50 boundary we must collect specific item objects
         directly via self.collect() rather than calling collect_by_name in
         a loop.
         """
         state = self.multiworld.state
         self.assertFalse(self.multiworld.completion_condition[self.player](state))
         progressive_caps = self.get_items_by_name("Progressive Level Cap")
-        self.assertEqual(len(progressive_caps), 14)
-        self.collect(progressive_caps[:9])
+        self.assertEqual(len(progressive_caps), 70)
+        self.collect(progressive_caps[:49])
         self.assertFalse(self.multiworld.completion_condition[self.player](state))
-        self.collect(progressive_caps[9:10])
+        self.collect(progressive_caps[49:50])
         self.assertTrue(self.multiworld.completion_condition[self.player](state))
 
     def test_core_loop_item_pool_matches_expected_total(self) -> None:
-        # M4.9: 14 Progressive Level Cap copies (was 10) + 7 unconditional
-        # unlock items (Ragefire Chasm, Deadmines, Dark Portal, Northrend
-        # Passage, Molten Core, Sunwell Plateau, Icecrown Citadel) = 21.
-        # This is a real, deliberate total -- NOT derived from the standard
-        # track's own 85-location count (80 level milestones + 5 instance
-        # clears): Progressive Level Cap copies and "Reach Level N"
-        # locations are two independently-sized things that happened to
-        # both equal 17 under the old every-5-levels granularity by
-        # coincidence, not by any enforced invariant.
+        # M4.11.1 (Task 3): 70 Progressive Level Cap copies (was 14, since
+        # LEVEL_CAP_STEP dropped from 5 to 1: LEVEL_CAP_TOTAL_BY_TRACK
+        # ["standard"] == 80 - 10 == 70) + 7 unconditional unlock items
+        # (Ragefire Chasm, Deadmines, Dark Portal, Northrend Passage, Molten
+        # Core, Sunwell Plateau, Icecrown Citadel) = 77. This is a real,
+        # deliberate total -- NOT derived from the standard track's own
+        # 85-location count (80 level milestones + 5 instance clears):
+        # Progressive Level Cap copies and "Reach Level N" locations are two
+        # independently-sized things that happen to be close under the new
+        # step-1 granularity, not by any enforced invariant.
         core_loop_item_count = sum(count for _, count in core_loop_content_data.ITEMS.values())
-        self.assertEqual(core_loop_item_count, 21)
+        self.assertEqual(core_loop_item_count, 77)
 
 
 _ALL_TRAP_ITEM_NAMES = tuple(traps_content_data.ITEMS)

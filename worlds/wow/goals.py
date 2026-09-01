@@ -78,9 +78,15 @@ def _set_completion_rule_sprint(world) -> None:
     # coincidentally correct only because the old total was tuned to stop
     # exactly at 60). Derive the real level-60 threshold from the same
     # constants the cap-raise math itself uses, instead of hardcoding 10 or
-    # reading the total ITEMS count.
+    # reading the total ITEMS count. M4.11.1 (Task 3): STARTING_LEVEL_CAP is
+    # now per-track (STARTING_LEVEL_CAP_BY_TRACK) since Zone Leveler's own
+    # track needs a different starting cap -- Sprint is only ever offered
+    # against the shared standard/death_knight item pool, so it reads the
+    # standard track's own value explicitly ((60 - 10) / 1 = 50 copies,
+    # unchanged threshold in level terms, just a bigger raw copy count than
+    # the old step-5 math).
     copies_for_sprint_goal = math.ceil(
-        (core_loop_content_data.SPRINT_GOAL_LEVEL - core_loop_content_data.STARTING_LEVEL_CAP)
+        (core_loop_content_data.SPRINT_GOAL_LEVEL - core_loop_content_data.STARTING_LEVEL_CAP_BY_TRACK["standard"])
         / core_loop_content_data.LEVEL_CAP_STEP
     )
     world.set_completion_rule(
