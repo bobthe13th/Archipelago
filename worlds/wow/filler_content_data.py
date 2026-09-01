@@ -139,4 +139,7 @@ LOCATIONS: dict[str, int] = {
     "Filler Check 134": 740133,
     "Filler Check 135": 740134,
     "Filler Check 136": 740135,
+    "Filler Check 137": 740136,
+    "Filler Check 138": 740137,
+    "Filler Check 139": 740138,
 }

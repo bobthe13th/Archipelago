@@ -69,6 +69,18 @@ def set_rules(world):
         world.get_location("Clear Deadmines"),
         lambda state: state.has("Instance Unlock: Deadmines", world.player),
     )
+    world.set_rule(
+        world.get_location("Clear Wailing Caverns"),
+        lambda state: state.has("Instance Unlock: Wailing Caverns", world.player),
+    )
+    world.set_rule(
+        world.get_location("Clear Razorfen Kraul"),
+        lambda state: state.has("Instance Unlock: Razorfen Kraul", world.player),
+    )
+    world.set_rule(
+        world.get_location("Clear Razorfen Downs"),
+        lambda state: state.has("Instance Unlock: Razorfen Downs", world.player),
+    )
 
     # Task 26 (Fishing Quest, spec Sec5.4): "fish-catch locations inherit
     # normal regional access logic -- a Northrend-only fish requires

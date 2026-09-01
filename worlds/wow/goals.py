@@ -134,6 +134,16 @@ _INSTANCE_KEY_DISPLAY_NAMES = {
     "molten_core": "Molten Core",
     "sunwell_plateau": "Sunwell Plateau",
     "icecrown_citadel": "Icecrown Citadel",
+    # M4.11.1 (Task 4, BarrensBeater): without these 3, Key Hunt's own
+    # completion rule (_set_completion_rule_key_hunt below, which builds its
+    # instance-name set FROM this dict) would silently never count these 3
+    # instances even though the real generated INSTANCE_CLEAR_LOCATIONS map
+    # (which Key Hunt's C++ side, ArchipelagoGoals.cpp's IsKeyHuntComplete,
+    # iterates directly) does include them -- a real Python/C++
+    # completion-semantics split if this dict is left stale.
+    "wailing_caverns": "Wailing Caverns",
+    "razorfen_kraul": "Razorfen Kraul",
+    "razorfen_downs": "Razorfen Downs",
 }
 
 # Task 23 (Tier 1): Classic/Burning Crusade/Wrath each gate on exactly one
@@ -178,8 +188,10 @@ def _set_completion_rule_raid_instance_clear(instance_key: str):
 # instance_clear location tagged with the chosen expansion
 # (completionist_expansion option -- vanilla/tbc/wotlk). Unlike Tier-1's
 # single-raid modes, this can require more than one Instance Unlock item at
-# once (vanilla currently has three: Ragefire Chasm, Deadmines, Molten
-# Core), so it uses state.has_all rather than a single state.has.
+# once (vanilla currently has six: Ragefire Chasm, Deadmines, Molten Core,
+# Wailing Caverns, Razorfen Kraul, Razorfen Downs -- the last 3 added
+# M4.11.1 Task 4 for BarrensBeater; was three), so it uses state.has_all
+# rather than a single state.has.
 def _validate_completionist(world) -> None:
     expansion = world.options.completionist_expansion.current_key
     instance_keys = core_loop_content_data.INSTANCES_BY_EXPANSION.get(expansion, [])

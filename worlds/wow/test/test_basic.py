@@ -39,9 +39,10 @@ class TestNorthshireGeneration(WoWTestBase):
         M4.9.3.1 Task 11 fix: core_loop's own item count is no longer a
         fixed 21 either -- create_core_loop_item_pool (items.py) now pads
         core-loop's item pool with filler so it exactly matches this
-        slot's real, track-aware core-loop LOCATION count (85 for the
-        standard track, 31 for death_knight), a hard pre-existing
-        item==location parity invariant this apworld enforces per family.
+        slot's real, track-aware core-loop LOCATION count (88 for the
+        standard track, 34 for death_knight as of M4.11.1 Task 4's 3 new
+        instance clears -- was 85/31), a hard pre-existing item==location
+        parity invariant this apworld enforces per family.
         This test's slot never sets death_knight_slot (neither this class
         nor WoWTestBase.world_setup does), so it resolves to that option's
         real default (False) -- i.e. the standard track. Mirror
@@ -438,16 +439,18 @@ class TestSprintGoal(WoWTestBase):
     def test_core_loop_item_pool_matches_expected_total(self) -> None:
         # M4.11.1 (Task 3): 70 Progressive Level Cap copies (was 14, since
         # LEVEL_CAP_STEP dropped from 5 to 1: LEVEL_CAP_TOTAL_BY_TRACK
-        # ["standard"] == 80 - 10 == 70) + 7 unconditional unlock items
+        # ["standard"] == 80 - 10 == 70) + 10 unconditional unlock items
         # (Ragefire Chasm, Deadmines, Dark Portal, Northrend Passage, Molten
-        # Core, Sunwell Plateau, Icecrown Citadel) = 77. This is a real,
-        # deliberate total -- NOT derived from the standard track's own
-        # 85-location count (80 level milestones + 5 instance clears):
-        # Progressive Level Cap copies and "Reach Level N" locations are two
-        # independently-sized things that happen to be close under the new
-        # step-1 granularity, not by any enforced invariant.
+        # Core, Sunwell Plateau, Icecrown Citadel, Wailing Caverns, Razorfen
+        # Kraul, Razorfen Downs -- the last 3 added M4.11.1 Task 4 for
+        # BarrensBeater) = 80. This is a real, deliberate total -- NOT
+        # derived from the standard track's own 88-location count (80 level
+        # milestones + 8 instance clears): Progressive Level Cap copies and
+        # "Reach Level N" locations are two independently-sized things that
+        # happen to be close under the new step-1 granularity, not by any
+        # enforced invariant.
         core_loop_item_count = sum(count for _, count in core_loop_content_data.ITEMS.values())
-        self.assertEqual(core_loop_item_count, 77)
+        self.assertEqual(core_loop_item_count, 80)
 
 
 _ALL_TRAP_ITEM_NAMES = tuple(traps_content_data.ITEMS)
@@ -550,12 +553,17 @@ class TestTrapsGatesAndHolidaysanityCombinedParity(WoWTestBase):
     and traps -- growing that shared ceiling again to 136 (122 + 14,
     Holidaysanity's own worst case: content/holidaysanity.yaml's 14 Holiday
     Unlock items, all pooled only when combo_unlocks_scope is "both").
+    M4.11.1 (Task 4, BarrensBeater) grew it again to 139 (136 + 3): adding
+    Wailing Caverns/Razorfen Kraul/Razorfen Downs to core_loop.yaml's
+    INSTANCE_CLEAR_LOCATIONS (5 -> 8) raised the trap ceiling
+    (_trap_baseline_location_count) from 85 to 88, per filler.yaml's own
+    trip-wire note anticipating exactly this kind of core_loop growth.
     Stress-tests all three at their most extreme settings simultaneously
     (including combo_unlocks_scope: "both", the setting that actually
     reaches the full 37-item gates worst case AND Holidaysanity's full
     14-item worst case) -- if the combined count_enabled_gates_items() +
     count_enabled_trap_items() + count_enabled_holidaysanity_items() ever
-    exceeds 136, or if the three counts are computed inconsistently between
+    exceeds 139, or if the three counts are computed inconsistently between
     create_items and create_regions' create_filler_locations, this is
     where it would show up as a FillError."""
     options = {
@@ -690,17 +698,19 @@ class TestDeathKnightSlotLevelMilestoneTracks(WoWTestBase):
         for level in range(55, 81):
             self.assertNotIn(f"Reach Level {level}", location_names)
 
-    def test_core_loop_location_count_is_thirty_one(self) -> None:
-        # 26 death_knight level milestones (55-80) + 5 instance clears.
+    def test_core_loop_location_count_is_thirty_four(self) -> None:
+        # 26 death_knight level milestones (55-80) + 8 instance clears
+        # (M4.11.1 Task 4 grew this from 5 to 8: Wailing Caverns, Razorfen
+        # Kraul, Razorfen Downs added for BarrensBeater).
         core_loop_names = set(core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK["death_knight"].values()) | set(
             core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES.values()
         )
         present = {loc.name for loc in self.multiworld.get_locations(self.player)} & core_loop_names
-        self.assertEqual(len(present), 31)
+        self.assertEqual(len(present), 34)
 
     def test_item_pool_matches_location_count_exactly(self) -> None:
         # Real-generation parity check (spec Sec6): the DK track's own
-        # location count (31 core-loop + whatever optional categories this
+        # location count (34 core-loop + whatever optional categories this
         # generation sampled) must exactly equal the pooled item count --
         # same invariant TestGateItemSphereZero/TestNorthshireGeneration
         # already enforce for the standard track's default configuration.
@@ -725,13 +735,15 @@ class TestStandardSlotLevelMilestoneTracks(WoWTestBase):
         for level in range(55, 81):
             self.assertNotIn(f"Reach Level {level} (Death Knight)", location_names)
 
-    def test_core_loop_location_count_is_eighty_five(self) -> None:
-        # 80 standard level milestones (1-80) + 5 instance clears.
+    def test_core_loop_location_count_is_eighty_eight(self) -> None:
+        # 80 standard level milestones (1-80) + 8 instance clears (M4.11.1
+        # Task 4 grew this from 5 to 8: Wailing Caverns, Razorfen Kraul,
+        # Razorfen Downs added for BarrensBeater).
         core_loop_names = set(core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK["standard"].values()) | set(
             core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES.values()
         )
         present = {loc.name for loc in self.multiworld.get_locations(self.player)} & core_loop_names
-        self.assertEqual(len(present), 85)
+        self.assertEqual(len(present), 88)
 
     def test_item_pool_matches_location_count_exactly(self) -> None:
         self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))

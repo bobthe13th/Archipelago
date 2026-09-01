@@ -14,6 +14,9 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Instance Unlock: Molten Core": (810005, 1),
     "Instance Unlock: Sunwell Plateau": (810006, 1),
     "Instance Unlock: Icecrown Citadel": (810007, 1),
+    "Instance Unlock: Wailing Caverns": (810008, 1),
+    "Instance Unlock: Razorfen Kraul": (810009, 1),
+    "Instance Unlock: Razorfen Downs": (810010, 1),
 }
 
 # Every item whose delivery is realm_state/unlock_instance, keyed by its
@@ -30,6 +33,9 @@ INSTANCE_UNLOCK_ITEM_TO_KEY: dict[int, str] = {
     810005: "molten_core",
     810006: "sunwell_plateau",
     810007: "icecrown_citadel",
+    810008: "wailing_caverns",
+    810009: "razorfen_kraul",
+    810010: "razorfen_downs",
 }
 
 LEVEL_LOCATIONS_BY_TRACK: dict[str, dict[int, int]] = {
@@ -69,6 +75,9 @@ LEVEL_LOCATION_NAMES_BY_TRACK: dict[str, dict[int, str]] = {
 INSTANCE_CLEAR_LOCATIONS: dict[str, int] = {
     "ragefire_chasm": 720000,
     "deadmines": 720001,
+    "wailing_caverns": 720005,
+    "razorfen_kraul": 720006,
+    "razorfen_downs": 720007,
     "molten_core": 720002,
     "sunwell_plateau": 720003,
     "icecrown_citadel": 720004,
@@ -84,6 +93,9 @@ INSTANCE_CLEAR_LOCATIONS: dict[str, int] = {
 INSTANCE_CLEAR_LOCATION_NAMES: dict[str, str] = {
     "ragefire_chasm": "Clear Ragefire Chasm",
     "deadmines": "Clear Deadmines",
+    "wailing_caverns": "Clear Wailing Caverns",
+    "razorfen_kraul": "Clear Razorfen Kraul",
+    "razorfen_downs": "Clear Razorfen Downs",
     "molten_core": "Clear Molten Core",
     "sunwell_plateau": "Clear Sunwell Plateau",
     "icecrown_citadel": "Clear Icecrown Citadel",
@@ -106,7 +118,7 @@ INSTANCE_BOSS_ENTRIES: dict[str, list[int]] = {
 # still treats it as optional -- see core_loop.yaml's own header comment)
 # is simply absent from every list here, not present under a None/empty key.
 INSTANCES_BY_EXPANSION: dict[str, list[str]] = {
-    "vanilla": ["ragefire_chasm", "deadmines", "molten_core"],
+    "vanilla": ["ragefire_chasm", "deadmines", "wailing_caverns", "razorfen_kraul", "razorfen_downs", "molten_core"],
     "tbc": ["sunwell_plateau"],
     "wotlk": ["icecrown_citadel"],
 }

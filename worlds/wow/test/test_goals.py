@@ -474,18 +474,25 @@ class TestWrathMode(WoWTestBase):
 
 
 class TestCompletionistModeVanilla(WoWTestBase):
-    """Task 24: Completionist/vanilla requires all THREE vanilla instance
-    unlocks at once (Ragefire Chasm, Deadmines, Molten Core) -- the one mode
-    so far whose completion rule needs more than a single item."""
+    """Task 24: Completionist/vanilla requires all vanilla instance unlocks
+    at once -- the one mode so far whose completion rule needs more than a
+    single item. M4.11.1 (Task 4, BarrensBeater) grew the vanilla roster
+    from 3 to 6 (Ragefire Chasm, Deadmines, Molten Core, Wailing Caverns,
+    Razorfen Kraul, Razorfen Downs), since all 3 new instances are tagged
+    expansion: vanilla in core_loop.yaml and Completionist's completion rule
+    iterates INSTANCES_BY_EXPANSION directly, not a hardcoded list."""
     options = {"game_mode": "completionist", "completionist_expansion": "vanilla"}
 
-    def test_completion_requires_all_three_vanilla_unlocks(self) -> None:
+    def test_completion_requires_all_six_vanilla_unlocks(self) -> None:
         state = self.multiworld.state
         self.assertFalse(self.multiworld.completion_condition[self.player](state))
         self.collect_by_name("Instance Unlock: Ragefire Chasm")
         self.collect_by_name("Instance Unlock: Deadmines")
-        self.assertFalse(self.multiworld.completion_condition[self.player](state))
         self.collect_by_name("Instance Unlock: Molten Core")
+        self.collect_by_name("Instance Unlock: Wailing Caverns")
+        self.collect_by_name("Instance Unlock: Razorfen Kraul")
+        self.assertFalse(self.multiworld.completion_condition[self.player](state))
+        self.collect_by_name("Instance Unlock: Razorfen Downs")
         self.assertTrue(self.multiworld.completion_condition[self.player](state))
 
 

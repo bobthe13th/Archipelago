@@ -54,12 +54,14 @@ class InstanceClearMode(Choice):
 class CompletionistExpansion(Choice):
     """Only relevant when game_mode is completionist (Task 24). Which
     expansion's instance-clear locations Completionist requires -- vanilla
-    (Ragefire Chasm, Deadmines, Molten Core), tbc (Sunwell Plateau), or
-    wotlk (Icecrown Citadel), per core_loop.yaml's own `expansion:` tag on
-    each row. Completionist's completion rule is unaffected by
-    InstanceClearMode -- it checks the same "Instance Unlock" items every
-    other raid completion rule checks, regardless of which granularity
-    produced the underlying location check."""
+    (Ragefire Chasm, Deadmines, Molten Core, Wailing Caverns, Razorfen
+    Kraul, Razorfen Downs -- the last 3 added M4.11.1 for BarrensBeater),
+    tbc (Sunwell Plateau), or wotlk (Icecrown Citadel), per
+    core_loop.yaml's own `expansion:` tag on each row. Completionist's
+    completion rule is unaffected by InstanceClearMode -- it checks the
+    same "Instance Unlock" items every other raid completion rule checks,
+    regardless of which granularity produced the underlying location
+    check."""
     display_name = "Completionist Expansion"
     option_vanilla = 0
     option_tbc = 1
@@ -94,14 +96,16 @@ class KeyHuntKeysRequired(Range):
 
 
 class KeyHuntInstancesRequired(Range):
-    """Only relevant when game_mode is key_hunt (Task 25). How many of the 5
-    existing instance-clear raids/dungeons (Ragefire Chasm, Deadmines,
-    Molten Core, Sunwell Plateau, Icecrown Citadel) must also be cleared to
-    complete the goal, alongside key_hunt_keys_required keys. 0 makes Key
-    Hunt a pure key-collection goal with no instance requirement at all."""
+    """Only relevant when game_mode is key_hunt (Task 25). How many of the 8
+    existing instance-clear raids/dungeons (Ragefire Chasm, Deadmines, Molten
+    Core, Sunwell Plateau, Icecrown Citadel, Wailing Caverns, Razorfen Kraul,
+    Razorfen Downs -- the last 3 added M4.11.1 for BarrensBeater) must also be
+    cleared to complete the goal, alongside key_hunt_keys_required keys. 0
+    makes Key Hunt a pure key-collection goal with no instance requirement at
+    all."""
     display_name = "Key Hunt: Instances Required"
     range_start = 0
-    range_end = 5
+    range_end = 8
     default = 1
 
 

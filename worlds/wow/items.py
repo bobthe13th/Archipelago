@@ -44,7 +44,8 @@ def create_core_loop_item_pool(world) -> list:
         for _ in range(count):
             pool.append(WoWItem(name, ItemClassification.progression, item_id, world.player))
     # M4.9.3.1: core_loop's every-level granularity (M4.9.3) grew its own
-    # location count (85 standard-track / 31 death_knight-track) well past
+    # location count (88 standard-track / 34 death_knight-track as of
+    # M4.11.1 Task 4's 3 new instance clears -- was 85/31) well past
     # its own fixed item count (21) -- pad the pool to close the deficit
     # exactly, the same track-aware sizing _trap_baseline_location_count
     # already established for the trap family's own baseline.
@@ -64,14 +65,18 @@ def core_loop_item_surplus(world) -> int:
     """M4.11.1 (Task 3): the mirror image of create_core_loop_item_pool's
     own deficit-padding above. LEVEL_CAP_STEP dropped from 5 to 1, growing
     Progressive Level Cap's flat, track-independent pooled copy count from
-    14 to 70 (core_loop.yaml) -- combined with the 7 unconditional unlock
-    items, core_loop's own natural item count is now 77 for EVERY slot,
-    regardless of track. The standard track's own 85 locations still
-    exceed that (a deficit, already padded with filler above), but the
-    death_knight track's own 31 locations (26 level milestones (55-80) + 5
-    instance clears) do not -- a real 46-item surplus with nowhere of its
-    own family to live. Used by locations.py's create_filler_locations to
-    size its own sink-location count, same role
+    14 to 70 (core_loop.yaml) -- combined with the unconditional unlock
+    items (7 at the time, 10 as of M4.11.1 Task 4's 3 new instance
+    unlocks), core_loop's own natural item count is now 80 for EVERY slot,
+    regardless of track (was 77). The standard track's own 88 locations
+    (was 85) still exceed that (a deficit, already padded with filler
+    above), but the death_knight track's own 34 locations (was 31; 26
+    level milestones (55-80) + 8 instance clears, grown from 5 by Task 4)
+    do not -- a real 46-item surplus with nowhere of its own family to
+    live (unchanged numerically from before Task 4, since both the item
+    count and the death_knight floor grew by exactly 3). Used by
+    locations.py's create_filler_locations to size its own sink-location
+    count, same role
     count_enabled_gates_items/count_enabled_trap_items/
     count_enabled_holidaysanity_items already play for their own families'
     "no AP location of its own" items -- 0 for the standard track (whose
@@ -219,11 +224,13 @@ def _eligible_trap_names(world) -> list[str]:
 def _trap_baseline_location_count(world) -> int:
     # M4.9: track-aware -- a slot's real core-loop location count now
     # depends on death_knight_slot (locations.py's two-track split), not a
-    # single fixed number. Standard track: 80 level milestones + 5 instance
-    # clears = 85. Death Knight track: 26 level milestones (55-80) + 5
-    # instance clears = 31. (M4.8.0's own docstring note about the
-    # standalone `quests` family's 19 locations no longer being part of
-    # this baseline still applies -- unaffected by this task.)
+    # single fixed number. Standard track: 80 level milestones + 8 instance
+    # clears = 88. Death Knight track: 26 level milestones (55-80) + 8
+    # instance clears = 34. (M4.11.1 Task 4, BarrensBeater, grew the
+    # instance-clear count from 5 to 8 -- was 85/31.) (M4.8.0's own
+    # docstring note about the standalone `quests` family's 19 locations no
+    # longer being part of this baseline still applies -- unaffected by
+    # this task.)
     is_dk_slot = bool(world.options.death_knight_slot)
     track = "death_knight" if is_dk_slot else "standard"
     return (

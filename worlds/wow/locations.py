@@ -264,14 +264,17 @@ def create_filler_locations(world, region) -> list:
     # despite running at different pipeline stages.
     #
     # M4.11.1 (Task 3): core_loop_item_surplus adds a 4th term -- a
-    # death_knight_slot generation's own core-loop item count (77, flat
+    # death_knight_slot generation's own core-loop item count (80, flat
     # and track-independent since LEVEL_CAP_STEP dropped to 1) now exceeds
-    # its own 31-location core-loop floor by 46, a real surplus with no
-    # family of its own to live in (the standard track's own 85-location
-    # floor still absorbs its 77 items with room to spare, so this term is
+    # its own 34-location core-loop floor by 46, a real surplus with no
+    # family of its own to live in (the standard track's own 88-location
+    # floor still absorbs its 80 items with room to spare, so this term is
     # always 0 there). Same "no AP location of its own" sink-location role
     # as the three terms above, just for an item surplus rather than a
-    # whole optional family.
+    # whole optional family. (M4.11.1 Task 4, BarrensBeater, grew both the
+    # item count and both tracks' core-loop floors by 3 in lockstep --
+    # 77->80 items, 31->34 death_knight floor, 85->88 standard floor -- so
+    # the surplus itself is unchanged at 46/0.)
     needed = (
         count_enabled_gates_items(world)
         + count_enabled_trap_items(world)
