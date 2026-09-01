@@ -438,6 +438,61 @@ class TestKeyHuntCompletionRequiresKeysAndInstances(WoWTestBase):
         self.assertTrue(self.multiworld.completion_condition[self.player](state))
 
 
+class TestKeyHuntZonePoolsRestrictsEligibleRareCount(WoWTestBase):
+    """M4.11.1 Task 5: key_hunt_zone_pools ANDs against density sampling
+    (M4.8 §2 convention) -- restricting to a single zone shrinks the
+    candidate pool BEFORE sampling, same shape as quest_reward_type_pools/
+    quest_reward_expansion_pools ANDing against quest_rewards. "felwood" has
+    exactly 3 of the 40 curated rares (Carnivous the Breaker, Olm the Wise,
+    Mezzir the Howler -- rares.yaml's own real zone tags), confirmed
+    directly against rares_content_data.TAGS rather than hardcoded from
+    memory."""
+    options = {
+        "game_mode": "key_hunt",
+        "check_density": 100,
+        "key_hunt_zone_pools": {"felwood"},
+        "key_hunt_keys_required": 3,
+        "quest_reward_weight": 0,
+        "vendor_stock_weight": 0,
+    }
+
+    def test_only_felwood_rares_are_sampled(self) -> None:
+        from .. import rares_content_data
+        expected_names = {
+            name for name, tags in rares_content_data.TAGS.items()
+            if "felwood" in tags.get("zone", frozenset())
+        }
+        self.assertEqual(len(expected_names), 3)
+        rare_kill_locations = {loc.name for loc in self.multiworld.get_locations() if loc.name.startswith("Rare Kill:")}
+        self.assertEqual(rare_kill_locations, expected_names)
+
+    def test_item_pool_matches_restricted_location_count(self) -> None:
+        rare_kill_locations = [loc for loc in self.multiworld.get_locations() if loc.name.startswith("Rare Kill:")]
+        key_items = self.get_items_by_name("Key Hunt: Key")
+        self.assertEqual(len(rare_kill_locations), len(key_items))
+        self.assertEqual(len(rare_kill_locations), 3)
+
+
+class TestKeyHuntZonePoolsTooNarrowFailsValidation(WoWTestBase):
+    """A key_hunt_zone_pools selection that leaves too few zone-eligible
+    rares for key_hunt_keys_required must fail generation loudly (goals.py's
+    _validate_key_hunt), the same discipline as
+    TestKeyHuntUnsatisfiableAfterCeilingRemoval -- "felwood" only has 3
+    eligible rows, and even at check_density's max (100, ceil(3*1.0) == 3)
+    that's still short of key_hunt_keys_required=10."""
+    run_default_tests = False
+    auto_construct = False
+    options = {
+        "game_mode": "key_hunt",
+        "check_density": 100,
+        "key_hunt_zone_pools": {"felwood"},
+        "key_hunt_keys_required": 10,
+    }
+
+    def test_zone_restricted_shortfall_fails_generation(self) -> None:
+        self.assertRaises(OptionError, self.world_setup)
+
+
 class TestClassicMode(WoWTestBase):
     """Task 23 (Tier 1): Classic completes on Molten Core's Instance Unlock."""
     options = {"game_mode": "classic"}

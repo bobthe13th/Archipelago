@@ -3,6 +3,8 @@ from dataclasses import dataclass
 
 from Options import Choice, OptionSet, PerGameCommonOptions, Range, Toggle
 
+from . import rares_content_data
+
 
 class GameMode(Choice):
     """Which game mode to generate for (spec Sec5.4). Sprint (reach level 60)
@@ -107,6 +109,20 @@ class KeyHuntInstancesRequired(Range):
     range_start = 0
     range_end = 8
     default = 1
+
+
+class KeyHuntZonePools(OptionSet):
+    """Only relevant when game_mode is key_hunt (M4.11.1). Which real WoW
+    zones' rares are eligible to be sampled into the pool -- default is every
+    zone this checkout's 40 curated rares span (zero-regression: unrestricted,
+    identical to Key Hunt's pre-M4.11.1 behavior). Combined with check_density/
+    key_hunt_keys_required exactly like every other tag dimension (M4.8 §2):
+    AND'd with density sampling, not a separate ceiling."""
+    display_name = "Key Hunt: Zone Pools"
+    valid_keys = frozenset(
+        zone for tags in rares_content_data.TAGS.values() for zone in tags.get("zone", frozenset())
+    )
+    default = valid_keys
 
 
 class ArtisanPrimaryProfessionsRequired(Range):
@@ -993,6 +1009,7 @@ class WoWOptions(PerGameCommonOptions):
     completionist_expansion: CompletionistExpansion
     key_hunt_keys_required: KeyHuntKeysRequired
     key_hunt_instances_required: KeyHuntInstancesRequired
+    key_hunt_zone_pools: KeyHuntZonePools
     artisan_primary_professions_required: ArtisanPrimaryProfessionsRequired
     collector_items_required: CollectorItemsRequired
     achievement_hunt_tier: AchievementHuntTier

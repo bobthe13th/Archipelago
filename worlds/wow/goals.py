@@ -223,18 +223,29 @@ def _validate_key_hunt(world) -> None:
     # have actually sampled rares.yaml's rows -- generate_early (where this
     # runs) happens BEFORE create_regions in AP's generation lifecycle, so
     # the real sampled count doesn't exist yet at this point.
+    #
+    # M4.11.1 Task 5: eligible_row_count is the zone-pool-filtered subset
+    # (matching locations.py's create_rares_locations own filter exactly),
+    # not the full 40 -- an unrestricted key_hunt_zone_pools default makes
+    # this identical to the pre-M4.11.1 row_count=len(LOCATIONS) check.
+    selected_zones = world.options.key_hunt_zone_pools.value
+    eligible_row_count = sum(
+        1 for name in rares_content_data.LOCATIONS
+        if rares_content_data.TAGS[name].get("zone", frozenset()) & selected_zones
+    )
     predicted = density.predict_sample_size(
-        game_mode_profile.effective_check_density(world), category_weight=100, row_count=len(rares_content_data.LOCATIONS)
+        game_mode_profile.effective_check_density(world), category_weight=100, row_count=eligible_row_count
     )
     keys_required = world.options.key_hunt_keys_required.value
     if predicted < keys_required:
         raise OptionError(
             f"WoW: game_mode 'key_hunt' with key_hunt_keys_required={keys_required} "
             f"needs at least that many rares sampled into the pool, but "
-            f"check_density={world.options.check_density.value} "
-            f"would only sample {predicted} of the {len(rares_content_data.LOCATIONS)} "
-            f"curated rares -- raise check_density or lower "
-            f"key_hunt_keys_required."
+            f"check_density={world.options.check_density.value} and "
+            f"key_hunt_zone_pools={sorted(selected_zones)} would only sample "
+            f"{predicted} of the {eligible_row_count} zone-eligible curated rares "
+            f"({len(rares_content_data.LOCATIONS)} total) -- raise check_density, "
+            f"broaden key_hunt_zone_pools, or lower key_hunt_keys_required."
         )
 
 
