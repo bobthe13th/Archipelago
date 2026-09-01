@@ -221,3 +221,36 @@ class TestAddHolidaysanityStacking(unittest.TestCase):
         data = {}
         slot_data_module._add_holidaysanity_stacking(world, data)
         self.assertTrue(data["holidaysanity_stacking"])
+
+
+class TestAddZoneLevelerData(unittest.TestCase):
+    def test_noop_for_non_zone_leveler_game_mode(self) -> None:
+        world = SimpleNamespace(options=SimpleNamespace(game_mode="sprint"))
+        data: dict = {}
+        slot_data_module._add_zone_leveler_data(world, data)
+        self.assertEqual(data, {})
+
+    def test_adds_zone_id_hub_zone_ids_and_allow_hub_zone_for_zone_leveler(self) -> None:
+        from .. import zone_leveler_content_data
+
+        zone_data = zone_leveler_content_data.ZONES["barrens"]
+        world = SimpleNamespace(options=SimpleNamespace(
+            game_mode="zone_leveler",
+            zone_leveler_starting_zone=SimpleNamespace(current_key="barrens"),
+            zone_leveler_allow_hub_zone=True,
+        ))
+        data: dict = {}
+        slot_data_module._add_zone_leveler_data(world, data)
+        self.assertEqual(data["zone_leveler_zone_id"], zone_data.zone_id)
+        self.assertEqual(data["zone_leveler_allowed_hub_zone_ids"], sorted(zone_data.allowed_hub_zone_ids))
+        self.assertIs(data["zone_leveler_allow_hub_zone"], True)
+
+    def test_allow_hub_zone_reflects_option_off(self) -> None:
+        world = SimpleNamespace(options=SimpleNamespace(
+            game_mode="zone_leveler",
+            zone_leveler_starting_zone=SimpleNamespace(current_key="barrens"),
+            zone_leveler_allow_hub_zone=False,
+        ))
+        data: dict = {}
+        slot_data_module._add_zone_leveler_data(world, data)
+        self.assertIs(data["zone_leveler_allow_hub_zone"], False)

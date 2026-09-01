@@ -10,6 +10,7 @@ concern and call it from build_slot_data below."""
 from __future__ import annotations
 
 from . import locations as locations_module
+from . import zone_leveler_content_data
 
 # Finding I3 (M4.7 final review) + M4.10.1 final regression pass (Task 8): the
 # families whose locations the C++ side's trigger-lookup maps
@@ -67,6 +68,7 @@ def build_slot_data(world) -> dict:
     _add_vendor_check_repeat_behavior(world, data)
     _add_loot_slot_check_repeat_behavior(world, data)
     _add_holidaysanity_stacking(world, data)
+    _add_zone_leveler_data(world, data)
     return data
 
 
@@ -144,3 +146,20 @@ def _add_loot_slot_check_repeat_behavior(world, data: dict) -> None:
 
 def _add_holidaysanity_stacking(world, data: dict) -> None:
     data["holidaysanity_stacking"] = bool(world.options.holidaysanity_stacking)
+
+
+def _add_zone_leveler_data(world, data: dict) -> None:
+    """M4.11.1 Task 14: the C++ side's zone-lock PlayerScript
+    (ArchipelagoZoneLevelerScript.cpp) has no rules-evaluation engine of its
+    own and cannot derive "which zone is locked for this slot" from anything
+    else the AP server sends -- these three keys are its only source of
+    truth. No-op (keys simply absent) for every other game_mode, matching
+    every other game-mode-gated slot_data helper's own guard convention
+    (see e.g. _add_instance_clear_mode's sibling helpers)."""
+    if world.options.game_mode != "zone_leveler":
+        return
+    zone_key = world.options.zone_leveler_starting_zone.current_key
+    zone_data = zone_leveler_content_data.ZONES[zone_key]
+    data["zone_leveler_zone_id"] = zone_data.zone_id
+    data["zone_leveler_allowed_hub_zone_ids"] = sorted(zone_data.allowed_hub_zone_ids)
+    data["zone_leveler_allow_hub_zone"] = bool(world.options.zone_leveler_allow_hub_zone)
