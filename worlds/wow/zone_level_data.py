@@ -1,14 +1,16 @@
 """Real WoW zone id -> its vanilla leveling band (min_level, max_level).
-Curated the same way MAP_ID_TO_EXPANSION (M4.8) is: real, cited, verified
-against this checkout's AreaTable.dbc, not derived from a live query every
-generation. Consumed by Zone Leveler's whole_game_scaled content scope (M4.11.1
-Task 12) and Key Hunt's zone-restriction option (Task 5) -- NOT wired into the
-generic tag_options/OptionSet system (that's M4.11.2's full-breadth follow-up).
+Curated the same way MAP_ID_TO_EXPANSION (M4.8) is, EXCEPT the two zone-id
+constants below are recalled starting values, not yet independently verified
+against this checkout's AreaTable.dbc -- see M4.11.1 Task 13 (verify Barrens
+and other zone coordinates before shipping). Consumed by Zone Leveler's
+whole_game_scaled content scope (M4.11.1 Task 12) and Key Hunt's
+zone-restriction option (Task 5) -- NOT wired into the generic
+tag_options/OptionSet system (that's M4.11.2's full-breadth follow-up).
 """
 from __future__ import annotations
 
-ZONE_ID_BARRENS = 17
-ZONE_ID_MOLTEN_CORE = 409  # Blackrock Depths/Mountain's own instance zone id -- verify exact value
+ZONE_ID_BARRENS = 17  # verify against this checkout's real AreaTable.dbc before shipping
+ZONE_ID_MOLTEN_CORE = 409  # verify against this checkout's real AreaTable.dbc before shipping
 
 ZONE_ID_TO_LEVEL_RANGE: dict[int, tuple[int, int]] = {
     ZONE_ID_BARRENS: (10, 30),
