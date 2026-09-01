@@ -7,11 +7,12 @@ record's name field is field index 11 of the file's 36-field layout,
 located by cross-checking two independently known-correct area ids (14 ->
 "Durotar", 1637 -> "Orgrimmar"). ZONE_ID_BARRENS's recalled value (17)
 decoded to "The Barrens" and needed no change. ZONE_ID_MOLTEN_CORE's
-recalled value (409) was WRONG -- area id 409 decodes to Molten Core's real
-`ParentAreaID` (Blackrock Mountain), not Molten Core's own id; the real
-Molten Core area id, found by searching the DBC's string block for the
-exact string "Molten Core", is 2717, and the constant below was corrected
-to match. Consumed by Zone Leveler's whole_game_scaled content scope
+recalled value (409) was WRONG -- 409 turned out to be an unrelated
+AreaTable area id (its own name field decodes to "Island of Doctor
+Lapidis", nothing to do with Molten Core), confirmed via direct DBC decode.
+The real Molten Core area id, found by searching the DBC's string block for
+the exact string "Molten Core", is 2717, and the constant below was
+corrected to match. Consumed by Zone Leveler's whole_game_scaled content scope
 (M4.11.1 Task 12) and Key Hunt's zone-restriction option (Task 5) -- NOT
 wired into the generic tag_options/OptionSet system (that's M4.11.2's
 full-breadth follow-up).
