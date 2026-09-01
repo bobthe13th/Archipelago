@@ -27,6 +27,7 @@ class GameModeProfile:
 
 _PROFILES: dict[int, GameModeProfile] = {
     12: GameModeProfile(force_all_categories=True, force_max_density=True),  # hundred_percent
+    13: GameModeProfile(),  # zone_leveler -- every category eligible; scope enforced elsewhere (M4.11.1)
 }
 _DEFAULT_PROFILE = GameModeProfile()
 
