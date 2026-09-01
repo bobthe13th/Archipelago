@@ -238,19 +238,50 @@ class TestAddZoneLevelerData(unittest.TestCase):
             game_mode="zone_leveler",
             zone_leveler_starting_zone=SimpleNamespace(current_key="barrens"),
             zone_leveler_allow_hub_zone=True,
+            zone_leveler_goals=SimpleNamespace(value={"golden_boar_statues", "instance_clears"}),
+            zone_leveler_statues_required=SimpleNamespace(value=5),
+            zone_leveler_instances_required=SimpleNamespace(value=1),
         ))
         data: dict = {}
         slot_data_module._add_zone_leveler_data(world, data)
         self.assertEqual(data["zone_leveler_zone_id"], zone_data.zone_id)
+        self.assertEqual(data["zone_leveler_zone_key"], "barrens")
         self.assertEqual(data["zone_leveler_allowed_hub_zone_ids"], sorted(zone_data.allowed_hub_zone_ids))
         self.assertIs(data["zone_leveler_allow_hub_zone"], True)
+        self.assertEqual(data["zone_leveler_goals"], sorted({"golden_boar_statues", "instance_clears"}))
+        self.assertEqual(data["zone_leveler_statues_required"], 5)
+        self.assertEqual(data["zone_leveler_instances_required"], 1)
+        self.assertEqual(data["zone_leveler_instance_keys"], list(zone_data.instance_keys))
 
     def test_allow_hub_zone_reflects_option_off(self) -> None:
         world = SimpleNamespace(options=SimpleNamespace(
             game_mode="zone_leveler",
             zone_leveler_starting_zone=SimpleNamespace(current_key="barrens"),
             zone_leveler_allow_hub_zone=False,
+            zone_leveler_goals=SimpleNamespace(value=set()),
+            zone_leveler_statues_required=SimpleNamespace(value=5),
+            zone_leveler_instances_required=SimpleNamespace(value=1),
         ))
         data: dict = {}
         slot_data_module._add_zone_leveler_data(world, data)
         self.assertIs(data["zone_leveler_allow_hub_zone"], False)
+
+    def test_goals_statues_and_instances_required_reflect_options(self) -> None:
+        world = SimpleNamespace(options=SimpleNamespace(
+            game_mode="zone_leveler",
+            zone_leveler_starting_zone=SimpleNamespace(current_key="barrens"),
+            zone_leveler_allow_hub_zone=False,
+            zone_leveler_goals=SimpleNamespace(
+                value={"reach_zone_level_cap", "clear_all_zone_quests", "golden_boar_statues", "instance_clears"}
+            ),
+            zone_leveler_statues_required=SimpleNamespace(value=12),
+            zone_leveler_instances_required=SimpleNamespace(value=3),
+        ))
+        data: dict = {}
+        slot_data_module._add_zone_leveler_data(world, data)
+        self.assertEqual(
+            data["zone_leveler_goals"],
+            ["clear_all_zone_quests", "golden_boar_statues", "instance_clears", "reach_zone_level_cap"],
+        )
+        self.assertEqual(data["zone_leveler_statues_required"], 12)
+        self.assertEqual(data["zone_leveler_instances_required"], 3)

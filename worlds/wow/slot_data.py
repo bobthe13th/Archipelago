@@ -155,11 +155,26 @@ def _add_zone_leveler_data(world, data: dict) -> None:
     else the AP server sends -- these three keys are its only source of
     truth. No-op (keys simply absent) for every other game_mode, matching
     every other game-mode-gated slot_data helper's own guard convention
-    (see e.g. _add_instance_clear_mode's sibling helpers)."""
+    (see e.g. _add_instance_clear_mode's sibling helpers).
+
+    M4.11.1 Task 15 extends this with the goal-completion side's own source
+    of truth: ArchipelagoGoals.cpp's IsZoneLevelerComplete has the same
+    no-rules-engine problem for "which goals are selected, and how much of
+    each is required" as the zone-lock script does for "which zone is
+    locked" -- zone_leveler_zone_key additionally lets that C++ side resolve
+    its own Archipelago::CoreLoop::LEVEL_CAP_TOTAL_BY_TRACK lookup
+    ("zone_leveler_<zone_key>") without hardcoding "barrens" literally,
+    which would silently stop matching the moment a second zone is curated
+    (M4.11.2)."""
     if world.options.game_mode != "zone_leveler":
         return
     zone_key = world.options.zone_leveler_starting_zone.current_key
     zone_data = zone_leveler_content_data.ZONES[zone_key]
     data["zone_leveler_zone_id"] = zone_data.zone_id
+    data["zone_leveler_zone_key"] = zone_key
     data["zone_leveler_allowed_hub_zone_ids"] = sorted(zone_data.allowed_hub_zone_ids)
     data["zone_leveler_allow_hub_zone"] = bool(world.options.zone_leveler_allow_hub_zone)
+    data["zone_leveler_goals"] = sorted(world.options.zone_leveler_goals.value)
+    data["zone_leveler_statues_required"] = world.options.zone_leveler_statues_required.value
+    data["zone_leveler_instances_required"] = world.options.zone_leveler_instances_required.value
+    data["zone_leveler_instance_keys"] = list(zone_data.instance_keys)
