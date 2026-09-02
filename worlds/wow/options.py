@@ -195,21 +195,33 @@ class ZoneLevelerAllowHubZone(Toggle):
 
 
 class ZoneLevelerContentScope(Choice):
-    """Only relevant when game_mode is zone_leveler (M4.11.1). "zone_only"
-    (default) excludes every possession-triggered family's rows entirely
-    (Itemsanity, Craftsanity, Repsanity, Recipes, Trainer Spells -- these
-    fire on pickup/craft/learn regardless of physical zone, and their own
-    real zone-of-origin isn't tagged yet, M4.11.2). "whole_game_scaled"
-    widens only THREE of those five -- Itemsanity, Recipes, and Trainer
-    Spells -- to any item/recipe/spell whose own real level requirement
-    (item_template.RequiredLevel / trainer_spell.ReqLevel) falls inside the
-    selected zone's level band, project-wide (Task 12). Craftsanity and
-    Repsanity have no real level-requirement data to widen by (crafting is
-    skill-tier-gated, not player-level-gated; reputation ranks aren't
-    level-gated at all) and stay fully excluded under whole_game_scaled too,
-    same as zone_only. Zone-bound families (Quest Rewards, instance clears)
-    are unaffected by this option either way, since the player physically
-    cannot leave the locked zone."""
+    """Only relevant when game_mode is zone_leveler (M4.11.1). Governs 4
+    possession-triggered families -- Itemsanity, Craftsanity, Recipes,
+    Trainer Spells -- which fire on pickup/craft/learn regardless of
+    physical zone (M4.11.2: Repsanity is NOT one of these; see below).
+    "zone_only" (default) excludes all 4 of those families' rows entirely.
+    "whole_game_scaled" widens 3 of those 4 -- Itemsanity, Recipes, and
+    Trainer Spells -- to any item/recipe/spell whose own real level
+    requirement (item_template.RequiredLevel / trainer_spell.ReqLevel)
+    falls inside the selected zone's level band, project-wide (Task 12).
+    Craftsanity has no real level-requirement data to widen by (crafting is
+    skill-tier-gated, not player-level-gated) and stays fully excluded
+    under whole_game_scaled too, same as zone_only. Trainer Spells is also
+    physically zone-bound (a real trainer NPC must be visited to learn it,
+    unlike a mailable Recipe item) -- under whole_game_scaled a row must
+    ADDITIONALLY pass its own real trainer-position zone check (the
+    selected zone or, when zone_leveler_allow_hub_zone is on, its curated
+    hub zones) on top of the level-band check; both axes must pass (Task
+    4, M4.11.2). Zone-bound families (Quest Rewards, instance clears) are
+    unaffected by this option either way, since the player physically
+    cannot leave the locked zone (or its allowed hub zones). Repsanity is
+    handled entirely separately from this option (M4.11.2) -- it's not a
+    possession-triggered family in the sense above, has no zone or level
+    data of its own, and is included under BOTH zone_only and
+    whole_game_scaled, unconditionally, whenever its own real `expansion`
+    tag is vanilla (a level-band proxy: Barrens' 10-30 band is squarely
+    vanilla-era, so a tbc/wotlk reputation faction isn't realistically
+    farmable there regardless of literal rank gating)."""
     display_name = "Zone Leveler: Content Scope"
     option_zone_only = 0
     option_whole_game_scaled = 1

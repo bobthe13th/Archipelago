@@ -294,7 +294,20 @@ def _zone_leveler_trainer_spell_zone_matches(world, name: str) -> bool:
     _zone_leveler_quest_reward_zone_matches). This is ADDITIVE to the
     family's own existing min_level check
     (_zone_leveler_scope_matches's possession-triggered path) -- a row
-    must satisfy BOTH axes."""
+    must satisfy BOTH axes.
+
+    Zero of these 427 rows resolve to Barrens' own zone_id (17) itself --
+    final whole-branch review (2026-09-02) confirmed this is a known
+    resolver limitation, not a game-world fact: smallest-box-wins
+    misattributes ~90% of Barrens' own real bounding-box area on map 1 to
+    the smaller, overlapping Durotar (14)/Mulgore (215) boxes (only ~10.3%
+    of Barrens' box actually resolves to 17), and five real Barrens
+    landmarks all misresolve when checked directly (Crossroads/Wailing
+    Caverns/Camp Taurajo -> Mulgore, Ratchet -> Durotar, Northwatch Hold ->
+    15). So without zone_leveler_allow_hub_zone on, this family contributes
+    exactly 0 locations under whole_game_scaled, not because no trainers
+    are physically in Barrens, but because this resolver can't correctly
+    attribute a Barrens-standing trainer to zone 17 in the first place."""
     zone_key = world.options.zone_leveler_starting_zone.current_key
     zone_data = zone_leveler_content_data.ZONES[zone_key]
     trainer_zone_ids = set(trainer_spells_content_data.TRIGGERS[name].get("trainer_zone_ids", []))

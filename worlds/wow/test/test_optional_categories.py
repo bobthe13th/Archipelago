@@ -579,13 +579,19 @@ class TestZoneLevelerWholeGameScaledWidensTractableFamilies(WoWTestBase):
 
     zone_leveler_allow_hub_zone is set True here (M4.11.2): Trainer Spells
     is now ADDITIONALLY gated by _zone_leveler_trainer_spell_zone_matches
-    (real trainer position data), and confirmed against the live DB, zero
-    real class trainers stand in the open-world Barrens zone itself (id 17)
-    -- every one of them is in a capital city, and for Barrens' own roster
-    that means Orgrimmar/Durotar (the curated allowed_hub_zone_ids). Without
-    this toggle on, the level-band widening this test targets would never
-    have any trainer_spells row to widen INTO, which would defeat the point
-    of this test (which is about the min_level axis, not the zone axis)."""
+    (real trainer position data), and no row resolves to the open-world
+    Barrens zone itself (id 17) under this project's WorldMapArea.dbc-based
+    position resolver -- a known resolver limitation (final whole-branch
+    review, 2026-09-02: smallest-box-wins misattributes ~90% of Barrens's
+    own bounding box to the smaller overlapping Durotar/Mulgore boxes;
+    verified against real landmarks -- Crossroads/Wailing Caverns/Camp
+    Taurajo resolve to Mulgore, Ratchet resolves to Durotar), not evidence
+    that no trainers are physically there. For Barrens' own roster that
+    means the widened rows resolve to Orgrimmar/Durotar (the curated
+    allowed_hub_zone_ids) instead. Without this toggle on, the level-band
+    widening this test targets would never have any trainer_spells row to
+    widen INTO, which would defeat the point of this test (which is about
+    the min_level axis, not the zone axis)."""
     options = {
         **_ZONE_LEVELER_BASE_OPTIONS, "zone_leveler_content_scope": "whole_game_scaled",
         "zone_leveler_allow_hub_zone": True,
@@ -694,9 +700,14 @@ class TestZoneLevelerTrainerSpellZoneMatchesUnit(WoWTestBase):
         self.assertTrue(_zone_leveler_trainer_spell_zone_matches(self._fake_world(True), name))
 
     def test_frost_nova_does_not_match_when_hub_zone_disallowed(self) -> None:
-        # No real class trainer stands in the open-world Barrens zone (17)
-        # itself -- confirmed against the live DB -- so with the hub toggle
-        # off, this real Durotar/Orgrimmar-taught spell is out of bounds.
+        # No row resolves to the open-world Barrens zone (17) itself under
+        # this project's position resolver -- a known resolver limitation
+        # (smallest-box-wins misattributes most of Barrens's own bounding
+        # box to the smaller overlapping Durotar/Mulgore boxes; see
+        # locations.py's _zone_leveler_trainer_spell_zone_matches docstring
+        # and state-of-the-project.md's Known gap #10), not evidence no
+        # trainers are physically there -- so with the hub toggle off, this
+        # real Durotar/Orgrimmar-taught spell is out of bounds.
         name = "Trainer Spell: Frost Nova (#122)"
         self.assertFalse(_zone_leveler_trainer_spell_zone_matches(self._fake_world(False), name))
 
@@ -707,6 +718,28 @@ class TestZoneLevelerTrainerSpellZoneMatchesUnit(WoWTestBase):
         name = "Trainer Spell: Teleport: Stormwind (#3561)"
         self.assertFalse(_zone_leveler_trainer_spell_zone_matches(self._fake_world(True), name))
         self.assertFalse(_zone_leveler_trainer_spell_zone_matches(self._fake_world(False), name))
+
+
+class TestZoneLevelerTrainerSpellsZeroAtDefaultHubZone(WoWTestBase):
+    """M4.11.2 final whole-branch review (Finding 2, 2026-09-02): pins the
+    real, previously-undocumented cliff at zone_leveler_allow_hub_zone's
+    default (unset/False) value. No Trainer Spells row resolves to Barrens'
+    own zone_id (17) itself under this project's WorldMapArea.dbc-based
+    position resolver -- a known resolver limitation (smallest-box-wins
+    misattributes ~90% of Barrens' own bounding box to the smaller,
+    overlapping Durotar/Mulgore boxes; see
+    _zone_leveler_trainer_spell_zone_matches's own docstring and
+    state-of-the-project.md's Known gap #10), not evidence that no trainers
+    are physically standing in Barrens. So under whole_game_scaled with the
+    hub toggle left at its default, Trainer Spells contributes exactly 0
+    locations to a BarrensBeater slot -- this test asserts that as an
+    intentional, known fact rather than an undocumented surprise."""
+    options = {**_ZONE_LEVELER_BASE_OPTIONS, "zone_leveler_content_scope": "whole_game_scaled"}
+
+    def test_trainer_spells_contributes_zero_locations_at_default_hub_zone(self) -> None:
+        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        overlap = names & set(trainer_spells_content_data.LOCATIONS)
+        self.assertEqual(len(overlap), 0)
 
 
 class TestZoneLevelerQuestRewardZoneMatches(WoWTestBase):
