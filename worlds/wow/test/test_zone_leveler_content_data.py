@@ -35,6 +35,13 @@ class TestZoneLevelerContentData(unittest.TestCase):
         # not a behavior change.
         from .. import quest_rewards_content_data
         area_name = zone_level_data.area_name_for_zone_id(zl.ZONES["barrens"].zone_id)
+        # Final whole-branch review fix (M4.11.3.1, Finding 4b): guard
+        # against a vacuous pass -- without this, a silently-empty
+        # quest_reward_location_names (e.g. from Finding 4's now-fixed
+        # area_name_for_zone_id silently returning None) would make the
+        # loop below iterate zero times and the test would "pass" without
+        # actually checking anything.
+        self.assertGreater(len(zl.ZONES["barrens"].quest_reward_location_names), 0)
         for name in zl.ZONES["barrens"].quest_reward_location_names:
             self.assertIn(area_name, quest_rewards_content_data.TAGS[name].get("area", frozenset()))
 

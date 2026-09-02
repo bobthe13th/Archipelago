@@ -650,13 +650,13 @@ class TestZoneLevelerTrainerSpellZoneMatches(WoWTestBase):
     """M4.11.2: Trainer Spells is the one possession-triggered family that
     is ALSO physically zone-bound (a real trainer NPC must be visited), so
     under whole_game_scaled it needs BOTH its existing min_level check AND
-    this new trainer_zone_ids check to include a row. zone_leveler_allow_hub_zone
-    is on here -- both spells below have real min_level within 10-30
-    (Frost Nova: 10; Teleport: Stormwind: 20), so without the hub toggle
-    both would qualify on min_level alone and this test wouldn't isolate
-    the NEW zone check at all; confirmed live-DB numbers (extract_trainer_
-    spells.py's own trainer_zone_ids): Frost Nova (#122) resolves to,
-    among others, Durotar (14) and Orgrimmar (1637); Teleport: Stormwind
+    its tags["area"] intersection check (M4.11.3.1 Task 4) to include a row.
+    zone_leveler_allow_hub_zone is on here -- both spells below have real
+    min_level within 10-30 (Frost Nova: 10; Teleport: Stormwind: 20), so
+    without the hub toggle both would qualify on min_level alone and this
+    test wouldn't isolate the area check at all; confirmed live-DB numbers
+    (extract_trainer_spells.py's own tags["area"]): Frost Nova (#122)
+    resolves to, among others, Durotar (14) and Orgrimmar (1637); Teleport: Stormwind
     (#3561) resolves ONLY to Stormwind itself (1519) -- no Horde-hub
     trainer teaches it, matching the real game (an Alliance-only
     teleport spell)."""
@@ -679,7 +679,7 @@ class TestZoneLevelerTrainerSpellZoneMatches(WoWTestBase):
 
 class TestZoneLevelerTrainerSpellZoneMatchesUnit(WoWTestBase):
     """M4.11.2: unit-level coverage of _zone_leveler_trainer_spell_zone_matches
-    itself, calling it directly against real trainer_spells_content_data.TRIGGERS
+    itself, calling it directly against real trainer_spells_content_data.TAGS
     rows (same fake-world types.SimpleNamespace pattern
     TestZoneLevelerQuestRewardZoneMatches uses above) rather than paying for
     a full zone_leveler slot generation."""
@@ -776,7 +776,7 @@ class TestZoneLevelerTrainerSpellsAtDefaultHubZone(WoWTestBase):
 class TestZoneLevelerQuestRewardZoneMatches(WoWTestBase):
     """M4.11.1 Task 12 post-hoc fix round: unit-level coverage of
     _zone_leveler_quest_reward_zone_matches itself, calling it directly
-    against real quest_rewards_content_data.TRIGGERS rows (same fake-world
+    against real quest_rewards_content_data.TAGS rows (same fake-world
     types.SimpleNamespace pattern
     TestZoneLevelerScopeMatchesUnaffectsNonPossessionCategories uses)
     rather than paying for a full zone_leveler slot generation.
@@ -790,8 +790,10 @@ class TestZoneLevelerQuestRewardZoneMatches(WoWTestBase):
     totally different, unreachable zone -- reachable per AP's own logic
     (no equivalent of Dark Portal Access gates same-continent vanilla
     travel) but physically un-walkable-to given the zone lock. These tests
-    confirm the fix: only a row whose own real zone_id equals the
-    selected zone's real zone_id matches, and this holds regardless of
+    confirm the fix: only a row whose own real tags["area"] intersects the
+    selected zone's own in-bounds area-tag set (M4.11.3.1 Task 5's
+    tags["area"] frozenset-intersection mechanism, migrated off the old
+    scalar zone_id-equality check) matches, and this holds regardless of
     zone_leveler_content_scope (unlike the 5 possession-triggered
     families, Quest Rewards' restriction is not gated by that toggle at
     all)."""

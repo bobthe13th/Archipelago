@@ -76,5 +76,25 @@ ZONE_ID_TO_AREA_NAME: dict[int, str] = {
 }
 
 
-def area_name_for_zone_id(zone_id: int) -> str | None:
-    return ZONE_ID_TO_AREA_NAME.get(zone_id)
+def area_name_for_zone_id(zone_id: int) -> str:
+    """Final whole-branch review fix (M4.11.3.1, Finding 4): raises loudly
+    instead of returning None for an unmapped zone_id. All three call sites
+    (locations.py's two _zone_leveler_*_zone_matches functions and this
+    module's _quest_names_for_zone caller in zone_leveler_content_data.py)
+    build a Python set from this function's return value and intersect/
+    check membership against it -- a silently-returned None never matches
+    any real area-tag string, so an unmapped zone_id would previously
+    degrade every filter for that zone to "nothing in bounds" with no
+    error. options.py's ZoneLevelerStartingZone docstring already
+    advertises that curating a new Zone Leveler zone is "pure data
+    curation, not new engineering"; raising here ensures forgetting to add
+    the new zone's entry to ZONE_ID_TO_AREA_NAME fails loudly (a KeyError
+    naming the missing zone_id) instead of shipping a silently-empty quest
+    roster and trainer pool for that zone."""
+    if zone_id not in ZONE_ID_TO_AREA_NAME:
+        raise KeyError(
+            f"No canonical area name registered for zone_id={zone_id} in "
+            "ZONE_ID_TO_AREA_NAME -- add an entry before curating a Zone "
+            "Leveler zone with this zone_id."
+        )
+    return ZONE_ID_TO_AREA_NAME[zone_id]
