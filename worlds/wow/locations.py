@@ -228,6 +228,15 @@ def _zone_leveler_quest_reward_zone_matches(world, name: str) -> bool:
     only ever widens/narrows the possession-triggered families, and Quest
     Rewards was never one of them.
 
+    M4.11.2: extended to also accept the selected zone's own curated
+    allowed_hub_zone_ids, but ONLY when zone_leveler_allow_hub_zone is on
+    -- if the toggle is off, the in-bounds set stays zone-only, matching
+    the physical zone-lock's own real enforcement (a player can't walk to
+    Orgrimmar if the toggle hasn't opened that path). Per the design spec's
+    own §1: this same "selected zone OR allowed hub zones (when the toggle
+    is on)" rule applies uniformly to every zone-bound family as its own
+    real data lands, not just Quest Rewards.
+
     A row only matches if its own real TRIGGERS[name]["zone_id"] equals
     the selected zone's own real zone_id (quest_rewards_content_data.py,
     DB-extracted by extract_quest_rewards.py). zone_id == 0 is this data's
@@ -239,7 +248,10 @@ def _zone_leveler_quest_reward_zone_matches(world, name: str) -> bool:
     zone_key = world.options.zone_leveler_starting_zone.current_key
     zone_data = zone_leveler_content_data.ZONES[zone_key]
     row_zone_id = quest_rewards_content_data.TRIGGERS[name].get("zone_id")
-    return row_zone_id == zone_data.zone_id
+    in_bounds_zone_ids = {zone_data.zone_id}
+    if getattr(world.options, "zone_leveler_allow_hub_zone", False):
+        in_bounds_zone_ids |= zone_data.allowed_hub_zone_ids
+    return row_zone_id in in_bounds_zone_ids
 
 
 def _zone_leveler_scope_matches(world, category: OptionalCategory, name: str) -> bool:

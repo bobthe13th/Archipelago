@@ -862,3 +862,27 @@ class TestNonZoneLevelerModeStillIncludesAllAlwaysPresentRows(WoWTestBase):
     def test_always_present_row_still_included(self) -> None:
         location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
         self.assertIn("Quest: Skirmish at Echo Ridge Reward (#21)", location_names)
+
+
+class TestZoneLevelerQuestRewardsIncludeHubZoneWhenToggleOn(WoWTestBase):
+    options = {
+        **_ZONE_LEVELER_QUEST_REWARD_OPTIONS,
+        "zone_leveler_allow_hub_zone": True,
+    }
+
+    def test_durotar_or_orgrimmar_quest_included(self) -> None:
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertIn("Quest: Ripple Delivery Reward (#81)", location_names)
+
+
+class TestZoneLevelerQuestRewardsExcludeHubZoneWhenToggleOff(WoWTestBase):
+    options = {
+        **_ZONE_LEVELER_QUEST_REWARD_OPTIONS,
+        "zone_leveler_allow_hub_zone": False,
+    }
+
+    def test_durotar_or_orgrimmar_quest_excluded(self) -> None:
+        # Matches the physical zone-lock's own real enforcement -- if the
+        # player can't walk there, the check shouldn't exist either.
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertNotIn("Quest: Ripple Delivery Reward (#81)", location_names)
