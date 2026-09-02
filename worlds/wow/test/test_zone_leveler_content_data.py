@@ -29,9 +29,14 @@ class TestZoneLevelerContentData(unittest.TestCase):
         self.assertEqual(zl.ZONES["barrens"].instance_keys, ("wailing_caverns", "razorfen_kraul", "razorfen_downs"))
 
     def test_barrens_quest_names_are_all_real_zone_tagged_quest_rewards(self) -> None:
+        # M4.11.3.1 (Task 5): repointed from the old scalar
+        # TRIGGERS[name]["zone_id"] int comparison onto the unified
+        # TAGS[name]["area"] canonical-name mechanism -- a pure reshape,
+        # not a behavior change.
         from .. import quest_rewards_content_data
+        area_name = zone_level_data.area_name_for_zone_id(zl.ZONES["barrens"].zone_id)
         for name in zl.ZONES["barrens"].quest_reward_location_names:
-            self.assertEqual(quest_rewards_content_data.TRIGGERS[name]["zone_id"], zl.ZONES["barrens"].zone_id)
+            self.assertIn(area_name, quest_rewards_content_data.TAGS[name].get("area", frozenset()))
 
 
 if __name__ == "__main__":

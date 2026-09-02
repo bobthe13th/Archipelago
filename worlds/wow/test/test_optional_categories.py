@@ -807,10 +807,11 @@ class TestZoneLevelerQuestRewardZoneMatches(WoWTestBase):
         ))
 
     def test_row_in_selected_zone_matches_under_zone_only(self) -> None:
-        # "Quest: Chen's Empty Keg Reward (#819)" -- real zone_id 17
-        # (The Barrens), confirmed by direct TRIGGERS inspection.
+        # "Quest: Chen's Empty Keg Reward (#819)" -- real area tag
+        # "barrens" (The Barrens, zone_id 17), confirmed by direct TAGS
+        # inspection.
         name = "Quest: Chen's Empty Keg Reward (#819)"
-        self.assertEqual(quest_rewards_content_data.TRIGGERS[name]["zone_id"], 17)
+        self.assertEqual(quest_rewards_content_data.TAGS[name].get("area"), frozenset({"barrens"}))
         world = self._fake_world("zone_only")
         self.assertTrue(_zone_leveler_quest_reward_zone_matches(world, name))
 
@@ -822,22 +823,26 @@ class TestZoneLevelerQuestRewardZoneMatches(WoWTestBase):
         self.assertTrue(_zone_leveler_quest_reward_zone_matches(world, name))
 
     def test_row_in_a_different_real_zone_is_excluded(self) -> None:
-        # "Quest: Kanrethad's Quest Reward (#1)" -- real zone_id 151
-        # (a real, resolved zone, just not Barrens), confirmed by direct
-        # TRIGGERS inspection. Must be excluded under BOTH content_scope
-        # values -- this is not the possession-triggered widening path.
+        # "Quest: Kanrethad's Quest Reward (#1)" -- real area tag
+        # "designer_island" (a real, resolved zone, just not Barrens),
+        # confirmed by direct TAGS inspection. Must be excluded under BOTH
+        # content_scope values -- this is not the possession-triggered
+        # widening path.
         name = "Quest: Kanrethad's Quest Reward (#1)"
-        self.assertEqual(quest_rewards_content_data.TRIGGERS[name]["zone_id"], 151)
+        self.assertEqual(quest_rewards_content_data.TAGS[name].get("area"), frozenset({"designer_island"}))
         self.assertFalse(_zone_leveler_quest_reward_zone_matches(self._fake_world("zone_only"), name))
         self.assertFalse(_zone_leveler_quest_reward_zone_matches(self._fake_world("whole_game_scaled"), name))
 
     def test_row_with_unresolvable_zone_sentinel_is_excluded(self) -> None:
-        # "Quest: A Lesson to Learn Reward (#26)" -- real zone_id 0, this
-        # data's own "unresolvable, real zone unknown" sentinel. The safe
-        # default for a physically zone-locked game mode is exclusion, not
-        # inclusion, since we genuinely don't know this row's real zone.
+        # "Quest: A Lesson to Learn Reward (#26)" -- the `area` key is
+        # OMITTED from its tags block entirely (its real QuestSortID never
+        # resolves to a real zone -- see extract_quest_rewards.py's
+        # _resolve_zone_id), this data's own "unresolvable, real zone
+        # unknown" sentinel. The safe default for a physically zone-locked
+        # game mode is exclusion, not inclusion, since we genuinely don't
+        # know this row's real zone.
         name = "Quest: A Lesson to Learn Reward (#26)"
-        self.assertEqual(quest_rewards_content_data.TRIGGERS[name]["zone_id"], 0)
+        self.assertNotIn("area", quest_rewards_content_data.TAGS[name])
         self.assertFalse(_zone_leveler_quest_reward_zone_matches(self._fake_world("zone_only"), name))
         self.assertFalse(_zone_leveler_quest_reward_zone_matches(self._fake_world("whole_game_scaled"), name))
 
@@ -895,7 +900,7 @@ class TestZoneLevelerQuestRewardsRestrictedToSelectedZoneUnderZoneOnly(WoWTestBa
         ) - quest_rewards_content_data.ALWAYS_PRESENT
         self.assertEqual(sampled_quest_rewards, expected)
         for name in sampled_quest_rewards:
-            self.assertEqual(quest_rewards_content_data.TRIGGERS[name]["zone_id"], 17)
+            self.assertIn("barrens", quest_rewards_content_data.TAGS[name].get("area", frozenset()))
 
     def test_quest_with_unresolvable_zone_sentinel_never_appears(self) -> None:
         # Same ALWAYS_PRESENT exclusion as above -- a handful of the 19
@@ -909,8 +914,8 @@ class TestZoneLevelerQuestRewardsRestrictedToSelectedZoneUnderZoneOnly(WoWTestBa
             names & set(quest_rewards_content_data.LOCATIONS)
         ) - quest_rewards_content_data.ALWAYS_PRESENT
         zero_zone_names = {
-            name for name, trigger in quest_rewards_content_data.TRIGGERS.items()
-            if trigger.get("zone_id") == 0
+            name for name, tags in quest_rewards_content_data.TAGS.items()
+            if not tags.get("area")
         }
         self.assertGreater(len(zero_zone_names), 0)
         self.assertEqual(len(sampled_quest_rewards & zero_zone_names), 0)
@@ -943,7 +948,7 @@ class TestZoneLevelerQuestRewardsRestrictedToSelectedZoneUnderWholeGameScaled(Wo
         ) - quest_rewards_content_data.ALWAYS_PRESENT
         self.assertEqual(sampled_quest_rewards, expected)
         for name in sampled_quest_rewards:
-            self.assertEqual(quest_rewards_content_data.TRIGGERS[name]["zone_id"], 17)
+            self.assertIn("barrens", quest_rewards_content_data.TAGS[name].get("area", frozenset()))
 
     def test_quest_with_unresolvable_zone_sentinel_never_appears(self) -> None:
         # Same ALWAYS_PRESENT exclusion as above -- a handful of the 19
@@ -957,8 +962,8 @@ class TestZoneLevelerQuestRewardsRestrictedToSelectedZoneUnderWholeGameScaled(Wo
             names & set(quest_rewards_content_data.LOCATIONS)
         ) - quest_rewards_content_data.ALWAYS_PRESENT
         zero_zone_names = {
-            name for name, trigger in quest_rewards_content_data.TRIGGERS.items()
-            if trigger.get("zone_id") == 0
+            name for name, tags in quest_rewards_content_data.TAGS.items()
+            if not tags.get("area")
         }
         self.assertGreater(len(zero_zone_names), 0)
         self.assertEqual(len(sampled_quest_rewards & zero_zone_names), 0)
@@ -988,7 +993,7 @@ class TestZoneLevelerQuestRewardRestrictionDoesNotAffectOtherGameModes(WoWTestBa
         sampled_quest_rewards = names & set(quest_rewards_content_data.LOCATIONS)
         non_barrens = {
             name for name in sampled_quest_rewards
-            if quest_rewards_content_data.TRIGGERS[name].get("zone_id") != 17
+            if "barrens" not in quest_rewards_content_data.TAGS[name].get("area", frozenset())
         }
         self.assertGreater(len(non_barrens), 0)
 

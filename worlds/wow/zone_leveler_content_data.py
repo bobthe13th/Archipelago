@@ -24,9 +24,17 @@ class ZoneLevelerZoneData:
 
 
 def _quest_names_for_zone(zone_id: int) -> tuple[str, ...]:
+    """M4.11.3.1 (Task 5): repointed from the old scalar
+    TRIGGERS[name]["zone_id"] int comparison onto the unified
+    TAGS[name]["area"] canonical-name mechanism (Task 2's parse_area_names)
+    -- a pure reshape, not a behavior change, since a QuestSortID already
+    resolved to exactly one real zone or none (see
+    locations.py's _zone_leveler_quest_reward_zone_matches for the fuller
+    rationale)."""
+    area_name = zone_level_data.area_name_for_zone_id(zone_id)
     return tuple(
-        name for name, trigger in quest_rewards_content_data.TRIGGERS.items()
-        if trigger.get("zone_id") == zone_id
+        name for name, tags in quest_rewards_content_data.TAGS.items()
+        if area_name in tags.get("area", frozenset())
     )
 
 

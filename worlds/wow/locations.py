@@ -242,21 +242,33 @@ def _zone_leveler_quest_reward_zone_matches(world, name: str) -> bool:
     is on)" rule applies uniformly to every zone-bound family as its own
     real data lands, not just Quest Rewards.
 
-    A row only matches if its own real TRIGGERS[name]["zone_id"] equals
-    the selected zone's own real zone_id (quest_rewards_content_data.py,
-    DB-extracted by extract_quest_rewards.py). zone_id == 0 is this data's
-    own "unresolvable, real zone unknown" sentinel (~2,210 of ~9,208 rows
-    game-wide) -- since no real zone has zone_id 0, such a row can never
-    equal a real zone's zone_id and is naturally excluded here, matching
-    this project's "unknown zone means excluded, not included" default
-    for a physically zone-locked game mode."""
+    M4.11.3.1 (Task 5): migrated this family's area data from the old
+    scalar TRIGGERS[name]["zone_id"] int (a QuestSortID resolved through
+    parse_area_zone_ids's own parent-chain walk -- a direct, disambiguated
+    area reference, never a position/bounding-box guess) onto the unified
+    TAGS[name]["area"] canonical-name mechanism (Task 2's parse_area_names),
+    matching how Trainer Spells' own _zone_leveler_trainer_spell_zone_matches
+    already reads tags["area"]. This is a pure reshape (int -> canonical
+    string, TRIGGERS -> TAGS) -- Quest Rewards never had Trainer Spells'
+    border-ambiguity problem (Task 1-3's fix), so it never needed
+    resolve_area_tags_for_positions; QuestSortID already resolved to
+    exactly one real zone or none. A row only matches if its own real
+    TAGS[name]["area"] intersects the area-tag names for the selected
+    zone's own {zone_id} | allowed_hub_zone_ids (only including the hub
+    zones when zone_leveler_allow_hub_zone is on). An unresolvable
+    QuestSortID (~2,210 of ~9,208 rows game-wide) now OMITS the "area" key
+    entirely rather than carrying a zone_id of 0 -- `.get("area",
+    frozenset())` naturally excludes such a row here, matching this
+    project's "unknown zone means excluded, not included" default for a
+    physically zone-locked game mode."""
     zone_key = world.options.zone_leveler_starting_zone.current_key
     zone_data = zone_leveler_content_data.ZONES[zone_key]
-    row_zone_id = quest_rewards_content_data.TRIGGERS[name].get("zone_id")
+    row_area_tags = quest_rewards_content_data.TAGS[name].get("area", frozenset())
     in_bounds_zone_ids = {zone_data.zone_id}
     if getattr(world.options, "zone_leveler_allow_hub_zone", False):
         in_bounds_zone_ids |= zone_data.allowed_hub_zone_ids
-    return row_zone_id in in_bounds_zone_ids
+    in_bounds_area_tags = {zone_level_data.area_name_for_zone_id(z) for z in in_bounds_zone_ids}
+    return bool(row_area_tags & in_bounds_area_tags)
 
 
 def _zone_leveler_repsanity_matches(world, name: str) -> bool:
