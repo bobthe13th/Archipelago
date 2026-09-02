@@ -874,6 +874,29 @@ class TestGoldenBoarStatues(WoWTestBase):
 
 
 class TestZoneLevelerExcludesIrrelevantCoreLoopItems(WoWTestBase):
+    """M4.11.2 (fix round 1, controller ruling): zone_leveler excludes only
+    5 core_loop items -- the non-curated raid/dungeon instance unlocks
+    (Ragefire Chasm, Deadmines, Molten Core, Sunwell Plateau, Icecrown
+    Citadel) -- because none of them has a matching location anywhere in a
+    zone_leveler slot (distinct from the 3 curated Barrens instances, which
+    stay pooled and are asserted present below).
+
+    Dark Portal Access and Northrend Passage are deliberately NOT excluded,
+    despite superficially looking like the same kind of "irrelevant to a
+    zone-locked character" item (they too "enable travel outside the
+    starting zone"). The original commit (c7e09e3d) excluded all 7 on that
+    premise, but the premise is factually wrong for these 2: rules.py gates
+    Enemysanity's non-vanilla-tagged (tbc/wotlk) creature-kill locations on
+    state.has("Dark Portal Access", ...) / state.has("Northrend Passage",
+    ...), with no zone_leveler exemption, and Enemysanity remains fully
+    pool-eligible and completely zone-unrestricted this milestone (its own
+    zone-tagging is Phase 2, out of scope for the whole M4.11.2 milestone).
+    fish_content_data.py also gates Northrend fish behind "Northrend
+    Passage". At real production-default pools, excluding these 2 items
+    makes thousands of already-pooled Enemysanity locations permanently
+    unreachable -- see TestZoneLevelerCoreLoopExclusionEnemysanityReachability
+    below, which reproduces that exact scenario via this suite's normal
+    test_fill/test_all_state_can_reach_everything convention."""
     options = {
         "game_mode": "zone_leveler",
         "zone_leveler_starting_zone": "barrens",
@@ -881,8 +904,6 @@ class TestZoneLevelerExcludesIrrelevantCoreLoopItems(WoWTestBase):
     }
 
     _EXCLUDED_ITEM_NAMES = frozenset({
-        "Dark Portal Access",
-        "Northrend Passage",
         "Instance Unlock: Ragefire Chasm",
         "Instance Unlock: Deadmines",
         "Instance Unlock: Molten Core",
@@ -896,8 +917,21 @@ class TestZoneLevelerExcludesIrrelevantCoreLoopItems(WoWTestBase):
 
     def test_barrens_curated_instance_unlocks_still_present(self) -> None:
         item_names = {item.name for item in self.multiworld.itempool if item.player == self.player}
-        for name in ("Instance Unlock: Wailing Caverns", "Instance Unlock: Razorfen Kraul", "Instance Unlock: Razorfen Downs"):
+        for name in (
+            "Instance Unlock: Wailing Caverns",
+            "Instance Unlock: Razorfen Kraul",
+            "Instance Unlock: Razorfen Downs",
+        ):
             self.assertIn(name, item_names)
+
+    def test_dark_portal_access_and_northrend_passage_still_present(self) -> None:
+        # Regression guard for the Critical finding: these 2 items look
+        # superficially similar to the 5 excluded instance unlocks but must
+        # remain pooled unconditionally under zone_leveler -- see this
+        # class's own docstring for why.
+        item_names = {item.name for item in self.multiworld.itempool if item.player == self.player}
+        self.assertIn("Dark Portal Access", item_names)
+        self.assertIn("Northrend Passage", item_names)
 
     def test_progressive_level_cap_still_present(self) -> None:
         item_names = {item.name for item in self.multiworld.itempool if item.player == self.player}
@@ -905,3 +939,27 @@ class TestZoneLevelerExcludesIrrelevantCoreLoopItems(WoWTestBase):
 
     def test_item_location_parity_still_holds(self) -> None:
         self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
+
+
+class TestZoneLevelerCoreLoopExclusionEnemysanityReachability(WoWTestBase):
+    """Genuine regression test for the Critical finding above: reproduces
+    the reviewer's real scenario by generating a zone_leveler slot with
+    Enemysanity's pools left at their REAL production defaults (both
+    OptionSets' own `default = valid_keys`, i.e. every type/expansion
+    tier) rather than WoWTestBase.world_setup's normal zeroed-for-speed
+    defaults -- deliberately overridden here since that's exactly the
+    combination the reviewer showed breaks generation if Dark Portal
+    Access/Northrend Passage were ever excluded again. No custom
+    reachability test method is needed: WoWTestBase's automatically-run
+    test_fill/test_all_state_can_reach_everything (test/bases.py) already
+    fail with an "Unreachable locations" assertion if any pooled
+    Enemysanity location can never be reached -- same convention
+    test_quest_rewards.py/test_vendor_stock.py already rely on for their
+    own full-generation reachability coverage."""
+    options = {
+        "game_mode": "zone_leveler",
+        "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_goals": {"reach_zone_level_cap"},
+        "enemysanity_type_pools": {"boss", "regular"},
+        "enemysanity_expansion_pools": {"vanilla", "tbc", "wotlk"},
+    }

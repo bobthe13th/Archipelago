@@ -40,13 +40,23 @@ _EFFECT_TO_CATEGORY = {
 FILLER_PER_CATEGORY_CAP = 30
 
 
-# M4.11.2: Zone Leveler excludes 7 core_loop items that have no relevance
-# to a zone-locked character (Dark Portal Access/Northrend Passage enable
-# travel outside the starting zone; 5 non-curated raid/dungeon unlocks have
-# no matching location at all in zone_leveler slots).
+# M4.11.2 (fix round 1, controller ruling): Zone Leveler excludes only these
+# 5 non-curated raid/dungeon instance unlocks -- they have no matching
+# location at all in zone_leveler slots (distinct from the 3 curated Barrens
+# instances, which remain pooled). Dark Portal Access and Northrend Passage
+# are deliberately NOT excluded, despite superficially looking similar
+# (they also "enable travel outside the starting zone"): rules.py gates
+# Enemysanity's non-vanilla-tagged (tbc/wotlk) creature-kill locations on
+# state.has("Dark Portal Access", ...) / state.has("Northrend Passage", ...)
+# with no zone_leveler exemption, and fish_content_data.py gates Northrend
+# fish behind "Northrend Passage" too -- Enemysanity remains fully
+# pool-eligible and zone-unrestricted this milestone (its own zone-tagging
+# is Phase 2, out of scope for M4.11.2), so excluding these 2 items makes
+# thousands of already-pooled Enemysanity/fish locations permanently
+# unreachable. The original 7-item exclusion (commit c7e09e3d) was reverted
+# to 5 for exactly this reason -- do not re-add these 2 without also solving
+# the Enemysanity/fish unreachability problem.
 _ZONE_LEVELER_IRRELEVANT_CORE_LOOP_ITEM_NAMES = frozenset({
-    "Dark Portal Access",
-    "Northrend Passage",
     "Instance Unlock: Ragefire Chasm",
     "Instance Unlock: Deadmines",
     "Instance Unlock: Molten Core",
@@ -86,14 +96,17 @@ def create_core_loop_item_pool(world) -> list:
     # resolve_core_loop_track helper items.py/locations.py/rules.py all
     # share (Finding 10 also factored this out -- see
     # zone_leveler_content_data.py).
-    track, _zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
-    is_zone_leveler = getattr(world.options, "game_mode", None) == "zone_leveler"
+    track, zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
+    # zone_key is non-None iff the slot is zone_leveler (resolve_core_loop_track's
+    # own contract) -- reuse it instead of a second independent game_mode check.
+    is_zone_leveler = zone_key is not None
     pool = []
     for name, (item_id, count) in core_loop_content_data.ITEMS.items():
-        # M4.11.2: Zone Leveler excludes these 7 items -- they either enable
-        # travel outside the zone (Dark Portal Access/Northrend Passage) or
-        # have no matching location in zone_leveler slots (5 non-curated
-        # raid/dungeon unlocks, distinct from the 3 curated Barrens instances).
+        # M4.11.2: Zone Leveler excludes these 5 items -- non-curated
+        # raid/dungeon unlocks with no matching location in zone_leveler
+        # slots (distinct from the 3 curated Barrens instances, which stay
+        # pooled). Dark Portal Access/Northrend Passage are NOT excluded --
+        # see the frozenset's own comment above for why.
         if is_zone_leveler and name in _ZONE_LEVELER_IRRELEVANT_CORE_LOOP_ITEM_NAMES:
             continue
         if name == "Progressive Level Cap":
@@ -146,16 +159,19 @@ def core_loop_item_surplus(world) -> int:
     unlock items) can never drift out of sync with what was actually
     pooled for it.
 
-    M4.11.2 correction: zone_leveler excludes 7 core_loop items
-    (Dark Portal Access, Northrend Passage, and 5 non-curated raid/dungeon
-    unlocks), so the actual pooled count is 23, not 30. This function must
-    reflect the actual pool size, not the theoretical count, so the filler
-    location sizing in locations.py stays in sync."""
-    track, _zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
+    M4.11.2 correction (fix round 1: narrowed from 7 to 5 items -- see
+    _ZONE_LEVELER_IRRELEVANT_CORE_LOOP_ITEM_NAMES's own comment): zone_leveler
+    excludes 5 non-curated raid/dungeon core_loop instance-unlock items, so
+    the actual pooled count is 25, not 30. This function must reflect the
+    actual pool size, not the theoretical count, so the filler location
+    sizing in locations.py stays in sync."""
+    track, zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
     natural_item_count = _core_loop_natural_item_count(track)
-    # M4.11.2: zone_leveler excludes 7 items, so reduce the natural count
-    # to match the actual pooled size (which excludes those 7).
-    is_zone_leveler = getattr(world.options, "game_mode", None) == "zone_leveler"
+    # M4.11.2: zone_leveler excludes 5 items, so reduce the natural count
+    # to match the actual pooled size (which excludes those 5). zone_key is
+    # non-None iff zone_leveler (resolve_core_loop_track's own contract) --
+    # reuse it instead of a second independent game_mode check.
+    is_zone_leveler = zone_key is not None
     if is_zone_leveler:
         natural_item_count -= len(_ZONE_LEVELER_IRRELEVANT_CORE_LOOP_ITEM_NAMES)
     return max(0, natural_item_count - _trap_baseline_location_count(world))
