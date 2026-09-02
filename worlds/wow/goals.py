@@ -232,10 +232,13 @@ def _validate_key_hunt(world) -> None:
     # (matching locations.py's create_rares_locations own filter exactly),
     # not the full 40 -- an unrestricted key_hunt_zone_pools default makes
     # this identical to the pre-M4.11.1 row_count=len(LOCATIONS) check.
+    # (M4.11.3.1: reads the family's unified `area` tag -- Task 1-3's fixed
+    # resolve_area_tags_for_positions -- instead of the retired
+    # single-winner `zone` tag, matching locations.py's own rename.)
     selected_zones = world.options.key_hunt_zone_pools.value
     eligible_row_count = sum(
         1 for name in rares_content_data.LOCATIONS
-        if rares_content_data.TAGS[name].get("zone", frozenset()) & selected_zones
+        if rares_content_data.TAGS[name].get("area", frozenset()) & selected_zones
     )
     predicted = density.predict_sample_size(
         game_mode_profile.effective_check_density(world), category_weight=100, row_count=eligible_row_count

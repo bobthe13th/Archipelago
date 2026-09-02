@@ -116,14 +116,18 @@ class KeyHuntInstancesRequired(Range):
 
 class KeyHuntZonePools(OptionSet):
     """Only relevant when game_mode is key_hunt (M4.11.1). Which real WoW
-    zones' rares are eligible to be sampled into the pool -- default is every
-    zone this checkout's 40 curated rares span (zero-regression: unrestricted,
-    identical to Key Hunt's pre-M4.11.1 behavior). Combined with check_density/
-    key_hunt_keys_required exactly like every other tag dimension (M4.8 §2):
-    AND'd with density sampling, not a separate ceiling."""
+    areas' rares are eligible to be sampled into the pool -- default is every
+    area tag this checkout's 40 curated rares span (zero-regression:
+    unrestricted, identical to Key Hunt's pre-M4.11.3.1 behavior). Combined
+    with check_density/key_hunt_keys_required exactly like every other tag
+    dimension (M4.8 §2): AND'd with density sampling, not a separate ceiling.
+    (M4.11.3.1: reads the family's unified `area` tag dimension -- Task 1-3's
+    fixed resolve_area_tags_for_positions -- instead of the retired
+    single-winner `zone` tag; this option's own player-facing name is
+    unchanged.)"""
     display_name = "Key Hunt: Zone Pools"
     valid_keys = frozenset(
-        zone for tags in rares_content_data.TAGS.values() for zone in tags.get("zone", frozenset())
+        area for tags in rares_content_data.TAGS.values() for area in tags.get("area", frozenset())
     )
     default = valid_keys
 

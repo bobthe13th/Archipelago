@@ -614,13 +614,17 @@ def create_rares_locations(world, region) -> list:
 
     # M4.11.1 Task 5: key_hunt_zone_pools ANDs against density sampling (M4.8
     # §2 tag-dimension convention) -- a row is a candidate only if its own
-    # `zone` tag intersects the player's selection; the unrestricted default
-    # (every zone this checkout's 40 curated rares span) makes this identical
-    # to Key Hunt's pre-M4.11.1 unfiltered behavior.
+    # `area` tag intersects the player's selection; the unrestricted default
+    # (every area tag this checkout's 40 curated rares span) makes this
+    # identical to Key Hunt's pre-M4.11.1 unfiltered behavior. (M4.11.3.1:
+    # reads the family's unified `area` tag -- Task 1-3's fixed
+    # resolve_area_tags_for_positions, possibly more than one area per row --
+    # instead of the retired single-winner `zone` tag; the option itself is
+    # still named key_hunt_zone_pools, unchanged.)
     selected_zones = world.options.key_hunt_zone_pools.value
     all_rows = [
         (name, location_id) for name, location_id in rares_content_data.LOCATIONS.items()
-        if rares_content_data.TAGS[name].get("zone", frozenset()) & selected_zones
+        if rares_content_data.TAGS[name].get("area", frozenset()) & selected_zones
     ]
     sampled = density.sample_category(
         game_mode_profile.effective_check_density(world), category_weight=100, all_rows=all_rows, rng=world.random,

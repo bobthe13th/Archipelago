@@ -24,7 +24,8 @@ ZONE_ID_BARRENS constant (used as a zone_id tag, not a level range);
 Task 12's own min_level/max_level filtering reads
 zone_leveler_content_data.ZONES["barrens"].min_level/.max_level directly,
 a separate, hand-curated source of truth. Key Hunt's key_hunt_zone_pools
-(Task 5) restricts by rares_content_data's own per-row `zone` tags
+(Task 5, renamed onto rares_content_data's unified per-row `area` tags by
+M4.11.3.1 Task 6) restricts by rares_content_data's own per-row area tags
 (resolved via a WorldMapArea.dbc position resolver), never by this module.
 As of this review, ZONE_ID_TO_LEVEL_RANGE/level_range_for_zone/
 zones_in_level_range are exercised only by this module's own test file

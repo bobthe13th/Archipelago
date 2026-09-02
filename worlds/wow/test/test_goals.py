@@ -444,9 +444,15 @@ class TestKeyHuntZonePoolsRestrictsEligibleRareCount(WoWTestBase):
     candidate pool BEFORE sampling, same shape as quest_reward_type_pools/
     quest_reward_expansion_pools ANDing against quest_rewards. "felwood" has
     exactly 3 of the 40 curated rares (Carnivous the Breaker, Olm the Wise,
-    Mezzir the Howler -- rares.yaml's own real zone tags), confirmed
+    Mezzir the Howler -- rares.yaml's own real area tags), confirmed
     directly against rares_content_data.TAGS rather than hardcoded from
-    memory."""
+    memory. (M4.11.3.1 Task 6: reads the family's unified `area` tag --
+    Task 1-3's fixed resolve_area_tags_for_positions, which unions every
+    real zone a rare's real spawns touch instead of picking one
+    single-winner zone -- instead of the retired `zone` tag; the same 3
+    rows still carry "felwood" under the new mechanism, now alongside
+    additional area tags on 2 of the 3 rows (Olm the Wise/Mezzir the Howler
+    also tag darkshore/winterspring, a real widening, not a regression)."""
     options = {
         "game_mode": "key_hunt",
         "check_density": 100,
@@ -460,7 +466,7 @@ class TestKeyHuntZonePoolsRestrictsEligibleRareCount(WoWTestBase):
         from .. import rares_content_data
         expected_names = {
             name for name, tags in rares_content_data.TAGS.items()
-            if "felwood" in tags.get("zone", frozenset())
+            if "felwood" in tags.get("area", frozenset())
         }
         self.assertEqual(len(expected_names), 3)
         rare_kill_locations = {loc.name for loc in self.multiworld.get_locations() if loc.name.startswith("Rare Kill:")}
