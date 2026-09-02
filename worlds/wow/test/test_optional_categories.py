@@ -621,14 +621,23 @@ class TestZoneLevelerWholeGameScaledWidensTractableFamilies(WoWTestBase):
             self.assertGreaterEqual(min_level, band.min_level)
             self.assertLessEqual(min_level, band.max_level)
 
-    def test_craftsanity_and_repsanity_stay_fully_excluded(self) -> None:
-        # Craftsanity/Repsanity have no real min_level data to widen by
+    def test_craftsanity_stays_fully_excluded_but_repsanity_includes_vanilla(self) -> None:
+        # M4.11.2: Craftsanity has no real min_level data to widen by
         # (see _zone_leveler_possession_family_min_level's own docstring) --
-        # whole_game_scaled behaves identically to zone_only for these two
-        # families, even with their own tag pools wide open.
+        # whole_game_scaled behaves identically to zone_only for this family,
+        # even with tag pools wide open. Repsanity, by contrast, is now
+        # filtered by expansion tag (vanilla-only under zone_leveler),
+        # regardless of content_scope, so vanilla-tagged repsanity factions
+        # are includable.
         names = {loc.name for loc in self.multiworld.get_locations(self.player)}
         self.assertEqual(len(names & set(craftsanity_content_data.LOCATIONS)), 0)
-        self.assertEqual(len(names & set(repsanity_content_data.LOCATIONS)), 0)
+        # Verify some vanilla repsanity rows ARE present
+        repsanity_rows = names & set(repsanity_content_data.LOCATIONS)
+        self.assertGreater(len(repsanity_rows), 0)
+        # Verify all present repsanity rows are vanilla-tagged
+        for name in repsanity_rows:
+            expansion_tags = repsanity_content_data.TAGS[name].get("expansion", frozenset())
+            self.assertIn("vanilla", expansion_tags)
 
 
 class TestZoneLevelerTrainerSpellZoneMatches(WoWTestBase):
@@ -968,3 +977,38 @@ class TestZoneLevelerQuestRewardsExcludeHubZoneWhenToggleOff(WoWTestBase):
         # player can't walk there, the check shouldn't exist either.
         location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
         self.assertNotIn("Quest: Ripple Delivery Reward (#81)", location_names)
+
+
+class TestZoneLevelerRepsanityVanillaOnly(WoWTestBase):
+    options = {
+        "game_mode": "zone_leveler",
+        "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_goals": {"reach_zone_level_cap"},
+        "repsanity_expansion_pools": set(options.RepsanityExpansionPools.default),
+        "repsanity_rank_tier_pools": set(options.RepsanityRankTierPools.default),
+    }
+
+    def test_vanilla_faction_included(self) -> None:
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertIn("Reputation: Booty Bay (Friendly)", location_names)
+
+    def test_non_vanilla_faction_excluded(self) -> None:
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertNotIn("Reputation: Silvermoon City (Friendly)", location_names)
+
+
+class TestZoneLevelerRepsanityUnaffectedByContentScope(WoWTestBase):
+    options = {
+        "game_mode": "zone_leveler",
+        "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_goals": {"reach_zone_level_cap"},
+        "zone_leveler_content_scope": "whole_game_scaled",
+        "repsanity_expansion_pools": set(options.RepsanityExpansionPools.default),
+        "repsanity_rank_tier_pools": set(options.RepsanityRankTierPools.default),
+    }
+
+    def test_non_vanilla_faction_still_excluded_under_whole_game_scaled(self) -> None:
+        # Confirms the vanilla-only restriction is NOT the possession-triggered
+        # zone_only/whole_game_scaled toggle -- it applies identically either way.
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertNotIn("Reputation: Silvermoon City (Friendly)", location_names)

@@ -156,15 +156,19 @@ def _location_matches_pools(world, category: OptionalCategory, name: str) -> boo
 # M4.11.1 Task 12: possession-triggered categories -- these fire on
 # pickup/craft/learn (item_first_held, recipe_craft, reputation_rank,
 # learn_spell trigger kinds) regardless of the player's physical zone.
-# Quest Rewards/instance clears are, unlike these 5, real physically
+# Quest Rewards/instance clears are, unlike these 4, real physically
 # zone-bound families (a real quest-giver NPC/instance entrance somewhere
 # specific), so their own restriction is unconditional whenever game_mode
 # is zone_leveler rather than gated by zone_leveler_content_scope the way
-# these 5 are -- see _zone_leveler_quest_reward_zone_matches and
+# these 4 are -- see _zone_leveler_quest_reward_zone_matches and
 # _zone_leveler_scope_matches below for the actual filtering behavior.
 # Only relevant when game_mode is zone_leveler.
+# M4.11.2: Repsanity was originally in this set but is now handled by its
+# own dedicated _zone_leveler_repsanity_matches function with expansion-tag
+# filtering, so it's been removed from here -- the early-return branch in
+# _zone_leveler_scope_matches intercepts it before this set is consulted.
 _POSSESSION_TRIGGERED_CATEGORY_KEYS = frozenset({
-    "itemsanity", "craftsanity", "repsanity", "recipes", "trainer_spells",
+    "itemsanity", "craftsanity", "recipes", "trainer_spells",
 })
 
 
@@ -179,7 +183,7 @@ def _zone_leveler_possession_family_min_level(name: str, category: OptionalCateg
     min_level/zone_id keys already established and locations.py has read
     from since M4.7.1.3/M4.11.1 Task 2.
 
-    Real per-family sourcing (only 3 of the 5 possession-triggered families
+    Real per-family sourcing (only 3 of the 4 possession-triggered families
     actually carry this key):
       - itemsanity: item_template.RequiredLevel (extract_itemsanity.py).
       - trainer_spells: MIN(trainer_spell.ReqLevel) across every class
@@ -254,6 +258,27 @@ def _zone_leveler_quest_reward_zone_matches(world, name: str) -> bool:
     return row_zone_id in in_bounds_zone_ids
 
 
+def _zone_leveler_repsanity_matches(world, name: str) -> bool:
+    """M4.11.2: Repsanity has no real per-row player-level requirement
+    (M4.11.1 Task 12's own confirmed finding -- reputation ranks aren't
+    level-gated by design) and no physical location either (reputation
+    gain isn't tied to a place, unlike a quest-giver/trainer/chest) -- so
+    it's exempt from the ZONE axis entirely (same as core_loop's level
+    milestones), but it DOES get a LEVEL-axis proxy: Barrens' whole 10-30
+    band is squarely vanilla-era content, so a tbc/wotlk reputation
+    faction (Argent Crusade, Netherwing, ...) isn't realistically
+    farmable by a Barrens-locked, Azeroth-only character regardless of any
+    literal rank-based gate. Reuses Repsanity's own real, already-shipped
+    `expansion` tag (M4.10.4) as this proxy -- no new DB extraction
+    needed. Applies unconditionally under zone_leveler (both
+    zone_only/whole_game_scaled) -- this is NOT the possession-triggered
+    min_level mechanism (Repsanity was never in
+    _POSSESSION_TRIGGERED_CATEGORY_KEYS and doesn't join it here either),
+    it's a separate, always-on restriction specific to this one family."""
+    expansion_tags = repsanity_content_data.TAGS[name].get("expansion", frozenset())
+    return "vanilla" in expansion_tags
+
+
 def _zone_leveler_trainer_spell_zone_matches(world, name: str) -> bool:
     """M4.11.2: Trainer Spells are learned from a real, physical trainer
     NPC -- unlike Recipes (a mailable item), there's no way to learn a
@@ -317,6 +342,8 @@ def _zone_leveler_scope_matches(world, category: OptionalCategory, name: str) ->
     ReqLevel)."""
     if category.key == "quest_rewards":
         return _zone_leveler_quest_reward_zone_matches(world, name)
+    if category.key == "repsanity":
+        return _zone_leveler_repsanity_matches(world, name)
     if category.key not in _POSSESSION_TRIGGERED_CATEGORY_KEYS:
         return True
     if world.options.zone_leveler_content_scope == "zone_only":
