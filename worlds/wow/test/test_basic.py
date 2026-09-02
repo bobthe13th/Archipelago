@@ -779,18 +779,20 @@ class TestZoneLevelerBarrensLevelTrack(WoWTestBase):
     }
 
     def test_reach_level_30_needs_twenty_of_the_pooled_progressive_level_caps(self) -> None:
-        # Progressive Level Cap's pooled copy count (70, core_loop.yaml's
-        # own item `count:`) is flat and track-independent -- same
-        # "independently-sized, not derived from the track" invariant
-        # TestSprintGoal.test_core_loop_item_pool_matches_expected_total
-        # documents for the standard track. Only the REQUIRED threshold to
-        # reach a given level is track-specific
-        # (LEVEL_CAP_TOTAL_BY_TRACK["zone_leveler_barrens"] == 30 - 10 ==
-        # 20), exercised here the same "collect N-1, then the Nth" way
+        # Finding 10 correction (final whole-branch review, 2026-09-01):
+        # Progressive Level Cap's pooled copy count is now genuinely
+        # per-track (core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK), not
+        # flat/track-independent as this test used to assert -- pooling the
+        # standard track's flat 70 for zone_leveler_barrens too let a
+        # BarrensBeater realm's level cap walk all the way to 80, well past
+        # its own intended level-30 ceiling. zone_leveler_barrens pools
+        # exactly LEVEL_CAP_TOTAL_BY_TRACK["zone_leveler_barrens"] == 20 (its
+        # own 30 - 10 threshold, unchanged), exercised here the same
+        # "collect N-1, then the Nth" way
         # TestCoreLoopAccessRules.test_reach_level_55_needs_forty_five_progressive_level_caps
         # does for the standard track.
         caps = self.get_items_by_name("Progressive Level Cap")
-        self.assertEqual(len(caps), 70)
+        self.assertEqual(len(caps), 20)
         self.collect(caps[:19])
         self.assertFalse(self.can_reach_location("Reach Level 30 (Zone Leveler)"))
         self.collect(caps[19:20])

@@ -12,10 +12,26 @@ AreaTable area id (its own name field decodes to "Island of Doctor
 Lapidis", nothing to do with Molten Core), confirmed via direct DBC decode.
 The real Molten Core area id, found by searching the DBC's string block for
 the exact string "Molten Core", is 2717, and the constant below was
-corrected to match. Consumed by Zone Leveler's whole_game_scaled content scope
-(M4.11.1 Task 12) and Key Hunt's zone-restriction option (Task 5) -- NOT
-wired into the generic tag_options/OptionSet system (that's M4.11.2's
-full-breadth follow-up).
+corrected to match.
+
+Final whole-branch review correction (M4.11.1, 2026-09-01): despite this
+module's original docstring claiming otherwise, neither Zone Leveler's
+whole_game_scaled content scope (Task 12) nor Key Hunt's zone-restriction
+option (Task 5) actually consumes ZONE_ID_TO_LEVEL_RANGE/
+level_range_for_zone/zones_in_level_range in real production code.
+zone_leveler_content_data.py imports this module only for the bare
+ZONE_ID_BARRENS constant (used as a zone_id tag, not a level range);
+Task 12's own min_level/max_level filtering reads
+zone_leveler_content_data.ZONES["barrens"].min_level/.max_level directly,
+a separate, hand-curated source of truth. Key Hunt's key_hunt_zone_pools
+(Task 5) restricts by rares_content_data's own per-row `zone` tags
+(resolved via a WorldMapArea.dbc position resolver), never by this module.
+As of this review, ZONE_ID_TO_LEVEL_RANGE/level_range_for_zone/
+zones_in_level_range are exercised only by this module's own test file
+(test/test_zone_level_data.py) -- real, verified scaffolding for a future
+milestone (a possible M4.11.2 generalization), but not currently wired
+into any consuming code path. Left in place rather than deleted for that
+reason; do not assume it is load-bearing anywhere today.
 """
 from __future__ import annotations
 

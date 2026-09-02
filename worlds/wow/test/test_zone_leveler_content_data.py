@@ -1,6 +1,7 @@
 import unittest
 
 from .. import zone_leveler_content_data as zl
+from .. import zone_level_data
 
 
 class TestZoneLevelerContentData(unittest.TestCase):
@@ -8,7 +9,20 @@ class TestZoneLevelerContentData(unittest.TestCase):
         self.assertIn("barrens", zl.ZONES)
 
     def test_barrens_level_range_matches_zone_level_data(self) -> None:
+        # Real cross-check (final whole-branch review M5 fix, 2026-09-01):
+        # this used to just hardcode (10, 30) and never actually imported
+        # zone_level_data at all, despite its name -- these are two
+        # independently maintained sources of truth (zone_leveler_content_data
+        # is Task 12's own hand-curated data; zone_level_data is Task 13's
+        # DBC-verified scaffolding, not currently consumed by any production
+        # code -- see zone_level_data.py's own module docstring), so a real
+        # test asserting they agree is worth having even though neither
+        # reads the other at runtime.
         barrens = zl.ZONES["barrens"]
+        self.assertEqual(
+            (barrens.min_level, barrens.max_level),
+            zone_level_data.ZONE_ID_TO_LEVEL_RANGE[zone_level_data.ZONE_ID_BARRENS],
+        )
         self.assertEqual((barrens.min_level, barrens.max_level), (10, 30))
 
     def test_barrens_has_three_curated_instances(self) -> None:

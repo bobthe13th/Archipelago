@@ -6,6 +6,7 @@ from . import enemysanity_content_data
 from . import fish_content_data
 from . import quest_rewards_content_data
 from . import world_state
+from . import zone_leveler_content_data
 
 
 # M2: all 19 Northshire/Goldshire locations are always accessible (no
@@ -46,12 +47,11 @@ def set_rules(world):
     # standard/death_knight pair -- extends the same track-resolution shape
     # Task 3 set up, gated on game_mode instead of death_knight_slot,
     # matching locations.py's create_core_loop_locations split exactly.
-    if world.options.game_mode == "zone_leveler":
-        zone_key = world.options.zone_leveler_starting_zone.current_key
-        track = f"zone_leveler_{zone_key}"
-    else:
-        is_dk_slot = bool(world.options.death_knight_slot)
-        track = "death_knight" if is_dk_slot else "standard"
+    # Finding 10 (final whole-branch review, 2026-09-01): this resolution
+    # used to be duplicated independently here, items.py, and locations.py
+    # -- now shared via resolve_core_loop_track
+    # (zone_leveler_content_data.py).
+    track, _zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
     # M4.11.1 (Task 3): starting_cap is now per-track (STARTING_LEVEL_CAP_BY_TRACK)
     # instead of a single flat STARTING_LEVEL_CAP -- both current tracks share
     # the same value (10) today, but Zone Leveler's own track (Task 9) tops
@@ -155,10 +155,15 @@ def set_rules(world):
     # same as every other quest_reward.
     # M4.11.1 (Task 3): total_caps now comes from LEVEL_CAP_TOTAL_BY_TRACK
     # (per-track pooled total) instead of the flat ITEMS["Progressive Level
-    # Cap"][1] count -- quest_rewards locations are only ever created for the
-    # standard/death_knight core-loop pool (never Zone Leveler's), so this
-    # clamp stays anchored to whichever track the connected slot uses, reusing
-    # the same starting_cap/step/track locals already computed above.
+    # Cap"][1] count -- this clamp stays anchored to whichever track the
+    # connected slot uses (including zone_leveler_<zone_key>, resolved above),
+    # reusing the same starting_cap/step/track locals already computed above.
+    # Comment correction (final whole-branch review M6, 2026-09-01): a
+    # zone_leveler slot DOES create quest_rewards locations -- the Task 12
+    # hotfix wires up 103 real Barrens-tagged quest_rewards rows plus the 19
+    # always-present rows for a zone_leveler_barrens slot, same as any other
+    # track, so this clamp genuinely applies to Zone Leveler's own quest
+    # rewards too, not only standard/death_knight's.
     total_caps = core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK[track]
     for loc in world.multiworld.get_locations(world.player):
         if not loc.name.startswith("Quest:") or loc.name not in quest_rewards_content_data.LOCATIONS:

@@ -40,9 +40,42 @@ _EFFECT_TO_CATEGORY = {
 FILLER_PER_CATEGORY_CAP = 30
 
 
+def _core_loop_natural_item_count(track: str) -> int:
+    """Total real, unconditional core_loop item copies pooled for `track` --
+    Progressive Level Cap's own per-track total
+    (core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK, since Finding 10's
+    fix below) plus every other core_loop item's flat count (the 10
+    Instance Unlock/Dark Portal Access/Northrend Passage items, currently
+    identical across every track). Single source of truth for BOTH
+    create_core_loop_item_pool's own pool size and core_loop_item_surplus's
+    deficit/surplus computation (final whole-branch review Finding 10,
+    2026-09-01) -- these two must never be able to drift apart on what
+    "how many Progressive Level Cap copies does this track pool" means."""
+    level_cap_copies = core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK[track]
+    other_items_count = sum(
+        count for name, (_item_id, count) in core_loop_content_data.ITEMS.items()
+        if name != "Progressive Level Cap"
+    )
+    return level_cap_copies + other_items_count
+
+
 def create_core_loop_item_pool(world) -> list:
+    # Finding 10 (final whole-branch review, 2026-09-01): Progressive Level
+    # Cap used to pool core_loop.yaml's flat, standard/death_knight-sized
+    # count (70) for EVERY track, including zone_leveler_barrens -- which
+    # only ever needs to walk its level cap from 10 to 30 (20 copies,
+    # LEVEL_CAP_TOTAL_BY_TRACK["zone_leveler_barrens"]), not all the way to
+    # 80. Pooling 70 let a BarrensBeater realm's level cap walk past its own
+    # intended level-30 ceiling, directly undermining the mode's vertical-
+    # slice premise. Now resolved per-track via the same
+    # resolve_core_loop_track helper items.py/locations.py/rules.py all
+    # share (Finding 10 also factored this out -- see
+    # zone_leveler_content_data.py).
+    track, _zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
     pool = []
     for name, (item_id, count) in core_loop_content_data.ITEMS.items():
+        if name == "Progressive Level Cap":
+            count = core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK[track]
         for _ in range(count):
             pool.append(WoWItem(name, ItemClassification.progression, item_id, world.player))
     # M4.9.3.1: core_loop's every-level granularity (M4.9.3) grew its own
@@ -65,14 +98,14 @@ def create_core_loop_item_pool(world) -> list:
 def core_loop_item_surplus(world) -> int:
     """M4.11.1 (Task 3): the mirror image of create_core_loop_item_pool's
     own deficit-padding above. LEVEL_CAP_STEP dropped from 5 to 1, growing
-    Progressive Level Cap's flat, track-independent pooled copy count from
-    14 to 70 (core_loop.yaml) -- combined with the unconditional unlock
-    items (7 at the time, 10 as of M4.11.1 Task 4's 3 new instance
-    unlocks), core_loop's own natural item count is now 80 for EVERY slot,
-    regardless of track (was 77). The standard track's own 88 locations
-    (was 85) still exceed that (a deficit, already padded with filler
-    above), but the death_knight track's own 34 locations (was 31; 26
-    level milestones (55-80) + 8 instance clears, grown from 5 by Task 4)
+    Progressive Level Cap's pooled copy count from 14 to 70 for the
+    standard/death_knight tracks (core_loop.yaml) -- combined with the
+    unconditional unlock items (7 at the time, 10 as of M4.11.1 Task 4's 3
+    new instance unlocks), core_loop's own natural item count is 80 for the
+    standard/death_knight tracks (was 77). The standard track's own 88
+    locations (was 85) still exceed that (a deficit, already padded with
+    filler above), but the death_knight track's own 34 locations (was 31;
+    26 level milestones (55-80) + 8 instance clears, grown from 5 by Task 4)
     do not -- a real 46-item surplus with nowhere of its own family to
     live (unchanged numerically from before Task 4, since both the item
     count and the death_knight floor grew by exactly 3). Used by
@@ -81,8 +114,17 @@ def core_loop_item_surplus(world) -> int:
     count_enabled_gates_items/count_enabled_trap_items/
     count_enabled_holidaysanity_items already play for their own families'
     "no AP location of its own" items -- 0 for the standard track (whose
-    own deficit already covers it), nonzero only for death_knight."""
-    natural_item_count = sum(count for _, count in core_loop_content_data.ITEMS.values())
+    own deficit already covers it), nonzero only for death_knight.
+
+    Finding 10 correction (final whole-branch review, 2026-09-01): this
+    function's natural_item_count is no longer a flat, track-independent
+    80 -- it is resolved per-track via _core_loop_natural_item_count (the
+    SAME per-track total create_core_loop_item_pool above now pools), so
+    zone_leveler_barrens (natural count 30: 20 level-cap copies + 10 flat
+    unlock items) can never drift out of sync with what was actually
+    pooled for it."""
+    track, _zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
+    natural_item_count = _core_loop_natural_item_count(track)
     return max(0, natural_item_count - _trap_baseline_location_count(world))
 
 
@@ -243,13 +285,16 @@ def _trap_baseline_location_count(world) -> int:
     # with a bare `types.SimpleNamespace(options=...)` fake world that has
     # no game_mode attribute at all -- that fake world must keep resolving
     # to the standard/death_knight branch exactly as before.
-    if getattr(world.options, "game_mode", None) == "zone_leveler":
-        zone_key = world.options.zone_leveler_starting_zone.current_key
-        track = f"zone_leveler_{zone_key}"
+    #
+    # Finding 10 (final whole-branch review, 2026-09-01): this branch used
+    # to be duplicated independently in locations.py/rules.py too -- now
+    # shared via resolve_core_loop_track (zone_leveler_content_data.py),
+    # which preserves this exact same getattr safety for the fake-world
+    # test case above.
+    track, zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
+    if zone_key is not None:
         instance_count = len(zone_leveler_content_data.ZONES[zone_key].instance_keys)
     else:
-        is_dk_slot = bool(world.options.death_knight_slot)
-        track = "death_knight" if is_dk_slot else "standard"
         instance_count = len(core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
     return (
         len(core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track])

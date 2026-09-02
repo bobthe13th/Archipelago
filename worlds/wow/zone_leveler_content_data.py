@@ -56,3 +56,25 @@ ZONES: dict[str, ZoneLevelerZoneData] = {
         quest_reward_location_names=_quest_names_for_zone(zone_level_data.ZONE_ID_BARRENS),
     ),
 }
+
+
+def resolve_core_loop_track(world) -> tuple[str, str | None]:
+    """Resolve which core_loop_content_data track key
+    (LEVEL_LOCATIONS_BY_TRACK / LEVEL_CAP_TOTAL_BY_TRACK /
+    STARTING_LEVEL_CAP_BY_TRACK) this world's own options resolve to, plus
+    the zone_leveler_starting_zone key (or None on the standard/death_knight
+    branch). Final whole-branch review Finding 10 (2026-09-01): items.py,
+    locations.py, and rules.py each independently duplicated this exact
+    branch -- factored out here so the three call sites can never drift
+    apart on what "the connected slot's track" means. getattr (not direct
+    attribute access) on game_mode since items.py's
+    _trap_baseline_location_count is also called directly by
+    test_basic.py's TestFillerPoolCoversWorstCaseGatesTrapsAndHolidaysanity
+    with a bare `types.SimpleNamespace(options=...)` fake world that has no
+    game_mode attribute at all -- that fake world must keep resolving to the
+    standard/death_knight branch exactly as before."""
+    if getattr(world.options, "game_mode", None) == "zone_leveler":
+        zone_key = world.options.zone_leveler_starting_zone.current_key
+        return f"zone_leveler_{zone_key}", zone_key
+    is_dk_slot = bool(world.options.death_knight_slot)
+    return ("death_knight" if is_dk_slot else "standard"), None

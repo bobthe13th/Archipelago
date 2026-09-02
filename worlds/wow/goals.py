@@ -352,7 +352,16 @@ def _validate_hundred_percent(world) -> None:
 
 
 def _set_completion_rule_hundred_percent(world) -> None:
-    level_cap_copies = core_loop_content_data.ITEMS["Progressive Level Cap"][1]
+    # Finding 10 (final whole-branch review, 2026-09-01): reads the
+    # per-track LEVEL_CAP_TOTAL_BY_TRACK lookup instead of a direct
+    # core_loop_content_data.ITEMS["Progressive Level Cap"][1] literal --
+    # numerically a no-op today (hundred_percent is always the standard
+    # track, never zone_leveler), but keeps this in lockstep with
+    # items.py's create_core_loop_item_pool/core_loop_item_surplus, which
+    # now resolve the SAME per-track total, so this can't silently desync
+    # from what was actually pooled if a future milestone ever lets
+    # hundred_percent combine with a non-standard track.
+    level_cap_copies = core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK["standard"]
     instance_unlock_names = {
         f"Instance Unlock: {name}" for name in _INSTANCE_KEY_DISPLAY_NAMES.values()
     }

@@ -388,9 +388,12 @@ def create_core_loop_locations(world, region) -> list:
     # zone_leveler_content_data.ZONES[zone_key].instance_keys. This mirrors
     # the standard/death_knight split's own "one exclusive content set per
     # slot" shape, just gated on game_mode instead of death_knight_slot.
-    if world.options.game_mode == "zone_leveler":
-        zone_key = world.options.zone_leveler_starting_zone.current_key
-        track = f"zone_leveler_{zone_key}"
+    # Finding 10 (final whole-branch review, 2026-09-01): track/zone_key
+    # resolution used to be duplicated independently here, items.py, and
+    # rules.py -- now shared via resolve_core_loop_track
+    # (zone_leveler_content_data.py).
+    track, zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
+    if zone_key is not None:
         locations = []
         for level, location_id in core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track].items():
             name = core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK[track][level]
@@ -402,8 +405,6 @@ def create_core_loop_locations(world, region) -> list:
             locations.append(WoWLocation(world.player, name, location_id, region))
         return locations
 
-    is_dk_slot = bool(world.options.death_knight_slot)
-    track = "death_knight" if is_dk_slot else "standard"
     locations = []
     for level, location_id in core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track].items():
         name = core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK[track][level]

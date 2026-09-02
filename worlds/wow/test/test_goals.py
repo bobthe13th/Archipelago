@@ -673,11 +673,15 @@ class TestHundredPercentModeGeneratesAndRequiresAllLevelCaps(WoWTestBase):
     from 14 to 70 -- unlike Sprint (goals.py's _set_completion_rule_sprint,
     fixed to require only the level-60-specific threshold), 100% mode's own
     completion rule (_set_completion_rule_hundred_percent) deliberately
-    still reads ITEMS["Progressive Level Cap"][1] directly (ALL copies,
-    whatever that total is) -- "collect literally everything" is exactly
-    100% mode's own definition, so no threshold-derivation fix was needed
-    there, only this test's own hardcoded expectation of what "all"
-    currently means.
+    still requires ALL pooled copies, whatever that total is -- "collect
+    literally everything" is exactly 100% mode's own definition, so no
+    threshold-derivation fix was needed there, only this test's own
+    hardcoded expectation of what "all" currently means. (Finding 10,
+    final whole-branch review, 2026-09-01: that function now reads
+    core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK["standard"] instead of
+    a direct ITEMS["Progressive Level Cap"][1] lookup, for consistency
+    with items.py's now-per-track pool sizing -- numerically a no-op here,
+    since hundred_percent is always the standard track.)
 
     run_default_tests previously defaulted to True here (no override):
     WorldTestBase's own automatic test_all_state_can_reach_everything/
@@ -849,16 +853,17 @@ class TestZoneLevelerReachLevelCapOnlyCompletion(WoWTestBase):
     """reach_zone_level_cap alone: completion requires holding at least the
     20 Progressive Level Cap copies Barrens' own zone_leveler track total
     demands (core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK
-    ["zone_leveler_barrens"]) -- NOT "all pooled copies": Progressive Level
-    Cap's own pooled count is a flat 70 for EVERY track/game_mode
-    (core_loop_content_data.ITEMS -- core_loop_item_surplus's own docstring
-    explains why: LEVEL_CAP_STEP=1 made this item's real per-level pooled
-    count track-independent), so 70, not 20, is the real len() here
-    (confirmed empirically -- the brief's own illustrative "len(caps) == 20"
-    assumption was wrong). state.has's own semantics (>= count, not ==)
-    still make 20 the real completion threshold; this collects a precise
-    19-then-1 split to prove that exact threshold, not merely "collecting
-    everything eventually completes it"."""
+    ["zone_leveler_barrens"]). Finding 10 correction (final whole-branch
+    review, 2026-09-01): Progressive Level Cap's own pooled count is now
+    genuinely per-track (items.py's create_core_loop_item_pool), so
+    zone_leveler_barrens pools exactly 20 copies, not the standard track's
+    flat 70 this test used to (wrongly) assert was pooled for every
+    track/game_mode -- the brief's own illustrative "len(caps) == 20"
+    assumption was right all along, this test's prior comment claiming
+    otherwise was the actual bug. state.has's own semantics (>= count, not
+    ==) still make 20 the real completion threshold; this collects a
+    precise 19-then-1 split to prove that exact threshold, not merely
+    "collecting everything eventually completes it"."""
     options = {
         "game_mode": "zone_leveler",
         "zone_leveler_starting_zone": "barrens",
@@ -868,7 +873,7 @@ class TestZoneLevelerReachLevelCapOnlyCompletion(WoWTestBase):
     def test_reach_zone_level_cap_only_completes_on_all_track_copies(self) -> None:
         state = self.multiworld.state
         caps = self.get_items_by_name("Progressive Level Cap")
-        self.assertEqual(len(caps), 70)
+        self.assertEqual(len(caps), 20)
         self.collect(caps[:19])
         self.assertFalse(self.multiworld.completion_condition[self.player](state))
         self.collect(caps[19:20])
