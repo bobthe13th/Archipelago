@@ -322,9 +322,26 @@ def create_optional_category_locations(world, region) -> list:
         # a player selects for this category.
         always_present_names = getattr(category.locations_module, "ALWAYS_PRESENT", frozenset())
         for name, location_id in all_rows:
-            if name in always_present_names:
-                created.append(WoWLocation(world.player, name, location_id, region))
-                _stash(name)
+            if name not in always_present_names:
+                continue
+            # M4.11.2: Quest Rewards' 19 ALWAYS_PRESENT starting-quest rows
+            # (Northshire/Goldshire, M4.8.0) previously bypassed EVERY filter this
+            # category has (tag pools, content_scope) -- confirmed and explicitly
+            # flagged as a known gap by M4.11.1 Task 12's own hotfix report. For
+            # zone_leveler specifically, apply the same zone-or-hub-zone
+            # restriction every other quest_rewards row already gets; every other
+            # mode's ALWAYS_PRESENT semantics are completely unaffected (the
+            # `category.key == "quest_rewards"` check below only ever fires when
+            # game_mode is zone_leveler in the first place, via
+            # _zone_leveler_quest_reward_zone_matches's own real logic).
+            if (
+                world.options.game_mode == "zone_leveler"
+                and category.key == "quest_rewards"
+                and not _zone_leveler_quest_reward_zone_matches(world, name)
+            ):
+                continue
+            created.append(WoWLocation(world.player, name, location_id, region))
+            _stash(name)
 
         if not game_mode_profile.is_category_eligible(world, category):
             continue

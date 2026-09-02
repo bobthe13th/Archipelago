@@ -836,3 +836,29 @@ class TestZoneLevelerQuestRewardRestrictionDoesNotAffectOtherGameModes(WoWTestBa
             if quest_rewards_content_data.TRIGGERS[name].get("zone_id") != 17
         }
         self.assertGreater(len(non_barrens), 0)
+
+
+class TestZoneLevelerAlwaysPresentQuestRewardsRestrictedToZone(WoWTestBase):
+    """M4.11.2 Task 2: Quest Rewards' 19 ALWAYS_PRESENT starting-quest rows
+    (the migrated Northshire/Goldshire quests) must be zone-filtered under
+    zone_leveler, just like every other quest_rewards row. This test verifies
+    that out-of-zone always_present rows are excluded."""
+    options = {
+        **_ZONE_LEVELER_QUEST_REWARD_OPTIONS,
+        "zone_leveler_content_scope": "zone_only"
+    }
+
+    def test_out_of_zone_always_present_row_excluded(self) -> None:
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertNotIn("Quest: Skirmish at Echo Ridge Reward (#21)", location_names)
+
+
+class TestNonZoneLevelerModeStillIncludesAllAlwaysPresentRows(WoWTestBase):
+    """M4.11.2 Task 2: The zone filtering fix must not affect other game modes --
+    non-zone_leveler modes must still include all ALWAYS_PRESENT rows regardless
+    of zone."""
+    options = {"game_mode": "sprint"}
+
+    def test_always_present_row_still_included(self) -> None:
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertIn("Quest: Skirmish at Echo Ridge Reward (#21)", location_names)
