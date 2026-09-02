@@ -871,3 +871,37 @@ class TestGoldenBoarStatues(WoWTestBase):
             if loc.name.startswith("Golden Boar Statue Kill:")
         ]
         self.assertEqual(len(statues), len(statue_locations))
+
+
+class TestZoneLevelerExcludesIrrelevantCoreLoopItems(WoWTestBase):
+    options = {
+        "game_mode": "zone_leveler",
+        "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_goals": {"reach_zone_level_cap"},
+    }
+
+    _EXCLUDED_ITEM_NAMES = frozenset({
+        "Dark Portal Access",
+        "Northrend Passage",
+        "Instance Unlock: Ragefire Chasm",
+        "Instance Unlock: Deadmines",
+        "Instance Unlock: Molten Core",
+        "Instance Unlock: Sunwell Plateau",
+        "Instance Unlock: Icecrown Citadel",
+    })
+
+    def test_excluded_items_absent_from_pool(self) -> None:
+        item_names = {item.name for item in self.multiworld.itempool if item.player == self.player}
+        self.assertTrue(self._EXCLUDED_ITEM_NAMES.isdisjoint(item_names))
+
+    def test_barrens_curated_instance_unlocks_still_present(self) -> None:
+        item_names = {item.name for item in self.multiworld.itempool if item.player == self.player}
+        for name in ("Instance Unlock: Wailing Caverns", "Instance Unlock: Razorfen Kraul", "Instance Unlock: Razorfen Downs"):
+            self.assertIn(name, item_names)
+
+    def test_progressive_level_cap_still_present(self) -> None:
+        item_names = {item.name for item in self.multiworld.itempool if item.player == self.player}
+        self.assertIn("Progressive Level Cap", item_names)
+
+    def test_item_location_parity_still_holds(self) -> None:
+        self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))

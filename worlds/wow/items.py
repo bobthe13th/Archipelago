@@ -40,6 +40,21 @@ _EFFECT_TO_CATEGORY = {
 FILLER_PER_CATEGORY_CAP = 30
 
 
+# M4.11.2: Zone Leveler excludes 7 core_loop items that have no relevance
+# to a zone-locked character (Dark Portal Access/Northrend Passage enable
+# travel outside the starting zone; 5 non-curated raid/dungeon unlocks have
+# no matching location at all in zone_leveler slots).
+_ZONE_LEVELER_IRRELEVANT_CORE_LOOP_ITEM_NAMES = frozenset({
+    "Dark Portal Access",
+    "Northrend Passage",
+    "Instance Unlock: Ragefire Chasm",
+    "Instance Unlock: Deadmines",
+    "Instance Unlock: Molten Core",
+    "Instance Unlock: Sunwell Plateau",
+    "Instance Unlock: Icecrown Citadel",
+})
+
+
 def _core_loop_natural_item_count(track: str) -> int:
     """Total real, unconditional core_loop item copies pooled for `track` --
     Progressive Level Cap's own per-track total
@@ -72,8 +87,15 @@ def create_core_loop_item_pool(world) -> list:
     # share (Finding 10 also factored this out -- see
     # zone_leveler_content_data.py).
     track, _zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
+    is_zone_leveler = getattr(world.options, "game_mode", None) == "zone_leveler"
     pool = []
     for name, (item_id, count) in core_loop_content_data.ITEMS.items():
+        # M4.11.2: Zone Leveler excludes these 7 items -- they either enable
+        # travel outside the zone (Dark Portal Access/Northrend Passage) or
+        # have no matching location in zone_leveler slots (5 non-curated
+        # raid/dungeon unlocks, distinct from the 3 curated Barrens instances).
+        if is_zone_leveler and name in _ZONE_LEVELER_IRRELEVANT_CORE_LOOP_ITEM_NAMES:
+            continue
         if name == "Progressive Level Cap":
             count = core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK[track]
         for _ in range(count):
@@ -122,9 +144,20 @@ def core_loop_item_surplus(world) -> int:
     SAME per-track total create_core_loop_item_pool above now pools), so
     zone_leveler_barrens (natural count 30: 20 level-cap copies + 10 flat
     unlock items) can never drift out of sync with what was actually
-    pooled for it."""
+    pooled for it.
+
+    M4.11.2 correction: zone_leveler excludes 7 core_loop items
+    (Dark Portal Access, Northrend Passage, and 5 non-curated raid/dungeon
+    unlocks), so the actual pooled count is 23, not 30. This function must
+    reflect the actual pool size, not the theoretical count, so the filler
+    location sizing in locations.py stays in sync."""
     track, _zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
     natural_item_count = _core_loop_natural_item_count(track)
+    # M4.11.2: zone_leveler excludes 7 items, so reduce the natural count
+    # to match the actual pooled size (which excludes those 7).
+    is_zone_leveler = getattr(world.options, "game_mode", None) == "zone_leveler"
+    if is_zone_leveler:
+        natural_item_count -= len(_ZONE_LEVELER_IRRELEVANT_CORE_LOOP_ITEM_NAMES)
     return max(0, natural_item_count - _trap_baseline_location_count(world))
 
 
