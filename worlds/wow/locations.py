@@ -24,6 +24,7 @@ from . import repsanity_content_data
 from . import trainer_spells_content_data
 from . import vendor_stock_content_data
 from . import zone_leveler_content_data
+from . import zone_level_data
 from .items import (
     core_loop_item_surplus,
     count_enabled_gates_items,
@@ -287,8 +288,9 @@ def _zone_leveler_trainer_spell_zone_matches(world, name: str) -> bool:
     resolution query against the live DB): 417 of 427 real level-10-30
     Trainer Spells have at least one teaching trainer in Orgrimmar or
     Durotar (this project's own WorldMapArea.dbc position-resolution
-    mechanism, extract_trainer_spells.py's trainer_zone_ids). A row is
-    in-bounds if trainer_zone_ids intersects the selected zone's own
+    mechanism -- extract_trainer_spells.py's tags["area"] as of M4.11.3.1,
+    formerly trigger["trainer_zone_ids"]). A row is in-bounds if its own
+    tags["area"] intersects the area-tag names for the selected zone's own
     {zone_id} | allowed_hub_zone_ids (only including the hub zones when
     zone_leveler_allow_hub_zone is on, same rule as
     _zone_leveler_quest_reward_zone_matches). This is ADDITIVE to the
@@ -296,25 +298,33 @@ def _zone_leveler_trainer_spell_zone_matches(world, name: str) -> bool:
     (_zone_leveler_scope_matches's possession-triggered path) -- a row
     must satisfy BOTH axes.
 
-    Zero of these 427 rows resolve to Barrens' own zone_id (17) itself --
-    final whole-branch review (2026-09-02) confirmed this is a known
-    resolver limitation, not a game-world fact: smallest-box-wins
-    misattributes ~90% of Barrens' own real bounding-box area on map 1 to
-    the smaller, overlapping Durotar (14)/Mulgore (215) boxes (only ~10.3%
-    of Barrens' box actually resolves to 17), and five real Barrens
-    landmarks all misresolve when checked directly (Crossroads/Wailing
-    Caverns/Camp Taurajo -> Mulgore, Ratchet -> Durotar, Northwatch Hold ->
-    15). So without zone_leveler_allow_hub_zone on, this family contributes
-    exactly 0 locations under whole_game_scaled, not because no trainers
-    are physically in Barrens, but because this resolver can't correctly
-    attribute a Barrens-standing trainer to zone 17 in the first place."""
+    M4.11.3.1 (Task 4) migrated this family's area data from the old
+    single-winner trigger["trainer_zone_ids"] int list onto the unified,
+    fixed tags["area"] mechanism (Task 1-3's resolve_area_tags_for_positions,
+    modules/archipelago_wow/db_extract.py) -- 419 of these same 427 rows now
+    resolve to Barrens' own area tag ("barrens") directly, where the OLD
+    resolver's own single-winner, smallest-box-wins position pick resolved
+    exactly 0 of them there (a known resolver limitation documented in this
+    docstring's prior revision and state-of-the-project.md's Known gap #10:
+    smallest-box-wins misattributed most of Barrens' own real bounding-box
+    area on map 1 to the smaller, overlapping Durotar (14)/Mulgore (215)
+    boxes). The fixed resolver instead unions EVERY containing zone across
+    EVERY real trainer position, so a trainer standing in Barrens' own
+    territory now correctly carries a "barrens" area tag even when an
+    overlapping neighbor's box also contains that same point. This is a
+    real accuracy fix, not a behavior change this function itself makes --
+    with zone_leveler_allow_hub_zone off, this family now contributes those
+    419 rows' locations under whole_game_scaled (previously 0), because the
+    real in-bounds-ness of a Barrens-standing trainer is now correctly
+    detected rather than lost to the old resolver's own border ambiguity."""
     zone_key = world.options.zone_leveler_starting_zone.current_key
     zone_data = zone_leveler_content_data.ZONES[zone_key]
-    trainer_zone_ids = set(trainer_spells_content_data.TRIGGERS[name].get("trainer_zone_ids", []))
+    row_area_tags = trainer_spells_content_data.TAGS[name].get("area", frozenset())
     in_bounds_zone_ids = {zone_data.zone_id}
     if getattr(world.options, "zone_leveler_allow_hub_zone", False):
         in_bounds_zone_ids |= zone_data.allowed_hub_zone_ids
-    return bool(trainer_zone_ids & in_bounds_zone_ids)
+    in_bounds_area_tags = {zone_level_data.area_name_for_zone_id(z) for z in in_bounds_zone_ids}
+    return bool(row_area_tags & in_bounds_area_tags)
 
 
 def _zone_leveler_scope_matches(world, category: OptionalCategory, name: str) -> bool:

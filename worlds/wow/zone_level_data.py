@@ -57,3 +57,23 @@ def zones_in_level_range(min_level: int, max_level: int) -> set[int]:
         zone_id for zone_id, (zone_min, zone_max) in ZONE_ID_TO_LEVEL_RANGE.items()
         if zone_min <= max_level and zone_max >= min_level
     }
+
+
+# M4.11.3.1: hand-curated raw-zone-id -> canonical area-tag-name lookup, the
+# same kind of hand-curated constant ZONE_ID_BARRENS/ZONE_ID_MOLTEN_CORE
+# already are (not a live DBC read -- the apworld has no DBC access at
+# generation time, all DBC parsing is compile-time-only tooling work under
+# modules/archipelago_wow, per this project's established architecture).
+# Only the 3 real zone ids _zone_leveler_trainer_spell_zone_matches
+# (locations.py) ever compares against (zone_data.zone_id/
+# allowed_hub_zone_ids for the one currently-curated Zone Leveler zone,
+# Barrens) need an entry here, not a full project-wide table.
+ZONE_ID_TO_AREA_NAME: dict[int, str] = {
+    ZONE_ID_BARRENS: "barrens",
+    14: "durotar",     # Durotar -- verified against real AreaTable.dbc (M4.11.3.1 Task 2)
+    1637: "orgrimmar",  # Orgrimmar -- verified against real AreaTable.dbc (M4.11.1 Task 13)
+}
+
+
+def area_name_for_zone_id(zone_id: int) -> str | None:
+    return ZONE_ID_TO_AREA_NAME.get(zone_id)

@@ -696,19 +696,39 @@ class TestZoneLevelerTrainerSpellZoneMatchesUnit(WoWTestBase):
 
     def test_frost_nova_matches_when_hub_zone_allowed(self) -> None:
         name = "Trainer Spell: Frost Nova (#122)"
-        self.assertTrue({14, 1637} & set(trainer_spells_content_data.TRIGGERS[name]["trainer_zone_ids"]))
+        self.assertTrue({"durotar", "orgrimmar"} & set(trainer_spells_content_data.TAGS[name]["area"]))
         self.assertTrue(_zone_leveler_trainer_spell_zone_matches(self._fake_world(True), name))
 
-    def test_frost_nova_does_not_match_when_hub_zone_disallowed(self) -> None:
-        # No row resolves to the open-world Barrens zone (17) itself under
-        # this project's position resolver -- a known resolver limitation
-        # (smallest-box-wins misattributes most of Barrens's own bounding
-        # box to the smaller overlapping Durotar/Mulgore boxes; see
-        # locations.py's _zone_leveler_trainer_spell_zone_matches docstring
-        # and state-of-the-project.md's Known gap #10), not evidence no
-        # trainers are physically there -- so with the hub toggle off, this
-        # real Durotar/Orgrimmar-taught spell is out of bounds.
+    def test_frost_nova_matches_even_when_hub_zone_disallowed(self) -> None:
+        # M4.11.3.1 (Task 4): migrated onto the fixed
+        # resolve_area_tags_for_positions mechanism (Task 1-3), which unions
+        # EVERY containing zone across EVERY real trainer position instead
+        # of picking one smallest-box winner. Under the OLD resolver this
+        # spell's own real Durotar/Orgrimmar-standing trainer never resolved
+        # directly to Barrens (a known border-misattribution bug, not a
+        # game-world fact -- see locations.py's own
+        # _zone_leveler_trainer_spell_zone_matches docstring); under the
+        # fixed resolver it correctly ALSO carries a direct "barrens" area
+        # tag, so this spell now matches even with the hub toggle off.
         name = "Trainer Spell: Frost Nova (#122)"
+        self.assertIn("barrens", trainer_spells_content_data.TAGS[name]["area"])
+        self.assertTrue(_zone_leveler_trainer_spell_zone_matches(self._fake_world(False), name))
+
+    def test_hub_only_spell_does_not_match_when_hub_zone_disallowed(self) -> None:
+        # Summon Warhorse (#34768): real min_level 20 (within Barrens' own
+        # 10-30 band), taught only by a paladin trainer whose real position
+        # resolves to Orgrimmar (among other non-Barrens zones) but NEVER
+        # directly to Barrens itself, even under the fixed resolver -- the
+        # ONLY real level-10-30 row with a Durotar/Orgrimmar area tag but no
+        # direct Barrens area tag (confirmed against this checkout's real
+        # regenerated trainer_spells_content_data.TAGS, M4.11.3.1 Task 4).
+        # Isolates the hub-only additive check Frost Nova no longer can
+        # (it now matches directly, see above).
+        name = "Trainer Spell: Summon Warhorse (#34768)"
+        area_tags = set(trainer_spells_content_data.TAGS[name]["area"])
+        self.assertIn("orgrimmar", area_tags)
+        self.assertNotIn("barrens", area_tags)
+        self.assertTrue(_zone_leveler_trainer_spell_zone_matches(self._fake_world(True), name))
         self.assertFalse(_zone_leveler_trainer_spell_zone_matches(self._fake_world(False), name))
 
     def test_teleport_stormwind_never_matches_barrens(self) -> None:
@@ -720,26 +740,37 @@ class TestZoneLevelerTrainerSpellZoneMatchesUnit(WoWTestBase):
         self.assertFalse(_zone_leveler_trainer_spell_zone_matches(self._fake_world(False), name))
 
 
-class TestZoneLevelerTrainerSpellsZeroAtDefaultHubZone(WoWTestBase):
-    """M4.11.2 final whole-branch review (Finding 2, 2026-09-02): pins the
-    real, previously-undocumented cliff at zone_leveler_allow_hub_zone's
-    default (unset/False) value. No Trainer Spells row resolves to Barrens'
-    own zone_id (17) itself under this project's WorldMapArea.dbc-based
-    position resolver -- a known resolver limitation (smallest-box-wins
-    misattributes ~90% of Barrens' own bounding box to the smaller,
-    overlapping Durotar/Mulgore boxes; see
-    _zone_leveler_trainer_spell_zone_matches's own docstring and
-    state-of-the-project.md's Known gap #10), not evidence that no trainers
-    are physically standing in Barrens. So under whole_game_scaled with the
-    hub toggle left at its default, Trainer Spells contributes exactly 0
-    locations to a BarrensBeater slot -- this test asserts that as an
-    intentional, known fact rather than an undocumented surprise."""
+class TestZoneLevelerTrainerSpellsAtDefaultHubZone(WoWTestBase):
+    """M4.11.3.1 (Task 4) superseding revision: M4.11.2's own final
+    whole-branch review (Finding 2, 2026-09-02) pinned a real cliff here --
+    Trainer Spells contributed exactly 0 locations to a BarrensBeater slot
+    under whole_game_scaled with zone_leveler_allow_hub_zone left at its
+    default (unset/False) -- but that cliff was itself a known resolver
+    limitation, not a game-world fact: the OLD single-winner,
+    smallest-box-wins position resolver never resolved a trainer standing in
+    Barrens' own territory directly to Barrens' own zone_id (17) (see
+    _zone_leveler_trainer_spell_zone_matches's own docstring). Migrating
+    onto the fixed resolve_area_tags_for_positions mechanism (Task 1-3) --
+    which unions EVERY containing zone across EVERY real position instead
+    of picking one winner -- corrects this: 419 of the 427 real
+    level-10-30 Trainer Spells rows now carry a direct "barrens" area tag,
+    so this family now contributes real locations at the hub toggle's
+    default value. This test pins the corrected, real behavior in place of
+    the old (buggy) zero-cliff."""
     options = {**_ZONE_LEVELER_BASE_OPTIONS, "zone_leveler_content_scope": "whole_game_scaled"}
 
-    def test_trainer_spells_contributes_zero_locations_at_default_hub_zone(self) -> None:
+    def test_trainer_spells_contributes_locations_at_default_hub_zone(self) -> None:
         names = {loc.name for loc in self.multiworld.get_locations(self.player)}
         overlap = names & set(trainer_spells_content_data.LOCATIONS)
-        self.assertEqual(len(overlap), 0)
+        self.assertGreater(len(overlap), 0)
+        # Frost Nova (#122) carries a direct "barrens" area tag (confirmed
+        # above, TestZoneLevelerTrainerSpellZoneMatchesUnit) so it's
+        # in-bounds even without the hub toggle.
+        self.assertIn("Trainer Spell: Frost Nova (#122)", names)
+        # Summon Warhorse (#34768) has no direct "barrens" area tag -- only
+        # reachable via the hub toggle -- so it stays excluded at the
+        # default (off) value.
+        self.assertNotIn("Trainer Spell: Summon Warhorse (#34768)", names)
 
 
 class TestZoneLevelerQuestRewardZoneMatches(WoWTestBase):
