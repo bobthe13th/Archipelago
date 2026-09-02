@@ -254,6 +254,31 @@ def _zone_leveler_quest_reward_zone_matches(world, name: str) -> bool:
     return row_zone_id in in_bounds_zone_ids
 
 
+def _zone_leveler_trainer_spell_zone_matches(world, name: str) -> bool:
+    """M4.11.2: Trainer Spells are learned from a real, physical trainer
+    NPC -- unlike Recipes (a mailable item), there's no way to learn a
+    trainer-taught spell without physically visiting a trainer. Confirmed
+    this session (re-running extract_trainer_spells.py's own real position-
+    resolution query against the live DB): 417 of 427 real level-10-30
+    Trainer Spells have at least one teaching trainer in Orgrimmar or
+    Durotar (this project's own WorldMapArea.dbc position-resolution
+    mechanism, extract_trainer_spells.py's trainer_zone_ids). A row is
+    in-bounds if trainer_zone_ids intersects the selected zone's own
+    {zone_id} | allowed_hub_zone_ids (only including the hub zones when
+    zone_leveler_allow_hub_zone is on, same rule as
+    _zone_leveler_quest_reward_zone_matches). This is ADDITIVE to the
+    family's own existing min_level check
+    (_zone_leveler_scope_matches's possession-triggered path) -- a row
+    must satisfy BOTH axes."""
+    zone_key = world.options.zone_leveler_starting_zone.current_key
+    zone_data = zone_leveler_content_data.ZONES[zone_key]
+    trainer_zone_ids = set(trainer_spells_content_data.TRIGGERS[name].get("trainer_zone_ids", []))
+    in_bounds_zone_ids = {zone_data.zone_id}
+    if getattr(world.options, "zone_leveler_allow_hub_zone", False):
+        in_bounds_zone_ids |= zone_data.allowed_hub_zone_ids
+    return bool(trainer_zone_ids & in_bounds_zone_ids)
+
+
 def _zone_leveler_scope_matches(world, category: OptionalCategory, name: str) -> bool:
     """Only called when game_mode is zone_leveler (M4.11.1 Task 12; Quest
     Rewards restriction added by Task 12's own post-hoc fix round).
@@ -295,6 +320,15 @@ def _zone_leveler_scope_matches(world, category: OptionalCategory, name: str) ->
     if category.key not in _POSSESSION_TRIGGERED_CATEGORY_KEYS:
         return True
     if world.options.zone_leveler_content_scope == "zone_only":
+        return False
+    # M4.11.2: Trainer Spells additionally needs its own real zone check --
+    # a spell taught only by a trainer outside Barrens/allowed hub zones is
+    # never physically learnable, regardless of whole_game_scaled's own
+    # level-band widening (which only ever governs ITEM/recipe VARIETY for
+    # the other 4 possession-triggered families, not physical reachability
+    # for this one -- Trainer Spells is the one possession-triggered family
+    # that IS also physically zone-bound, per the design spec's own §4).
+    if category.key == "trainer_spells" and not _zone_leveler_trainer_spell_zone_matches(world, name):
         return False
     zone_key = world.options.zone_leveler_starting_zone.current_key
     zone_data = zone_leveler_content_data.ZONES[zone_key]

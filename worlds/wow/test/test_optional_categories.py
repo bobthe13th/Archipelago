@@ -8,7 +8,7 @@ from .. import (
 from ..locations import (
     _OPTIONAL_CATEGORIES, OptionalCategory, create_optional_category_locations, _location_matches_pools,
     _POSSESSION_TRIGGERED_CATEGORY_KEYS, _zone_leveler_possession_family_min_level, _zone_leveler_scope_matches,
-    _zone_leveler_quest_reward_zone_matches,
+    _zone_leveler_quest_reward_zone_matches, _zone_leveler_trainer_spell_zone_matches,
 )
 
 
@@ -575,8 +575,21 @@ class TestZoneLevelerWholeGameScaledWidensTractableFamilies(WoWTestBase):
     rows whose own real min_level falls inside Barrens' level band
     (10-30, zone_leveler_content_data.ZONES["barrens"]), and leaves
     Craftsanity/Repsanity fully excluded -- same as zone_only for those two
-    -- since neither carries real min_level data to widen by."""
-    options = {**_ZONE_LEVELER_BASE_OPTIONS, "zone_leveler_content_scope": "whole_game_scaled"}
+    -- since neither carries real min_level data to widen by.
+
+    zone_leveler_allow_hub_zone is set True here (M4.11.2): Trainer Spells
+    is now ADDITIONALLY gated by _zone_leveler_trainer_spell_zone_matches
+    (real trainer position data), and confirmed against the live DB, zero
+    real class trainers stand in the open-world Barrens zone itself (id 17)
+    -- every one of them is in a capital city, and for Barrens' own roster
+    that means Orgrimmar/Durotar (the curated allowed_hub_zone_ids). Without
+    this toggle on, the level-band widening this test targets would never
+    have any trainer_spells row to widen INTO, which would defeat the point
+    of this test (which is about the min_level axis, not the zone axis)."""
+    options = {
+        **_ZONE_LEVELER_BASE_OPTIONS, "zone_leveler_content_scope": "whole_game_scaled",
+        "zone_leveler_allow_hub_zone": True,
+    }
 
     def test_itemsanity_widens_to_rows_inside_barrens_level_band(self) -> None:
         band = zone_leveler_content_data.ZONES["barrens"]
@@ -616,6 +629,75 @@ class TestZoneLevelerWholeGameScaledWidensTractableFamilies(WoWTestBase):
         names = {loc.name for loc in self.multiworld.get_locations(self.player)}
         self.assertEqual(len(names & set(craftsanity_content_data.LOCATIONS)), 0)
         self.assertEqual(len(names & set(repsanity_content_data.LOCATIONS)), 0)
+
+
+class TestZoneLevelerTrainerSpellZoneMatches(WoWTestBase):
+    """M4.11.2: Trainer Spells is the one possession-triggered family that
+    is ALSO physically zone-bound (a real trainer NPC must be visited), so
+    under whole_game_scaled it needs BOTH its existing min_level check AND
+    this new trainer_zone_ids check to include a row. zone_leveler_allow_hub_zone
+    is on here -- both spells below have real min_level within 10-30
+    (Frost Nova: 10; Teleport: Stormwind: 20), so without the hub toggle
+    both would qualify on min_level alone and this test wouldn't isolate
+    the NEW zone check at all; confirmed live-DB numbers (extract_trainer_
+    spells.py's own trainer_zone_ids): Frost Nova (#122) resolves to,
+    among others, Durotar (14) and Orgrimmar (1637); Teleport: Stormwind
+    (#3561) resolves ONLY to Stormwind itself (1519) -- no Horde-hub
+    trainer teaches it, matching the real game (an Alliance-only
+    teleport spell)."""
+    options = {
+        "game_mode": "zone_leveler", "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_content_scope": "whole_game_scaled", "zone_leveler_allow_hub_zone": True,
+        "zone_leveler_goals": {"reach_zone_level_cap"},
+        "trainer_spell_class_pools": set(options.TrainerSpellClassPools.default),
+        "trainer_spell_expansion_pools": set(options.TrainerSpellExpansionPools.default),
+    }
+
+    def test_known_orgrimmar_taught_spell_included(self) -> None:
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertIn("Trainer Spell: Frost Nova (#122)", location_names)
+
+    def test_spell_with_no_horde_hub_trainer_excluded(self) -> None:
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertNotIn("Trainer Spell: Teleport: Stormwind (#3561)", location_names)
+
+
+class TestZoneLevelerTrainerSpellZoneMatchesUnit(WoWTestBase):
+    """M4.11.2: unit-level coverage of _zone_leveler_trainer_spell_zone_matches
+    itself, calling it directly against real trainer_spells_content_data.TRIGGERS
+    rows (same fake-world types.SimpleNamespace pattern
+    TestZoneLevelerQuestRewardZoneMatches uses above) rather than paying for
+    a full zone_leveler slot generation."""
+    options = {}
+
+    @staticmethod
+    def _fake_world(allow_hub_zone: bool, zone_key: str = "barrens"):
+        import types
+
+        return types.SimpleNamespace(options=types.SimpleNamespace(
+            zone_leveler_starting_zone=types.SimpleNamespace(current_key=zone_key),
+            zone_leveler_allow_hub_zone=allow_hub_zone,
+        ))
+
+    def test_frost_nova_matches_when_hub_zone_allowed(self) -> None:
+        name = "Trainer Spell: Frost Nova (#122)"
+        self.assertTrue({14, 1637} & set(trainer_spells_content_data.TRIGGERS[name]["trainer_zone_ids"]))
+        self.assertTrue(_zone_leveler_trainer_spell_zone_matches(self._fake_world(True), name))
+
+    def test_frost_nova_does_not_match_when_hub_zone_disallowed(self) -> None:
+        # No real class trainer stands in the open-world Barrens zone (17)
+        # itself -- confirmed against the live DB -- so with the hub toggle
+        # off, this real Durotar/Orgrimmar-taught spell is out of bounds.
+        name = "Trainer Spell: Frost Nova (#122)"
+        self.assertFalse(_zone_leveler_trainer_spell_zone_matches(self._fake_world(False), name))
+
+    def test_teleport_stormwind_never_matches_barrens(self) -> None:
+        # Resolves only to Stormwind (1519) -- not Barrens (17) nor either
+        # of Barrens' own curated hub zones (14/1637) -- so this stays
+        # excluded regardless of the hub toggle.
+        name = "Trainer Spell: Teleport: Stormwind (#3561)"
+        self.assertFalse(_zone_leveler_trainer_spell_zone_matches(self._fake_world(True), name))
+        self.assertFalse(_zone_leveler_trainer_spell_zone_matches(self._fake_world(False), name))
 
 
 class TestZoneLevelerQuestRewardZoneMatches(WoWTestBase):
