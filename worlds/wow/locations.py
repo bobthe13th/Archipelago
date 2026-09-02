@@ -223,7 +223,7 @@ def _zone_leveler_quest_reward_zone_matches(world, name: str) -> bool:
     trigger it -- a real unreachable-location bug, not a cosmetic
     "too many items" one.
 
-    Unlike the 5 possession-triggered families in
+    Unlike the 4 possession-triggered families in
     _POSSESSION_TRIGGERED_CATEGORY_KEYS (which fire on pickup/craft/learn
     regardless of physical zone, and whose inclusion is governed by
     zone_leveler_content_scope), Quest Rewards' restriction here is
@@ -310,10 +310,12 @@ def _zone_leveler_scope_matches(world, category: OptionalCategory, name: str) ->
 
     Quest Rewards (category.key == "quest_rewards") is handled first and
     separately, via _zone_leveler_quest_reward_zone_matches above -- it's a
-    real, physically zone-bound family (a real quest-giver NPC), unlike the
-    5 possession-triggered families below, so it is restricted to the
-    selected zone's own real zone_id UNCONDITIONALLY (both zone_only and
-    whole_game_scaled), not gated by zone_leveler_content_scope at all.
+    real, physically zone-bound family (a real quest-giver NPC). Repsanity
+    (category.key == "repsanity") is also handled separately via its own
+    early-return branch, unlike the 4 possession-triggered families below,
+    which are restricted to the selected zone's own real zone_id
+    UNCONDITIONALLY (both zone_only and whole_game_scaled), not gated by
+    zone_leveler_content_scope at all.
 
     Every other category outside _POSSESSION_TRIGGERED_CATEGORY_KEYS always
     matches here (True unconditionally) -- instance clears are inherently
@@ -331,15 +333,17 @@ def _zone_leveler_scope_matches(world, category: OptionalCategory, name: str) ->
 
     whole_game_scaled: a possession-triggered row is included if its own
     real level requirement falls inside the selected zone's level band.
-    Craftsanity and Repsanity have NO real min_level data at all (by design,
-    not an oversight -- see _zone_leveler_possession_family_min_level's own
+    Craftsanity has NO real min_level data at all (by design, not an
+    oversight -- see _zone_leveler_possession_family_min_level's own
     docstring), so _zone_leveler_possession_family_min_level always returns
-    None for their rows and they fall through the `min_level is None` branch
-    below -- identical, excluded, behavior to zone_only for those two
-    families specifically, same as it is for every other family's rows that
-    happen to carry no real min_level (there are none among the 3 tractable
-    families, since every DB row has a real, if sometimes 0, RequiredLevel/
-    ReqLevel)."""
+    None for its rows and they fall through the `min_level is None` branch
+    below -- identical, excluded, behavior to zone_only for that family
+    specifically, same as it is for every other family's rows that happen to
+    carry no real min_level (there are none among the 3 tractable families,
+    since every DB row has a real, if sometimes 0, RequiredLevel/ReqLevel).
+    Repsanity never reaches this logic at all -- it's intercepted by its own
+    dedicated early-return branch above with its own vanilla-expansion-tag
+    filter, not by min_level logic."""
     if category.key == "quest_rewards":
         return _zone_leveler_quest_reward_zone_matches(world, name)
     if category.key == "repsanity":
