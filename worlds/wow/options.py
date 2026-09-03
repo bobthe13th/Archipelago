@@ -188,16 +188,6 @@ class ZoneLevelerInstancesRequired(Range):
     default = 1
 
 
-class ZoneLevelerAllowHubZone(Toggle):
-    """Only relevant when game_mode is zone_leveler (M4.11.1). Whether the
-    selected zone's curated allowed-hub-zone exception (Durotar/Orgrimmar for
-    Barrens) is reachable, in addition to the locked zone itself. Off by
-    default -- the zone lock (a new C++ PlayerScript, M4.11.1 Task 14) enforces
-    whichever this resolves to."""
-    display_name = "Zone Leveler: Allow Hub Zone"
-    default = False
-
-
 class ZoneLevelerContentScope(Choice):
     """Only relevant when game_mode is zone_leveler (M4.11.1). Governs 4
     possession-triggered families -- Itemsanity, Craftsanity, Recipes,
@@ -212,13 +202,13 @@ class ZoneLevelerContentScope(Choice):
     skill-tier-gated, not player-level-gated) and stays fully excluded
     under whole_game_scaled too, same as zone_only. Trainer Spells is also
     physically zone-bound (a real trainer NPC must be visited to learn it,
-    unlike a mailable Recipe item) -- under whole_game_scaled a row must
-    ADDITIONALLY pass its own real trainer-position zone check (the
-    selected zone or, when zone_leveler_allow_hub_zone is on, its curated
-    hub zones) on top of the level-band check; both axes must pass (Task
-    4, M4.11.2). Zone-bound families (Quest Rewards, instance clears) are
-    unaffected by this option either way, since the player physically
-    cannot leave the locked zone (or its allowed hub zones). Repsanity is
+    unlike a mailable Recipe item); M4.11.3.3 made its zone check
+    unconditional against the selected zone's own real area_tags (see
+    _zone_leveler_row_matches in locations.py) -- no longer gated by this
+    option at all, it now matches under zone_only too, not only
+    whole_game_scaled as before. Zone-bound families (Quest Rewards,
+    instance clears) are unaffected by this option either way, since the
+    player physically cannot leave the locked zone. Repsanity is
     handled entirely separately from this option (M4.11.2) -- it's not a
     possession-triggered family in the sense above, has no zone or level
     data of its own, and is included under BOTH zone_only and
@@ -1121,7 +1111,6 @@ class WoWOptions(PerGameCommonOptions):
     zone_leveler_goals: ZoneLevelerGoals
     zone_leveler_statues_required: ZoneLevelerStatuesRequired
     zone_leveler_instances_required: ZoneLevelerInstancesRequired
-    zone_leveler_allow_hub_zone: ZoneLevelerAllowHubZone
     zone_leveler_content_scope: ZoneLevelerContentScope
     artisan_primary_professions_required: ArtisanPrimaryProfessionsRequired
     collector_items_required: CollectorItemsRequired

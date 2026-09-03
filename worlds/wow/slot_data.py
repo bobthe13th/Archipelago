@@ -149,31 +149,35 @@ def _add_holidaysanity_stacking(world, data: dict) -> None:
 
 
 def _add_zone_leveler_data(world, data: dict) -> None:
-    """M4.11.1 Task 14: the C++ side's zone-lock PlayerScript
-    (ArchipelagoZoneLevelerScript.cpp) has no rules-evaluation engine of its
-    own and cannot derive "which zone is locked for this slot" from anything
-    else the AP server sends -- these three keys are its only source of
-    truth. No-op (keys simply absent) for every other game_mode, matching
-    every other game-mode-gated slot_data helper's own guard convention
-    (see e.g. _add_instance_clear_mode's sibling helpers).
-
-    M4.11.1 Task 15 extends this with the goal-completion side's own source
-    of truth: ArchipelagoGoals.cpp's IsZoneLevelerComplete has the same
-    no-rules-engine problem for "which goals are selected, and how much of
-    each is required" as the zone-lock script does for "which zone is
-    locked" -- zone_leveler_zone_key additionally lets that C++ side resolve
-    its own Archipelago::CoreLoop::LEVEL_CAP_TOTAL_BY_TRACK lookup
+    """M4.11.1 Task 15: ArchipelagoGoals.cpp's IsZoneLevelerComplete has no
+    rules-evaluation engine of its own and cannot derive "which goals are
+    selected, and how much of each is required" from anything else the AP
+    server sends -- these keys are its only source of truth.
+    zone_leveler_zone_key additionally lets that C++ side resolve its own
+    Archipelago::CoreLoop::LEVEL_CAP_TOTAL_BY_TRACK lookup
     ("zone_leveler_<zone_key>") without hardcoding "barrens" literally,
     which would silently stop matching the moment a second zone is curated
-    (M4.11.2)."""
+    (M4.11.2). No-op (keys simply absent) for every other game_mode,
+    matching every other game-mode-gated slot_data helper's own guard
+    convention (see e.g. _add_instance_clear_mode's sibling helpers).
+
+    M4.11.3.3 Task 3: drops zone_leveler_zone_id/
+    zone_leveler_allowed_hub_zone_ids/zone_leveler_allow_hub_zone -- Task 1
+    already removed the zone_id/allowed_hub_zone_ids fields these read from
+    ZoneLevelerZoneData, and Task 3 removes the zone_leveler_allow_hub_zone
+    option itself, so this helper would already be broken (AttributeError)
+    without this change. Confirmed via direct source inspection of both the
+    C++ side (ArchipelagoRealmState.h/ArchipelagoWorldScript.cpp/
+    ArchipelagoZoneLevelerScript.cpp) that the ONLY consumer of these three
+    keys was ArchipelagoZoneLevelerScript.cpp's OnPlayerUpdateZone hub-zone
+    /zone-lock enforcement -- exactly the widening mechanism this milestone
+    removes -- not any other feature (display, logging, ...); that C++-side
+    removal/rework is M4.11.3.3 Task 4's own job, not this file's."""
     if world.options.game_mode != "zone_leveler":
         return
     zone_key = world.options.zone_leveler_starting_zone.current_key
     zone_data = zone_leveler_content_data.ZONES[zone_key]
-    data["zone_leveler_zone_id"] = zone_data.zone_id
     data["zone_leveler_zone_key"] = zone_key
-    data["zone_leveler_allowed_hub_zone_ids"] = sorted(zone_data.allowed_hub_zone_ids)
-    data["zone_leveler_allow_hub_zone"] = bool(world.options.zone_leveler_allow_hub_zone)
     data["zone_leveler_goals"] = sorted(world.options.zone_leveler_goals.value)
     data["zone_leveler_statues_required"] = world.options.zone_leveler_statues_required.value
     data["zone_leveler_instances_required"] = world.options.zone_leveler_instances_required.value
