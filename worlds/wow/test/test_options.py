@@ -143,5 +143,14 @@ class TestGameModeZoneLeveler(unittest.TestCase):
         self.assertEqual(GameMode.option_zone_leveler, 13)
 
 
+class TestContainersanityChestsPerZone(unittest.TestCase):
+    def test_containersanity_chests_per_zone_default_and_range(self) -> None:
+        from ..options import ContainersanityChestsPerZone
+        opt = ContainersanityChestsPerZone.from_any(ContainersanityChestsPerZone.default)
+        self.assertEqual(opt.value, 5)
+        self.assertEqual(ContainersanityChestsPerZone.range_start, 0)
+        self.assertEqual(ContainersanityChestsPerZone.range_end, 15)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -254,6 +254,27 @@ class CollectorItemsRequired(Range):
     default = 264
 
 
+class ContainersanityChestsPerZone(Range):
+    """M4.11.4: Containersanity no longer generates one check per real
+    chest loot-table item (that produced severe check-pool inflation for
+    generic, widely-reused loot tables -- see this milestone's design
+    spec §1 for the real, measured numbers). Instead, each real zone gets
+    up to this many abstract "Chest N" checks, credited by looting ANY
+    real chest physically located there -- eliminating RNG spawn-hunting
+    while keeping pacing player-controllable. A zone with fewer real
+    chest-pool-or-standalone units than this value gets only as many
+    checks as it has real units (see extract_containersanity.py's own
+    real per-zone unit count, baked in at content-generation time).
+    Default 5, capped at 15 -- the generation-time ceiling every real
+    zone's abstract location count was baked up to; raising range_end
+    past 15 requires re-running extract_containersanity.py with a higher
+    ceiling first (see that script's own _MAX_CHESTS_PER_ZONE constant)."""
+    display_name = "Containersanity: Chests Per Zone"
+    range_start = 0
+    range_end = 15
+    default = 5
+
+
 class AchievementHuntTier(Choice):
     """Only relevant when game_mode is achievement_hunt (M4.9 Sec4). Which of
     the three curated tiers the completion rule requires: hundred_percent
@@ -1120,6 +1141,7 @@ class WoWOptions(PerGameCommonOptions):
     quest_reward_expansion_pools: QuestRewardExpansionPools
     vendor_stock_expansion_pools: VendorStockExpansionPools
     containersanity_expansion_pools: ContainersanityExpansionPools
+    containersanity_chests_per_zone: ContainersanityChestsPerZone
     gathersanity_expansion_pools: GathersanityExpansionPools
     gathersanity_source_pools: GathersanitySourcePools
     enemysanity_type_pools: EnemysanityTypePools
