@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from . import instance_entrance_data, quest_rewards_content_data
+from . import core_loop_content_data, instance_entrance_data, quest_rewards_content_data
 
 
 @dataclass(frozen=True)
@@ -58,6 +58,32 @@ ZONES: dict[str, ZoneLevelerZoneData] = {
         quest_reward_location_names=_quest_names_for_zone(frozenset({"barrens"})),
     ),
 }
+
+
+def curated_instance_keys(zone_data: ZoneLevelerZoneData) -> tuple[str, ...]:
+    """M4.11.3.3: filters a zone's real instance_keys reachability set
+    (computed by _instance_keys_reachable_from, above) down to only the
+    keys that actually have curated core_loop.yaml AP content
+    (core_loop_content_data.INSTANCE_CLEAR_LOCATIONS/ITEMS). A real
+    instance can be physically reachable from a zone -- Task 1's own
+    independently-verified, correct WorldMapArea.dbc-derived reachability
+    data -- without ever having been curated with an "Clear X"
+    location/"Instance Unlock: X" item pair for it at all (for Barrens:
+    dire_maul/maraudon/onyxia_s_lair are real, reachable, but only
+    wailing_caverns/razorfen_kraul/razorfen_downs were ever curated, per
+    M4.11.1 Task 4's own BarrensBeater content additions).
+
+    This function does NOT narrow zone_data.instance_keys itself (that
+    field stays the real, full reachability set -- Task 1's own explicit
+    instruction not to work around the wider set by narrowing real data).
+    Instead, every consumer that needs to know "how many/which of this
+    zone's instances actually have an AP location or item" --
+    locations.py's create_core_loop_locations, items.py's
+    _trap_baseline_location_count, goals.py's instance_clears goal --
+    calls this shared helper, so they can never independently drift on
+    what "curated" means (same centralization precedent as
+    resolve_core_loop_track below, Finding 10)."""
+    return tuple(key for key in zone_data.instance_keys if key in core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
 
 
 def resolve_core_loop_track(world) -> tuple[str, str | None]:

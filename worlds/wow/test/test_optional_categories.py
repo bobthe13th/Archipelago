@@ -2,13 +2,13 @@
 from .bases import WoWTestBase
 from .. import WoWWorld
 from .. import (
-    craftsanity_content_data, itemsanity_content_data, options, quest_rewards_content_data, recipes_content_data,
-    repsanity_content_data, trainer_spells_content_data, zone_leveler_content_data,
+    craftsanity_content_data, enemysanity_content_data, itemsanity_content_data, options,
+    quest_rewards_content_data, recipes_content_data, repsanity_content_data, trainer_spells_content_data,
+    zone_leveler_content_data,
 )
 from ..locations import (
-    _OPTIONAL_CATEGORIES, OptionalCategory, create_optional_category_locations, _location_matches_pools,
-    _POSSESSION_TRIGGERED_CATEGORY_KEYS, _zone_leveler_possession_family_min_level, _zone_leveler_scope_matches,
-    _zone_leveler_quest_reward_zone_matches, _zone_leveler_trainer_spell_zone_matches,
+    _NO_PHYSICAL_LOCATION_CATEGORY_KEYS, _OPTIONAL_CATEGORIES, OptionalCategory,
+    create_optional_category_locations, _location_matches_pools, _min_level_for_row, _zone_leveler_row_matches,
 )
 
 
@@ -450,72 +450,50 @@ class TestCraftsanityExcludedWithEmptyPools(WoWTestBase):
         self.assertEqual(len(craftsanity_locs), 0)
 
 
-class TestZoneLevelerPossessionFamilyMinLevel(WoWTestBase):
-    """M4.11.1 Task 12: unit-level coverage of the min_level lookup helper
-    itself, calling module data directly rather than paying for a full
-    zone_leveler slot generation."""
+class TestMinLevelForRow(WoWTestBase):
+    """M4.11.1 Task 12, renamed by M4.11.3.3 (_zone_leveler_possession_family_min_level
+    -> _min_level_for_row): unit-level coverage of the min_level lookup
+    helper itself, calling module data directly rather than paying for a
+    full zone_leveler slot generation."""
     options = {}
 
     def test_itemsanity_row_carries_a_real_int_min_level(self) -> None:
         category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "itemsanity")
         name = next(iter(itemsanity_content_data.LOCATIONS))
-        min_level = _zone_leveler_possession_family_min_level(name, category)
+        min_level = _min_level_for_row(category, name)
         self.assertIsInstance(min_level, int)
 
     def test_trainer_spells_row_carries_a_real_int_min_level(self) -> None:
+        # M4.11.3.3: _min_level_for_row is no longer actually CALLED for
+        # trainer_spells by _zone_leveler_row_matches (the family left the
+        # "no physical location" bucket -- see that function's own
+        # docstring), but the helper itself is still generic/correct for
+        # any category whose TRIGGERS carries a real min_level key, and
+        # trainer_spells still does.
         category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "trainer_spells")
         name = next(iter(trainer_spells_content_data.LOCATIONS))
-        min_level = _zone_leveler_possession_family_min_level(name, category)
+        min_level = _min_level_for_row(category, name)
         self.assertIsInstance(min_level, int)
 
     def test_recipes_row_carries_a_real_int_min_level(self) -> None:
         category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "recipes")
         name = next(iter(recipes_content_data.LOCATIONS))
-        min_level = _zone_leveler_possession_family_min_level(name, category)
+        min_level = _min_level_for_row(category, name)
         self.assertIsInstance(min_level, int)
 
     def test_craftsanity_has_no_real_min_level_data(self) -> None:
         # By design, not an oversight -- crafting requirements are
         # skill-tier-gated, not player-level-gated; see
-        # _zone_leveler_possession_family_min_level's own docstring.
+        # _min_level_for_row's own docstring.
         category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "craftsanity")
         name = next(iter(craftsanity_content_data.LOCATIONS))
-        self.assertIsNone(_zone_leveler_possession_family_min_level(name, category))
+        self.assertIsNone(_min_level_for_row(category, name))
 
     def test_repsanity_has_no_real_min_level_data(self) -> None:
         # By design -- reputation ranks are not level-gated at all.
         category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "repsanity")
         name = next(iter(repsanity_content_data.LOCATIONS))
-        self.assertIsNone(_zone_leveler_possession_family_min_level(name, category))
-
-
-class TestZoneLevelerScopeMatchesUnaffectsNonPossessionCategories(WoWTestBase):
-    """M4.11.1 Task 12 (post-hoc fix round): _zone_leveler_scope_matches
-    always returns True for a category that is BOTH outside
-    _POSSESSION_TRIGGERED_CATEGORY_KEYS AND not "quest_rewards",
-    independent of content_scope -- vendor_stock has no real zone data
-    curated at all (that's M4.11.2's full-breadth follow-up), so this
-    generic path doesn't touch it either way. Quest Rewards used to be
-    covered by this same always-True generic path too, but the fix round
-    gave it its own dedicated, real zone-id-based restriction instead (see
-    TestZoneLevelerQuestRewardZoneMatches/
-    TestZoneLevelerQuestRewardsRestrictedToSelectedZoneRegardlessOfContentScope
-    below) -- it is deliberately no longer exercised by this class.
-    Exercised via a fake world/options object (same types.SimpleNamespace
-    pattern test_goals.py's own TestValidateZoneLevelerFullDensity already
-    uses) rather than a full slot generation, since this is a pure
-    function-behavior fact."""
-    options = {}
-
-    def test_non_possession_non_quest_reward_category_always_matches_under_zone_only(self) -> None:
-        import types
-
-        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "vendor_stock")
-        world = types.SimpleNamespace(options=types.SimpleNamespace(
-            zone_leveler_content_scope="zone_only",
-            zone_leveler_starting_zone=types.SimpleNamespace(current_key="barrens"),
-        ))
-        self.assertTrue(_zone_leveler_scope_matches(world, category, "irrelevant-name"))
+        self.assertIsNone(_min_level_for_row(category, name))
 
 
 # M4.11.1 Task 12: every possession-triggered family's own tag pools widened
@@ -552,8 +530,14 @@ _ZONE_LEVELER_BASE_OPTIONS = {
 
 
 class TestZoneLevelerContentScope(WoWTestBase):
-    """M4.11.1 Task 12: zone_only excludes every possession-triggered
-    family's rows entirely, regardless of tag-pool selection.
+    """M4.11.1 Task 12, revised M4.11.3.3: zone_only excludes every
+    no-physical-location family's rows entirely, regardless of tag-pool
+    selection. Iterates locations._NO_PHYSICAL_LOCATION_CATEGORY_KEYS
+    directly (Itemsanity/Recipes/Craftsanity) rather than the old,
+    now-removed _POSSESSION_TRIGGERED_CATEGORY_KEYS -- Trainer Spells left
+    that bucket this milestone (it now has a real area tag and is
+    unconditionally zone-checked instead, see
+    TestZoneLevelerTrainerSpellsIncludedUnderZoneOnlyNow below).
     zone_leveler_goals is narrowed to reach_zone_level_cap alone -- same
     reasoning test_basic.py's TestZoneLevelerCoreLoop/TestGoldenBoarStatues
     already document: the default goal set requires quest_reward pooling,
@@ -561,41 +545,32 @@ class TestZoneLevelerContentScope(WoWTestBase):
     class also narrows the goal set."""
     options = {**_ZONE_LEVELER_BASE_OPTIONS, "zone_leveler_content_scope": "zone_only"}
 
-    def test_zone_only_excludes_every_possession_triggered_family(self) -> None:
+    def test_zone_only_excludes_every_no_physical_location_family(self) -> None:
         names = {loc.name for loc in self.multiworld.get_locations(self.player)}
-        for key in _POSSESSION_TRIGGERED_CATEGORY_KEYS:
+        for key in _NO_PHYSICAL_LOCATION_CATEGORY_KEYS:
             category = next(c for c in _OPTIONAL_CATEGORIES if c.key == key)
             overlap = names & set(category.locations_module.LOCATIONS)
             self.assertEqual(len(overlap), 0, f"{key} rows leaked through zone_only")
 
 
 class TestZoneLevelerWholeGameScaledWidensTractableFamilies(WoWTestBase):
-    """M4.11.1 Task 12: whole_game_scaled widens exactly the 3 tractable
-    possession-triggered families (Itemsanity, Recipes, Trainer Spells) to
+    """M4.11.1 Task 12, revised M4.11.3.3: whole_game_scaled widens the 2
+    real tractable no-physical-location families (Itemsanity, Recipes) to
     rows whose own real min_level falls inside Barrens' level band
     (10-30, zone_leveler_content_data.ZONES["barrens"]), and leaves
-    Craftsanity/Repsanity fully excluded -- same as zone_only for those two
-    -- since neither carries real min_level data to widen by.
+    Craftsanity fully excluded -- same as zone_only -- since it carries no
+    real min_level data to widen by. Repsanity is exercised separately
+    (TestZoneLevelerRepsanity* below); it never reaches this min_level
+    logic at all.
 
-    zone_leveler_allow_hub_zone is set True here (M4.11.2): Trainer Spells
-    is now ADDITIONALLY gated by _zone_leveler_trainer_spell_zone_matches
-    (real trainer position data), and no row resolves to the open-world
-    Barrens zone itself (id 17) under this project's WorldMapArea.dbc-based
-    position resolver -- a known resolver limitation (final whole-branch
-    review, 2026-09-02: smallest-box-wins misattributes ~90% of Barrens's
-    own bounding box to the smaller overlapping Durotar/Mulgore boxes;
-    verified against real landmarks -- Crossroads/Wailing Caverns/Camp
-    Taurajo resolve to Mulgore, Ratchet resolves to Durotar), not evidence
-    that no trainers are physically there. For Barrens' own roster that
-    means the widened rows resolve to Orgrimmar/Durotar (the curated
-    allowed_hub_zone_ids) instead. Without this toggle on, the level-band
-    widening this test targets would never have any trainer_spells row to
-    widen INTO, which would defeat the point of this test (which is about
-    the min_level axis, not the zone axis)."""
-    options = {
-        **_ZONE_LEVELER_BASE_OPTIONS, "zone_leveler_content_scope": "whole_game_scaled",
-        "zone_leveler_allow_hub_zone": True,
-    }
+    Trainer Spells is deliberately NOT covered by this class anymore --
+    M4.11.3.3 moved it out of the level-widening bucket entirely (it now
+    has a real area tag and is unconditionally, unaffected-by-content_scope
+    zone-checked instead -- covered by
+    TestZoneLevelerTrainerSpellsIncludedUnderZoneOnlyNow/
+    TestZoneLevelerTrainerSpellRowMatches below), so content_scope no
+    longer has any effect on it at all."""
+    options = {**_ZONE_LEVELER_BASE_OPTIONS, "zone_leveler_content_scope": "whole_game_scaled"}
 
     def test_itemsanity_widens_to_rows_inside_barrens_level_band(self) -> None:
         band = zone_leveler_content_data.ZONES["barrens"]
@@ -604,16 +579,6 @@ class TestZoneLevelerWholeGameScaledWidensTractableFamilies(WoWTestBase):
         self.assertGreater(len(widened), 0)
         for name in widened:
             min_level = itemsanity_content_data.TRIGGERS[name]["min_level"]
-            self.assertGreaterEqual(min_level, band.min_level)
-            self.assertLessEqual(min_level, band.max_level)
-
-    def test_trainer_spells_widens_to_rows_inside_barrens_level_band(self) -> None:
-        band = zone_leveler_content_data.ZONES["barrens"]
-        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
-        widened = names & set(trainer_spells_content_data.LOCATIONS)
-        self.assertGreater(len(widened), 0)
-        for name in widened:
-            min_level = trainer_spells_content_data.TRIGGERS[name]["min_level"]
             self.assertGreaterEqual(min_level, band.min_level)
             self.assertLessEqual(min_level, band.max_level)
 
@@ -629,8 +594,8 @@ class TestZoneLevelerWholeGameScaledWidensTractableFamilies(WoWTestBase):
 
     def test_craftsanity_stays_fully_excluded_but_repsanity_includes_vanilla(self) -> None:
         # M4.11.2: Craftsanity has no real min_level data to widen by
-        # (see _zone_leveler_possession_family_min_level's own docstring) --
-        # whole_game_scaled behaves identically to zone_only for this family,
+        # (see _min_level_for_row's own docstring) -- whole_game_scaled
+        # behaves identically to zone_only for this family,
         # even with tag pools wide open. Repsanity, by contrast, is now
         # filtered by expansion tag (vanilla-only under zone_leveler),
         # regardless of content_scope, so vanilla-tagged repsanity factions
@@ -646,157 +611,113 @@ class TestZoneLevelerWholeGameScaledWidensTractableFamilies(WoWTestBase):
             self.assertIn("vanilla", expansion_tags)
 
 
-class TestZoneLevelerTrainerSpellZoneMatches(WoWTestBase):
-    """M4.11.2: Trainer Spells is the one possession-triggered family that
-    is ALSO physically zone-bound (a real trainer NPC must be visited), so
-    under whole_game_scaled it needs BOTH its existing min_level check AND
-    its tags["area"] intersection check (M4.11.3.1 Task 4) to include a row.
-    zone_leveler_allow_hub_zone is on here -- both spells below have real
-    min_level within 10-30 (Frost Nova: 10; Teleport: Stormwind: 20), so
-    without the hub toggle both would qualify on min_level alone and this
-    test wouldn't isolate the area check at all; confirmed live-DB numbers
-    (extract_trainer_spells.py's own tags["area"]): Frost Nova (#122)
-    resolves to, among others, Durotar (14) and Orgrimmar (1637); Teleport: Stormwind
-    (#3561) resolves ONLY to Stormwind itself (1519) -- no Horde-hub
-    trainer teaches it, matching the real game (an Alliance-only
-    teleport spell)."""
-    options = {
-        "game_mode": "zone_leveler", "zone_leveler_starting_zone": "barrens",
-        "zone_leveler_content_scope": "whole_game_scaled", "zone_leveler_allow_hub_zone": True,
-        "zone_leveler_goals": {"reach_zone_level_cap"},
-        "trainer_spell_class_pools": set(options.TrainerSpellClassPools.default),
-        "trainer_spell_expansion_pools": set(options.TrainerSpellExpansionPools.default),
-    }
+class TestZoneLevelerTrainerSpellsContributeAtEitherContentScope(WoWTestBase):
+    """M4.11.3.3 supersedes M4.11.2's TestZoneLevelerTrainerSpellZoneMatches/
+    TestZoneLevelerTrainerSpellsAtDefaultHubZone: Trainer Spells now has a
+    real area tag (M4.11.3.1 Task 4) and is unconditionally zone-checked by
+    _zone_leveler_row_matches, so it contributes the SAME rows under
+    zone_only and whole_game_scaled alike -- content_scope no longer
+    affects this family at all (the old min_level-widening axis it used to
+    ALSO need, on top of the zone check, is gone along with
+    zone_leveler_allow_hub_zone; see _zone_leveler_row_matches's own
+    docstring). Frost Nova (#122) carries a direct "barrens" area tag
+    (confirmed via direct TAGS inspection); Teleport: Stormwind (#3561)
+    resolves only to Stormwind/Elwynn Forest -- never Barrens -- so it
+    stays excluded regardless of content_scope."""
+    options = {**_ZONE_LEVELER_BASE_OPTIONS, "zone_leveler_content_scope": "whole_game_scaled"}
 
-    def test_known_orgrimmar_taught_spell_included(self) -> None:
+    def test_known_barrens_taught_spell_included(self) -> None:
+        name = "Trainer Spell: Frost Nova (#122)"
+        self.assertIn("barrens", trainer_spells_content_data.TAGS[name]["area"])
         location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
-        self.assertIn("Trainer Spell: Frost Nova (#122)", location_names)
+        self.assertIn(name, location_names)
 
-    def test_spell_with_no_horde_hub_trainer_excluded(self) -> None:
+    def test_spell_never_taught_in_barrens_excluded(self) -> None:
+        name = "Trainer Spell: Teleport: Stormwind (#3561)"
+        self.assertNotIn("barrens", trainer_spells_content_data.TAGS[name]["area"])
         location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
-        self.assertNotIn("Trainer Spell: Teleport: Stormwind (#3561)", location_names)
+        self.assertNotIn(name, location_names)
 
 
-class TestZoneLevelerTrainerSpellZoneMatchesUnit(WoWTestBase):
-    """M4.11.2: unit-level coverage of _zone_leveler_trainer_spell_zone_matches
-    itself, calling it directly against real trainer_spells_content_data.TAGS
-    rows (same fake-world types.SimpleNamespace pattern
-    TestZoneLevelerQuestRewardZoneMatches uses above) rather than paying for
-    a full zone_leveler slot generation."""
+class TestZoneLevelerTrainerSpellRowMatches(WoWTestBase):
+    """M4.11.3.3: unit-level coverage of _zone_leveler_row_matches itself
+    for the trainer_spells category, calling it directly against real
+    trainer_spells_content_data.TAGS rows (same fake-world
+    types.SimpleNamespace pattern TestZoneLevelerRowMatchesQuestRewards
+    below uses) rather than paying for a full zone_leveler slot generation.
+    Supersedes M4.11.2's TestZoneLevelerTrainerSpellZoneMatchesUnit -- the
+    hub-zone toggle it exercised no longer has any effect (dropped by
+    M4.11.3.3, see _zone_leveler_row_matches's own docstring), so this
+    class only exercises the one real axis that remains: a row's own
+    tags["area"] intersecting the selected zone's own real area_tags."""
     options = {}
 
     @staticmethod
-    def _fake_world(allow_hub_zone: bool, zone_key: str = "barrens"):
+    def _fake_world(zone_key: str = "barrens"):
         import types
 
         return types.SimpleNamespace(options=types.SimpleNamespace(
             zone_leveler_starting_zone=types.SimpleNamespace(current_key=zone_key),
-            zone_leveler_allow_hub_zone=allow_hub_zone,
+            zone_leveler_content_scope="zone_only",
         ))
 
-    def test_frost_nova_matches_when_hub_zone_allowed(self) -> None:
-        name = "Trainer Spell: Frost Nova (#122)"
-        self.assertTrue({"durotar", "orgrimmar"} & set(trainer_spells_content_data.TAGS[name]["area"]))
-        self.assertTrue(_zone_leveler_trainer_spell_zone_matches(self._fake_world(True), name))
-
-    def test_frost_nova_matches_even_when_hub_zone_disallowed(self) -> None:
-        # M4.11.3.1 (Task 4): migrated onto the fixed
-        # resolve_area_tags_for_positions mechanism (Task 1-3), which unions
-        # EVERY containing zone across EVERY real trainer position instead
-        # of picking one smallest-box winner. Under the OLD resolver this
-        # spell's own real Durotar/Orgrimmar-standing trainer never resolved
-        # directly to Barrens (a known border-misattribution bug, not a
-        # game-world fact -- see locations.py's own
-        # _zone_leveler_trainer_spell_zone_matches docstring); under the
-        # fixed resolver it correctly ALSO carries a direct "barrens" area
-        # tag, so this spell now matches even with the hub toggle off.
+    def test_frost_nova_matches(self) -> None:
+        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "trainer_spells")
         name = "Trainer Spell: Frost Nova (#122)"
         self.assertIn("barrens", trainer_spells_content_data.TAGS[name]["area"])
-        self.assertTrue(_zone_leveler_trainer_spell_zone_matches(self._fake_world(False), name))
+        self.assertTrue(_zone_leveler_row_matches(self._fake_world(), category, name))
 
-    def test_hub_only_spell_does_not_match_when_hub_zone_disallowed(self) -> None:
-        # Summon Warhorse (#34768): real min_level 20 (within Barrens' own
-        # 10-30 band), taught only by a paladin trainer whose real position
-        # resolves to Orgrimmar (among other non-Barrens zones) but NEVER
-        # directly to Barrens itself, even under the fixed resolver -- the
-        # ONLY real level-10-30 row with a Durotar/Orgrimmar area tag but no
-        # direct Barrens area tag (confirmed against this checkout's real
-        # regenerated trainer_spells_content_data.TAGS, M4.11.3.1 Task 4).
-        # Isolates the hub-only additive check Frost Nova no longer can
-        # (it now matches directly, see above).
+    def test_summon_warhorse_does_not_match(self) -> None:
+        # Summon Warhorse (#34768): taught only by trainers whose real
+        # positions resolve to Silvermoon City/Silverpine Forest/Tirisfal
+        # Glades/Western Plaguelands/Undercity/Alterac Mountains/Eversong
+        # Woods/Orgrimmar (confirmed via direct TAGS inspection against
+        # this checkout's real regenerated trainer_spells_content_data.TAGS)
+        # -- never Barrens, so it's excluded regardless of content_scope
+        # (the old hub-zone-toggle-only reachability path this row used to
+        # need is gone).
+        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "trainer_spells")
         name = "Trainer Spell: Summon Warhorse (#34768)"
         area_tags = set(trainer_spells_content_data.TAGS[name]["area"])
         self.assertIn("orgrimmar", area_tags)
         self.assertNotIn("barrens", area_tags)
-        self.assertTrue(_zone_leveler_trainer_spell_zone_matches(self._fake_world(True), name))
-        self.assertFalse(_zone_leveler_trainer_spell_zone_matches(self._fake_world(False), name))
+        self.assertFalse(_zone_leveler_row_matches(self._fake_world(), category, name))
 
     def test_teleport_stormwind_never_matches_barrens(self) -> None:
-        # Resolves only to Stormwind (1519) -- not Barrens (17) nor either
-        # of Barrens' own curated hub zones (14/1637) -- so this stays
-        # excluded regardless of the hub toggle.
+        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "trainer_spells")
         name = "Trainer Spell: Teleport: Stormwind (#3561)"
-        self.assertFalse(_zone_leveler_trainer_spell_zone_matches(self._fake_world(True), name))
-        self.assertFalse(_zone_leveler_trainer_spell_zone_matches(self._fake_world(False), name))
+        self.assertNotIn("barrens", trainer_spells_content_data.TAGS[name]["area"])
+        self.assertFalse(_zone_leveler_row_matches(self._fake_world(), category, name))
 
 
-class TestZoneLevelerTrainerSpellsAtDefaultHubZone(WoWTestBase):
-    """M4.11.3.1 (Task 4) superseding revision: M4.11.2's own final
-    whole-branch review (Finding 2, 2026-09-02) pinned a real cliff here --
-    Trainer Spells contributed exactly 0 locations to a BarrensBeater slot
-    under whole_game_scaled with zone_leveler_allow_hub_zone left at its
-    default (unset/False) -- but that cliff was itself a known resolver
-    limitation, not a game-world fact: the OLD single-winner,
-    smallest-box-wins position resolver never resolved a trainer standing in
-    Barrens' own territory directly to Barrens' own zone_id (17) (see
-    _zone_leveler_trainer_spell_zone_matches's own docstring). Migrating
-    onto the fixed resolve_area_tags_for_positions mechanism (Task 1-3) --
-    which unions EVERY containing zone across EVERY real position instead
-    of picking one winner -- corrects this: 419 of the 427 real
-    level-10-30 Trainer Spells rows now carry a direct "barrens" area tag,
-    so this family now contributes real locations at the hub toggle's
-    default value. This test pins the corrected, real behavior in place of
-    the old (buggy) zero-cliff."""
-    options = {**_ZONE_LEVELER_BASE_OPTIONS, "zone_leveler_content_scope": "whole_game_scaled"}
+class TestZoneLevelerRowMatchesQuestRewards(WoWTestBase):
+    """M4.11.1 Task 12 post-hoc fix round, revised M4.11.3.3: unit-level
+    coverage of _zone_leveler_row_matches for the quest_rewards category,
+    calling it directly against real quest_rewards_content_data.TAGS rows
+    rather than paying for a full zone_leveler slot generation. Supersedes
+    the old, now-removed _zone_leveler_quest_reward_zone_matches's own unit
+    tests -- same real rows, same real assertions, just calling the new
+    generic function with an explicit quest_rewards OptionalCategory.
 
-    def test_trainer_spells_contributes_locations_at_default_hub_zone(self) -> None:
-        names = {loc.name for loc in self.multiworld.get_locations(self.player)}
-        overlap = names & set(trainer_spells_content_data.LOCATIONS)
-        self.assertGreater(len(overlap), 0)
-        # Frost Nova (#122) carries a direct "barrens" area tag (confirmed
-        # above, TestZoneLevelerTrainerSpellZoneMatchesUnit) so it's
-        # in-bounds even without the hub toggle.
-        self.assertIn("Trainer Spell: Frost Nova (#122)", names)
-        # Summon Warhorse (#34768) has no direct "barrens" area tag -- only
-        # reachable via the hub toggle -- so it stays excluded at the
-        # default (off) value.
-        self.assertNotIn("Trainer Spell: Summon Warhorse (#34768)", names)
+    The confirmed bug this fix originally closed (M4.11.1 Task 12): Quest
+    Rewards is a real, physically zone-bound family (a real quest-giver
+    NPC), but the OLD code let it fall through a generic "always True"
+    branch, so a Barrens slot could sample a quest whose quest-giver stands
+    in a totally different, unreachable zone. These tests confirm the fix
+    still holds under the new generic function: only a row whose own real
+    tags["area"] intersects the selected zone's own real area_tags
+    matches, and this holds regardless of zone_leveler_content_scope
+    (Quest Rewards' restriction is not gated by that toggle at all -- it's
+    outside _NO_PHYSICAL_LOCATION_CATEGORY_KEYS).
 
-
-class TestZoneLevelerQuestRewardZoneMatches(WoWTestBase):
-    """M4.11.1 Task 12 post-hoc fix round: unit-level coverage of
-    _zone_leveler_quest_reward_zone_matches itself, calling it directly
-    against real quest_rewards_content_data.TAGS rows (same fake-world
-    types.SimpleNamespace pattern
-    TestZoneLevelerScopeMatchesUnaffectsNonPossessionCategories uses)
-    rather than paying for a full zone_leveler slot generation.
-
-    The confirmed bug: Quest Rewards is a real, physically zone-bound
-    family (a real quest-giver NPC), but the OLD code let
-    category.key == "quest_rewards" fall through
-    _zone_leveler_scope_matches' "not in
-    _POSSESSION_TRIGGERED_CATEGORY_KEYS -> always True" branch, so a
-    Barrens slot could sample a quest whose quest-giver stands in a
-    totally different, unreachable zone -- reachable per AP's own logic
-    (no equivalent of Dark Portal Access gates same-continent vanilla
-    travel) but physically un-walkable-to given the zone lock. These tests
-    confirm the fix: only a row whose own real tags["area"] intersects the
-    selected zone's own in-bounds area-tag set (M4.11.3.1 Task 5's
-    tags["area"] frozenset-intersection mechanism, migrated off the old
-    scalar zone_id-equality check) matches, and this holds regardless of
-    zone_leveler_content_scope (unlike the 5 possession-triggered
-    families, Quest Rewards' restriction is not gated by that toggle at
-    all)."""
+    test_row_with_unresolvable_zone_sentinel_is_excluded also pins
+    M4.11.3.3's own real regression fix (confirmed via an actual failing
+    test run, not assumed): an unresolvable-area quest_rewards row must
+    stay excluded under whole_game_scaled too, not fall through to the
+    no-physical-location level-widening branch the way an itemsanity/
+    recipes/craftsanity row legitimately would -- see
+    _zone_leveler_row_matches's own docstring for why category.key
+    membership, not row-level area-tag truthiness, is what decides that."""
     options = {}
 
     @staticmethod
@@ -808,32 +729,35 @@ class TestZoneLevelerQuestRewardZoneMatches(WoWTestBase):
             zone_leveler_starting_zone=types.SimpleNamespace(current_key=zone_key),
         ))
 
+    @staticmethod
+    def _category():
+        return next(c for c in _OPTIONAL_CATEGORIES if c.key == "quest_rewards")
+
     def test_row_in_selected_zone_matches_under_zone_only(self) -> None:
         # "Quest: Chen's Empty Keg Reward (#819)" -- real area tag
-        # "barrens" (The Barrens, zone_id 17), confirmed by direct TAGS
-        # inspection.
+        # "barrens" (The Barrens), confirmed by direct TAGS inspection.
         name = "Quest: Chen's Empty Keg Reward (#819)"
         self.assertEqual(quest_rewards_content_data.TAGS[name].get("area"), frozenset({"barrens"}))
         world = self._fake_world("zone_only")
-        self.assertTrue(_zone_leveler_quest_reward_zone_matches(world, name))
+        self.assertTrue(_zone_leveler_row_matches(world, self._category(), name))
 
     def test_row_in_selected_zone_matches_under_whole_game_scaled(self) -> None:
         # Same row, but under whole_game_scaled -- must still match; the
         # content_scope toggle never affects Quest Rewards at all.
         name = "Quest: Chen's Empty Keg Reward (#819)"
         world = self._fake_world("whole_game_scaled")
-        self.assertTrue(_zone_leveler_quest_reward_zone_matches(world, name))
+        self.assertTrue(_zone_leveler_row_matches(world, self._category(), name))
 
     def test_row_in_a_different_real_zone_is_excluded(self) -> None:
         # "Quest: Kanrethad's Quest Reward (#1)" -- real area tag
         # "designer_island" (a real, resolved zone, just not Barrens),
         # confirmed by direct TAGS inspection. Must be excluded under BOTH
-        # content_scope values -- this is not the possession-triggered
+        # content_scope values -- this is not the no-physical-location
         # widening path.
         name = "Quest: Kanrethad's Quest Reward (#1)"
         self.assertEqual(quest_rewards_content_data.TAGS[name].get("area"), frozenset({"designer_island"}))
-        self.assertFalse(_zone_leveler_quest_reward_zone_matches(self._fake_world("zone_only"), name))
-        self.assertFalse(_zone_leveler_quest_reward_zone_matches(self._fake_world("whole_game_scaled"), name))
+        self.assertFalse(_zone_leveler_row_matches(self._fake_world("zone_only"), self._category(), name))
+        self.assertFalse(_zone_leveler_row_matches(self._fake_world("whole_game_scaled"), self._category(), name))
 
     def test_row_with_unresolvable_zone_sentinel_is_excluded(self) -> None:
         # "Quest: A Lesson to Learn Reward (#26)" -- the `area` key is
@@ -842,11 +766,13 @@ class TestZoneLevelerQuestRewardZoneMatches(WoWTestBase):
         # _resolve_zone_id), this data's own "unresolvable, real zone
         # unknown" sentinel. The safe default for a physically zone-locked
         # game mode is exclusion, not inclusion, since we genuinely don't
-        # know this row's real zone.
+        # know this row's real zone -- NOT the no-physical-location
+        # level-widening treatment (this row has a real, if unresolved,
+        # physical location; it just isn't itemsanity/recipes/craftsanity).
         name = "Quest: A Lesson to Learn Reward (#26)"
         self.assertNotIn("area", quest_rewards_content_data.TAGS[name])
-        self.assertFalse(_zone_leveler_quest_reward_zone_matches(self._fake_world("zone_only"), name))
-        self.assertFalse(_zone_leveler_quest_reward_zone_matches(self._fake_world("whole_game_scaled"), name))
+        self.assertFalse(_zone_leveler_row_matches(self._fake_world("zone_only"), self._category(), name))
+        self.assertFalse(_zone_leveler_row_matches(self._fake_world("whole_game_scaled"), self._category(), name))
 
 
 # M4.11.1 Task 12 post-hoc fix round: a lighter options base than
@@ -889,7 +815,7 @@ class TestZoneLevelerQuestRewardsRestrictedToSelectedZoneUnderZoneOnly(WoWTestBa
         # they bypass ALL scoping (tag pools, content_scope, AND this new
         # zone filter) unconditionally, via create_optional_category_locations'
         # own separate always_present loop, which runs BEFORE
-        # _zone_leveler_scope_matches is ever consulted. That bypass is
+        # _zone_leveler_row_matches is ever consulted. That bypass is
         # pre-existing, documented (QuestRewardWeight's own docstring), and
         # entirely out of this fix's scope -- confirmed empirically: every
         # row this filter actually lets through DOES match Barrens' own
@@ -910,7 +836,7 @@ class TestZoneLevelerQuestRewardsRestrictedToSelectedZoneUnderZoneOnly(WoWTestBa
         # bypass this filter entirely, pre-existing/out of scope), so this
         # only asserts the NEW filter's own behavior: no non-always-present
         # zero-zone row is ever let through by
-        # _zone_leveler_quest_reward_zone_matches.
+        # _zone_leveler_row_matches.
         names = {loc.name for loc in self.multiworld.get_locations(self.player)}
         sampled_quest_rewards = (
             names & set(quest_rewards_content_data.LOCATIONS)
@@ -937,7 +863,7 @@ class TestZoneLevelerQuestRewardsRestrictedToSelectedZoneUnderWholeGameScaled(Wo
         # they bypass ALL scoping (tag pools, content_scope, AND this new
         # zone filter) unconditionally, via create_optional_category_locations'
         # own separate always_present loop, which runs BEFORE
-        # _zone_leveler_scope_matches is ever consulted. That bypass is
+        # _zone_leveler_row_matches is ever consulted. That bypass is
         # pre-existing, documented (QuestRewardWeight's own docstring), and
         # entirely out of this fix's scope -- confirmed empirically: every
         # row this filter actually lets through DOES match Barrens' own
@@ -958,7 +884,7 @@ class TestZoneLevelerQuestRewardsRestrictedToSelectedZoneUnderWholeGameScaled(Wo
         # bypass this filter entirely, pre-existing/out of scope), so this
         # only asserts the NEW filter's own behavior: no non-always-present
         # zero-zone row is ever let through by
-        # _zone_leveler_quest_reward_zone_matches.
+        # _zone_leveler_row_matches.
         names = {loc.name for loc in self.multiworld.get_locations(self.player)}
         sampled_quest_rewards = (
             names & set(quest_rewards_content_data.LOCATIONS)
@@ -980,7 +906,7 @@ class TestZoneLevelerQuestRewardRestrictionDoesNotAffectOtherGameModes(WoWTestBa
     Barrens' 17, exactly like before this fix round. check_density=100 +
     quest_reward_weight=100 again makes the sample deterministic (every
     row is a candidate, since game_mode != "zone_leveler" means
-    _zone_leveler_scope_matches is never even consulted -- see its call
+    _zone_leveler_row_matches is never even consulted -- see its call
     site in create_optional_category_locations), so this compares against
     the real, full LOCATIONS roster for exact equality."""
     options = {"quest_reward_weight": 100, "check_density": 100}
@@ -1026,28 +952,29 @@ class TestNonZoneLevelerModeStillIncludesAllAlwaysPresentRows(WoWTestBase):
         self.assertIn("Quest: Skirmish at Echo Ridge Reward (#21)", location_names)
 
 
-class TestZoneLevelerQuestRewardsIncludeHubZoneWhenToggleOn(WoWTestBase):
-    options = {
-        **_ZONE_LEVELER_QUEST_REWARD_OPTIONS,
-        "zone_leveler_allow_hub_zone": True,
-    }
+class TestZoneLevelerHubZoneToggleNoLongerWidensAnything(WoWTestBase):
+    """Real, disclosed behavior change (M4.11.3.3): M4.11.2's own
+    TestZoneLevelerQuestRewardsIncludeHubZoneWhenToggleOn/
+    TestZoneLevelerQuestRewardsExcludeHubZoneWhenToggleOff pinned
+    zone_leveler_allow_hub_zone actually widening Quest Rewards' in-bounds
+    zone set to include Durotar/Orgrimmar. Task 1's flattened
+    ZoneLevelerZoneData no longer carries any hub-zone data at all
+    (allowed_hub_zone_ids was REMOVED, not renamed -- area_tags is a fixed,
+    real per-zone constant, frozenset({"barrens"}) for Barrens), and the
+    new collapsed _zone_leveler_row_matches (M4.11.3.3) never reads
+    zone_leveler_allow_hub_zone at all -- confirmed via direct source
+    inspection, not assumed. "Quest: Ripple Delivery Reward (#81)" (real
+    area tag frozenset({"orgrimmar"}), confirmed via direct TAGS
+    inspection) is now excluded regardless of the toggle's value -- the
+    same real row M4.11.2's own tests used to pin the OLD widening
+    behavior now demonstrates its removal instead."""
+    options = {**_ZONE_LEVELER_QUEST_REWARD_OPTIONS, "zone_leveler_allow_hub_zone": True}
 
-    def test_durotar_or_orgrimmar_quest_included(self) -> None:
+    def test_orgrimmar_only_quest_excluded_even_with_toggle_on(self) -> None:
+        name = "Quest: Ripple Delivery Reward (#81)"
+        self.assertEqual(quest_rewards_content_data.TAGS[name].get("area"), frozenset({"orgrimmar"}))
         location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
-        self.assertIn("Quest: Ripple Delivery Reward (#81)", location_names)
-
-
-class TestZoneLevelerQuestRewardsExcludeHubZoneWhenToggleOff(WoWTestBase):
-    options = {
-        **_ZONE_LEVELER_QUEST_REWARD_OPTIONS,
-        "zone_leveler_allow_hub_zone": False,
-    }
-
-    def test_durotar_or_orgrimmar_quest_excluded(self) -> None:
-        # Matches the physical zone-lock's own real enforcement -- if the
-        # player can't walk there, the check shouldn't exist either.
-        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
-        self.assertNotIn("Quest: Ripple Delivery Reward (#81)", location_names)
+        self.assertNotIn(name, location_names)
 
 
 class TestZoneLevelerRepsanityVanillaOnly(WoWTestBase):
@@ -1083,3 +1010,77 @@ class TestZoneLevelerRepsanityUnaffectedByContentScope(WoWTestBase):
         # zone_only/whole_game_scaled toggle -- it applies identically either way.
         location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
         self.assertNotIn("Reputation: Silvermoon City (Friendly)", location_names)
+
+
+class TestZoneLevelerTrainerSpellsIncludedUnderZoneOnlyNow(WoWTestBase):
+    # Real, deliberate behavior change (M4.11.3.3): Trainer Spells is now
+    # a physically zone-bound family (real area tags, M4.11.3.1), so its
+    # zone check is unconditional -- like Quest Rewards -- not gated by
+    # zone_leveler_content_scope. Previously (M4.11.2) this family was
+    # FULLY EXCLUDED under zone_only; it is not anymore.
+    #
+    # zone_leveler_goals narrowed to reach_zone_level_cap alone -- same
+    # reasoning _ZONE_LEVELER_BASE_OPTIONS above documents (the default
+    # goal set's instance_clears goal would otherwise build its own
+    # "Instance Unlock: <name>" item-name set from EVERY key in
+    # zone_data.instance_keys, including dire_maul/maraudon/onyxia_s_lair --
+    # real, verified-correct instances (Task 1's own review) that were
+    # never curated with a core_loop.yaml Instance Unlock item/location at
+    # all, an out-of-scope pre-existing gap this test isn't about).
+    options = {"game_mode": "zone_leveler", "zone_leveler_starting_zone": "barrens",
+               "zone_leveler_allow_hub_zone": True,
+               "zone_leveler_goals": {"reach_zone_level_cap"},
+               "trainer_spell_class_pools": set(options.TrainerSpellClassPools.default),
+               "trainer_spell_expansion_pools": set(options.TrainerSpellExpansionPools.default)}
+    # zone_leveler_content_scope deliberately left at its default (zone_only)
+
+    def test_a_horde_hub_taught_spell_is_now_included_under_zone_only(self) -> None:
+        # Real, confirmed (direct TAGS inspection): Frost Nova's own
+        # tags["area"] includes "barrens" directly (the fixed
+        # resolve_area_tags_for_positions mechanism, M4.11.3.1 Task 4), so
+        # it matches Barrens' own zone_data.area_tags unconditionally.
+        name = "Trainer Spell: Frost Nova (#122)"
+        self.assertIn("barrens", trainer_spells_content_data.TAGS[name]["area"])
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertIn("Trainer Spell: Frost Nova (#122)", location_names)
+
+
+class TestZoneLevelerVendorStockContainersanityGathersanityEnemysanityNowFiltered(WoWTestBase):
+    # Real payoff of this whole milestone: these 4 families had ZERO zone
+    # restriction before M4.11.3 (the defect M4.11.1's own close-out
+    # diagnosed but didn't fix). Enemysanity is exercised directly here
+    # (its own type_pools/expansion_pools widened from WoWTestBase's
+    # fast-test-default empty sets -- otherwise every row, in OR out of
+    # Barrens, would be tag-pool-excluded regardless of this fix, making
+    # any assertion here vacuous); Vendor Stock/Containersanity/
+    # Gathersanity share the exact same TAGS['area'] mechanism
+    # (_zone_leveler_row_matches reads category.locations_module.TAGS
+    # uniformly for every category), so this one family's real,
+    # regenerated-data coverage stands in for all 4.
+    #
+    # "Enemy: Brother Anton (#1182)" / "Enemy: Kobold Vermin (#6)": real
+    # rows confirmed via direct TAGS inspection against this checkout's own
+    # regenerated enemysanity_content_data.py (M4.11.3.2) --
+    # Brother Anton's real area tags are frozenset({"desolace",
+    # "stonetalon_mountains", "barrens"}) (includes Barrens), Kobold
+    # Vermin's are frozenset({"elwynn_forest"}) (a genuinely
+    # all-outside-Barrens spawn -- a single Elwynn Forest kobold, not a
+    # Barrens-adjacent species like Ghostpaw Runner).
+    options = {
+        "game_mode": "zone_leveler", "zone_leveler_starting_zone": "barrens",
+        "zone_leveler_goals": {"reach_zone_level_cap"},
+        "enemysanity_type_pools": set(options.EnemysanityTypePools.default),
+        "enemysanity_expansion_pools": set(options.EnemysanityExpansionPools.default),
+    }
+
+    def test_a_known_out_of_zone_enemysanity_location_is_excluded(self) -> None:
+        name = "Enemy: Kobold Vermin (#6)"
+        self.assertEqual(enemysanity_content_data.TAGS[name]["area"], frozenset({"elwynn_forest"}))
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertNotIn(name, location_names)
+
+    def test_a_known_barrens_enemysanity_location_is_included(self) -> None:
+        name = "Enemy: Brother Anton (#1182)"
+        self.assertIn("barrens", enemysanity_content_data.TAGS[name]["area"])
+        location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
+        self.assertIn(name, location_names)

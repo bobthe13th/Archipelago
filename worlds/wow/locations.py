@@ -24,7 +24,6 @@ from . import repsanity_content_data
 from . import trainer_spells_content_data
 from . import vendor_stock_content_data
 from . import zone_leveler_content_data
-from . import zone_level_data
 from .items import (
     core_loop_item_surplus,
     count_enabled_gates_items,
@@ -154,29 +153,12 @@ def _location_matches_pools(world, category: OptionalCategory, name: str) -> boo
     return True
 
 
-# M4.11.1 Task 12: possession-triggered categories -- these fire on
-# pickup/craft/learn (item_first_held, recipe_craft, reputation_rank,
-# learn_spell trigger kinds) regardless of the player's physical zone.
-# Quest Rewards/instance clears are, unlike these 4, real physically
-# zone-bound families (a real quest-giver NPC/instance entrance somewhere
-# specific), so their own restriction is unconditional whenever game_mode
-# is zone_leveler rather than gated by zone_leveler_content_scope the way
-# these 4 are -- see _zone_leveler_quest_reward_zone_matches and
-# _zone_leveler_scope_matches below for the actual filtering behavior.
-# Only relevant when game_mode is zone_leveler.
-# M4.11.2: Repsanity was originally in this set but is now handled by its
-# own dedicated _zone_leveler_repsanity_matches function with expansion-tag
-# filtering, so it's been removed from here -- the early-return branch in
-# _zone_leveler_scope_matches intercepts it before this set is consulted.
-_POSSESSION_TRIGGERED_CATEGORY_KEYS = frozenset({
-    "itemsanity", "craftsanity", "recipes", "trainer_spells",
-})
-
-
-def _zone_leveler_possession_family_min_level(name: str, category: OptionalCategory) -> int | None:
-    """The real, DB-sourced level requirement for one possession-triggered
-    row, if this family tracks one at all (M4.11.1 Task 12). Read from
-    TRIGGERS[name]["min_level"], NOT TAGS -- TAGS is exported as
+def _min_level_for_row(category: OptionalCategory, name: str) -> int | None:
+    """The real, DB-sourced level requirement for one row, if this family
+    tracks one at all (M4.11.1 Task 12; renamed from
+    _zone_leveler_possession_family_min_level by M4.11.3.3's collapse of
+    the zone_leveler filter stack -- see _zone_leveler_row_matches). Read
+    from TRIGGERS[name]["min_level"], NOT TAGS -- TAGS is exported as
     dict[str, frozenset[str]] (generate_content.py's export_tags emission,
     string-only, meant for OR-within-dimension pool selection), which can't
     hold a numeric value; TRIGGERS keeps the raw `trigger` sub-dict verbatim
@@ -184,11 +166,12 @@ def _zone_leveler_possession_family_min_level(name: str, category: OptionalCateg
     min_level/zone_id keys already established and locations.py has read
     from since M4.7.1.3/M4.11.1 Task 2.
 
-    Real per-family sourcing (only 3 of the 4 possession-triggered families
-    actually carry this key):
+    M4.11.3.3: only called by _zone_leveler_row_matches for a row whose own
+    TAGS lack an "area" key at all -- Trainer Spells left this bucket (it
+    now has real area tags, M4.11.3.1 Task 4/_zone_leveler_row_matches's own
+    unconditional zone check), so only Itemsanity and Recipes actually reach
+    this function with real, usable data now:
       - itemsanity: item_template.RequiredLevel (extract_itemsanity.py).
-      - trainer_spells: MIN(trainer_spell.ReqLevel) across every class
-        trainer that teaches the spell (extract_trainer_spells.py).
       - recipes: item_template.RequiredLevel of the recipe ITEM that teaches
         the spell (extract_recipes.py) -- distinct from RequiredSkillRank,
         which drives this family's own expansion tag instead.
@@ -197,78 +180,11 @@ def _zone_leveler_possession_family_min_level(name: str, category: OptionalCateg
         real 1:1 skill-tier-to-player-level mapping exists in this game's
         actual data. Fabricating an approximate mapping would violate this
         project's "real DB column, cited, not guessed" discipline.
-      - repsanity: NOT tractable -- reputation ranks are not level-gated by
-        design; there is no real per-row level-requirement concept for this
-        family at all.
-    Craftsanity/repsanity's own TRIGGERS dicts simply never gain a
-    "min_level" key, so this returns None for them like any other row
-    missing the key -- see _zone_leveler_scope_matches for how that
-    naturally excludes both families under whole_game_scaled."""
+    Craftsanity's own TRIGGERS dict simply never gains a "min_level" key, so
+    this returns None for it like any other row missing the key -- see
+    _zone_leveler_row_matches for how that naturally excludes it under
+    whole_game_scaled."""
     return category.locations_module.TRIGGERS[name].get("min_level")
-
-
-def _zone_leveler_quest_reward_zone_matches(world, name: str) -> bool:
-    """M4.11.1 Task 12 fix (post-hoc defect found after the task was
-    originally closed): Quest Rewards is a REAL, physically zone-bound
-    family -- each row is tied to a real quest-giver NPC standing
-    somewhere specific in the world -- but nothing about the zone_leveler
-    lock mechanism (a C++ PlayerScript hook that stops the PLAYER from
-    walking outside the selected zone) actually restricts which Quest
-    Rewards LOCATIONS get sampled into the check pool at generation time.
-    Without this filter, a Barrens slot could sample a quest whose
-    real-world quest-giver stands in, say, Redridge Mountains: AP's own
-    logic considers that location reachable once its min_level is
-    satisfied (there's no equivalent of Dark Portal Access/Northrend
-    Passage gating same-continent vanilla travel), but the player is
-    physically locked to Barrens and can never actually walk there to
-    trigger it -- a real unreachable-location bug, not a cosmetic
-    "too many items" one.
-
-    Unlike the 4 possession-triggered families in
-    _POSSESSION_TRIGGERED_CATEGORY_KEYS (which fire on pickup/craft/learn
-    regardless of physical zone, and whose inclusion is governed by
-    zone_leveler_content_scope), Quest Rewards' restriction here is
-    UNCONDITIONAL whenever game_mode is zone_leveler -- it applies the
-    same way under both zone_only and whole_game_scaled, since the toggle
-    only ever widens/narrows the possession-triggered families, and Quest
-    Rewards was never one of them.
-
-    M4.11.2: extended to also accept the selected zone's own curated
-    allowed_hub_zone_ids, but ONLY when zone_leveler_allow_hub_zone is on
-    -- if the toggle is off, the in-bounds set stays zone-only, matching
-    the physical zone-lock's own real enforcement (a player can't walk to
-    Orgrimmar if the toggle hasn't opened that path). Per the design spec's
-    own §1: this same "selected zone OR allowed hub zones (when the toggle
-    is on)" rule applies uniformly to every zone-bound family as its own
-    real data lands, not just Quest Rewards.
-
-    M4.11.3.1 (Task 5): migrated this family's area data from the old
-    scalar TRIGGERS[name]["zone_id"] int (a QuestSortID resolved through
-    parse_area_zone_ids's own parent-chain walk -- a direct, disambiguated
-    area reference, never a position/bounding-box guess) onto the unified
-    TAGS[name]["area"] canonical-name mechanism (Task 2's parse_area_names),
-    matching how Trainer Spells' own _zone_leveler_trainer_spell_zone_matches
-    already reads tags["area"]. This is a pure reshape (int -> canonical
-    string, TRIGGERS -> TAGS) -- Quest Rewards never had Trainer Spells'
-    border-ambiguity problem (Task 1-3's fix), so it never needed
-    resolve_area_tags_for_positions; QuestSortID already resolved to
-    exactly one real zone or none. A row only matches if its own real
-    TAGS[name]["area"] intersects the area-tag names for the selected
-    zone's own {zone_id} | allowed_hub_zone_ids (only including the hub
-    zones when zone_leveler_allow_hub_zone is on). An unresolvable
-    QuestSortID (~2,210 of ~9,208 rows game-wide) now OMITS the "area" key
-    entirely rather than carrying a zone_id of 0 -- `.get("area",
-    frozenset())` naturally excludes such a row here, matching this
-    project's "unknown zone means excluded, not included" default for a
-    physically zone-locked game mode."""
-    zone_key = world.options.zone_leveler_starting_zone.current_key
-    zone_data = zone_leveler_content_data.ZONES[zone_key]
-    row_area_tags = quest_rewards_content_data.TAGS[name].get("area", frozenset())
-    in_bounds_zone_ids = {zone_data.zone_id}
-    if getattr(world.options, "zone_leveler_allow_hub_zone", False):
-        in_bounds_zone_ids |= zone_data.allowed_hub_zone_ids
-    in_bounds_area_tags = {zone_level_data.area_name_for_zone_id(z) for z in in_bounds_zone_ids}
-    return bool(row_area_tags & in_bounds_area_tags)
 
 
 def _zone_leveler_repsanity_matches(world, name: str) -> bool:
@@ -292,113 +208,85 @@ def _zone_leveler_repsanity_matches(world, name: str) -> bool:
     return "vanilla" in expansion_tags
 
 
-def _zone_leveler_trainer_spell_zone_matches(world, name: str) -> bool:
-    """M4.11.2: Trainer Spells are learned from a real, physical trainer
-    NPC -- unlike Recipes (a mailable item), there's no way to learn a
-    trainer-taught spell without physically visiting a trainer. Confirmed
-    this session (re-running extract_trainer_spells.py's own real position-
-    resolution query against the live DB): 417 of 427 real level-10-30
-    Trainer Spells have at least one teaching trainer in Orgrimmar or
-    Durotar (this project's own WorldMapArea.dbc position-resolution
-    mechanism -- extract_trainer_spells.py's tags["area"] as of M4.11.3.1,
-    formerly trigger["trainer_zone_ids"]). A row is in-bounds if its own
-    tags["area"] intersects the area-tag names for the selected zone's own
-    {zone_id} | allowed_hub_zone_ids (only including the hub zones when
-    zone_leveler_allow_hub_zone is on, same rule as
-    _zone_leveler_quest_reward_zone_matches). This is ADDITIVE to the
-    family's own existing min_level check
-    (_zone_leveler_scope_matches's possession-triggered path) -- a row
-    must satisfy BOTH axes.
+_NO_PHYSICAL_LOCATION_CATEGORY_KEYS = frozenset({"itemsanity", "recipes", "craftsanity"})
 
-    M4.11.3.1 (Task 4) migrated this family's area data from the old
-    single-winner trigger["trainer_zone_ids"] int list onto the unified,
-    fixed tags["area"] mechanism (Task 1-3's resolve_area_tags_for_positions,
-    modules/archipelago_wow/db_extract.py) -- 419 of these same 427 rows now
-    resolve to Barrens' own area tag ("barrens") directly, where the OLD
-    resolver's own single-winner, smallest-box-wins position pick resolved
-    exactly 0 of them there (a known resolver limitation documented in this
-    docstring's prior revision and state-of-the-project.md's Known gap #10:
-    smallest-box-wins misattributed most of Barrens' own real bounding-box
-    area on map 1 to the smaller, overlapping Durotar (14)/Mulgore (215)
-    boxes). The fixed resolver instead unions EVERY containing zone across
-    EVERY real trainer position, so a trainer standing in Barrens' own
-    territory now correctly carries a "barrens" area tag even when an
-    overlapping neighbor's box also contains that same point. This is a
-    real accuracy fix, not a behavior change this function itself makes --
-    with zone_leveler_allow_hub_zone off, this family now contributes those
-    419 rows' locations under whole_game_scaled (previously 0), because the
-    real in-bounds-ness of a Barrens-standing trainer is now correctly
-    detected rather than lost to the old resolver's own border ambiguity."""
+
+def _zone_leveler_row_matches(world, category: OptionalCategory, name: str) -> bool:
+    """M4.11.3.3: one generic zone_leveler filter for every optional
+    category, replacing the M4.11.1/M4.11.2-era per-family special-case
+    stack (_POSSESSION_TRIGGERED_CATEGORY_KEYS,
+    _zone_leveler_possession_family_min_level,
+    _zone_leveler_quest_reward_zone_matches,
+    _zone_leveler_trainer_spell_zone_matches, _zone_leveler_scope_matches)
+    now that every family shares one TAGS['area'] shape (M4.11.3.1/
+    M4.11.3.2). A category outside _NO_PHYSICAL_LOCATION_CATEGORY_KEYS is a
+    physically-located family (Quest Rewards, Trainer Spells, Vendor Stock,
+    Containersanity, Gathersanity, Enemysanity) -- its zone check is
+    UNCONDITIONAL, regardless of zone_leveler_content_scope, since "is this
+    physically in my zone" is always a meaningful question for real-world
+    data, not one gated by a widen-by-level toggle. Itemsanity/Recipes/
+    Craftsanity (mailable/pickup families -- no row of theirs EVER carries
+    an area tag, 0-of-N coverage, confirmed via direct TAGS inspection)
+    have no physical location at all and keep the old possession-triggered
+    behavior: fully excluded under zone_only, widened by real level
+    requirement under whole_game_scaled. Repsanity is handled separately,
+    first, since it has its own always-on vanilla-expansion proxy unrelated
+    to either axis here.
+
+    Real, deliberate behavior change from M4.11.2: Trainer Spells now has
+    a genuine area tag (M4.11.3.1's own migration turned its previously
+    bespoke trainer_zone_ids mechanism into the same TAGS['area'] shape
+    every other physically-located family already has), so it moves from
+    the "no physical location" bucket into the "unconditional zone check"
+    bucket -- it is now includable under zone_only (the default), not
+    only whole_game_scaled as before.
+
+    Deliberate deviation from a naive "row_area_tags truthy ->
+    unconditional check, else -> level-widening fallback" test (confirmed,
+    via an actual failing-test run, to be a real regression, not a stale
+    assumption): Quest Rewards/Vendor Stock/Containersanity/Gathersanity/
+    Enemysanity each have a real, substantial share of rows whose own
+    QuestSortID/position never resolved to any real zone at all (2,210 of
+    9,208 quest_rewards rows; similarly-shaped real gaps in the other 4
+    families, confirmed via direct TAGS inspection -- only Trainer Spells
+    happens to have 100% real coverage). For these physically-located
+    families, an EMPTY row_area_tags means "unresolvable, real zone
+    unknown" (this project's own established "unknown zone means excluded,
+    not included" default for a physically zone-locked game mode -- see
+    the pre-M4.11.3.3 _zone_leveler_quest_reward_zone_matches's own
+    docstring), NOT "no physical location, widen by level" -- those are two
+    different real facts a row-level-only truthy check on row_area_tags
+    cannot tell apart. Branching on category.key's own fixed, real
+    _NO_PHYSICAL_LOCATION_CATEGORY_KEYS membership instead (rather than the
+    row's own area-tag truthiness) keeps these two real facts distinct: an
+    itemsanity/recipes/craftsanity row's absence of an area key means "this
+    family has no physical location, ever" (0-of-N coverage, unambiguous);
+    a quest_rewards/vendor_stock/containersanity/gathersanity/enemysanity
+    row's absence of one means "this SPECIFIC row's real position never
+    resolved" and stays excluded, not level-widened.
+
+    M4.11.3.3 also drops the old zone_leveler_allow_hub_zone widening
+    (formerly ORed into the in-bounds zone-id set by
+    _zone_leveler_quest_reward_zone_matches/
+    _zone_leveler_trainer_spell_zone_matches): Task 1's flattened
+    ZoneLevelerZoneData no longer carries any hub-zone data at all
+    (allowed_hub_zone_ids was removed, not renamed), and area_tags is a
+    fixed, real per-zone constant (e.g. Barrens = frozenset({"barrens"})),
+    not something this function can widen at request time. A row's own
+    real area tags are the only thing consulted now."""
     zone_key = world.options.zone_leveler_starting_zone.current_key
     zone_data = zone_leveler_content_data.ZONES[zone_key]
-    row_area_tags = trainer_spells_content_data.TAGS[name].get("area", frozenset())
-    in_bounds_zone_ids = {zone_data.zone_id}
-    if getattr(world.options, "zone_leveler_allow_hub_zone", False):
-        in_bounds_zone_ids |= zone_data.allowed_hub_zone_ids
-    in_bounds_area_tags = {zone_level_data.area_name_for_zone_id(z) for z in in_bounds_zone_ids}
-    return bool(row_area_tags & in_bounds_area_tags)
 
-
-def _zone_leveler_scope_matches(world, category: OptionalCategory, name: str) -> bool:
-    """Only called when game_mode is zone_leveler (M4.11.1 Task 12; Quest
-    Rewards restriction added by Task 12's own post-hoc fix round).
-
-    Quest Rewards (category.key == "quest_rewards") is handled first and
-    separately, via _zone_leveler_quest_reward_zone_matches above -- it's a
-    real, physically zone-bound family (a real quest-giver NPC). Repsanity
-    (category.key == "repsanity") is also handled separately via its own
-    early-return branch, unlike the 4 possession-triggered families below,
-    which are restricted to the selected zone's own real zone_id
-    UNCONDITIONALLY (both zone_only and whole_game_scaled), not gated by
-    zone_leveler_content_scope at all.
-
-    Every other category outside _POSSESSION_TRIGGERED_CATEGORY_KEYS always
-    matches here (True unconditionally) -- instance clears are inherently
-    zone-bound already via a different mechanism (rules.py/
-    zone_leveler_content_data's own instance_keys), so this generic path
-    doesn't touch them; other optional categories not curated with zone
-    data at all (containersanity, gathersanity, enemysanity, vendor_stock,
-    ...) are simply not scoped by content_scope -- that's M4.11.2's
-    full-breadth follow-up, not this task.
-
-    zone_only (default): every possession-triggered row is excluded
-    entirely, since these families fire on pickup/craft/learn regardless of
-    physical zone and their own real zone-of-origin isn't tagged yet
-    (M4.11.2).
-
-    whole_game_scaled: a possession-triggered row is included if its own
-    real level requirement falls inside the selected zone's level band.
-    Craftsanity has NO real min_level data at all (by design, not an
-    oversight -- see _zone_leveler_possession_family_min_level's own
-    docstring), so _zone_leveler_possession_family_min_level always returns
-    None for its rows and they fall through the `min_level is None` branch
-    below -- identical, excluded, behavior to zone_only for that family
-    specifically, same as it is for every other family's rows that happen to
-    carry no real min_level (there are none among the 3 tractable families,
-    since every DB row has a real, if sometimes 0, RequiredLevel/ReqLevel).
-    Repsanity never reaches this logic at all -- it's intercepted by its own
-    dedicated early-return branch above with its own vanilla-expansion-tag
-    filter, not by min_level logic."""
-    if category.key == "quest_rewards":
-        return _zone_leveler_quest_reward_zone_matches(world, name)
     if category.key == "repsanity":
         return _zone_leveler_repsanity_matches(world, name)
-    if category.key not in _POSSESSION_TRIGGERED_CATEGORY_KEYS:
-        return True
+
+    row_area_tags = category.locations_module.TAGS[name].get("area", frozenset())
+    if category.key not in _NO_PHYSICAL_LOCATION_CATEGORY_KEYS:
+        return bool(row_area_tags & zone_data.area_tags)
+
     if world.options.zone_leveler_content_scope == "zone_only":
         return False
-    # M4.11.2: Trainer Spells additionally needs its own real zone check --
-    # a spell taught only by a trainer outside Barrens/allowed hub zones is
-    # never physically learnable, regardless of whole_game_scaled's own
-    # level-band widening (which only ever governs ITEM/recipe VARIETY for
-    # the other 4 possession-triggered families, not physical reachability
-    # for this one -- Trainer Spells is the one possession-triggered family
-    # that IS also physically zone-bound, per the design spec's own §4).
-    if category.key == "trainer_spells" and not _zone_leveler_trainer_spell_zone_matches(world, name):
-        return False
-    zone_key = world.options.zone_leveler_starting_zone.current_key
-    zone_data = zone_leveler_content_data.ZONES[zone_key]
-    min_level = _zone_leveler_possession_family_min_level(name, category)
+    min_level = _min_level_for_row(category, name)
     if min_level is None:
         return False
     return zone_data.min_level <= min_level <= zone_data.max_level
@@ -440,16 +328,16 @@ def create_optional_category_locations(world, region) -> list:
             # (Northshire/Goldshire, M4.8.0) previously bypassed EVERY filter this
             # category has (tag pools, content_scope) -- confirmed and explicitly
             # flagged as a known gap by M4.11.1 Task 12's own hotfix report. For
-            # zone_leveler specifically, apply the same zone-or-hub-zone
-            # restriction every other quest_rewards row already gets; every other
-            # mode's ALWAYS_PRESENT semantics are completely unaffected (the
-            # `category.key == "quest_rewards"` check below only ever fires when
-            # game_mode is zone_leveler in the first place, via
-            # _zone_leveler_quest_reward_zone_matches's own real logic).
+            # zone_leveler specifically, apply the same real zone-tag restriction
+            # every other row already gets, via the same generic
+            # _zone_leveler_row_matches function every other call site uses --
+            # M4.11.3.3 dropped the old `category.key == "quest_rewards"`
+            # special-case here (Quest Rewards is no longer singled out; ANY
+            # category's ALWAYS_PRESENT rows now get the same real zone check as
+            # its own non-ALWAYS_PRESENT rows, uniformly).
             if (
                 world.options.game_mode == "zone_leveler"
-                and category.key == "quest_rewards"
-                and not _zone_leveler_quest_reward_zone_matches(world, name)
+                and not _zone_leveler_row_matches(world, category, name)
             ):
                 continue
             created.append(WoWLocation(world.player, name, location_id, region))
@@ -468,7 +356,7 @@ def create_optional_category_locations(world, region) -> list:
             # GameModeProfile never sets force_all_categories, see
             # game_mode_profile.py, so this never actually interacts with a
             # force_all slot in practice).
-            and (world.options.game_mode != "zone_leveler" or _zone_leveler_scope_matches(world, category, name))
+            and (world.options.game_mode != "zone_leveler" or _zone_leveler_row_matches(world, category, name))
         ]
         if category.weight_option is None:
             # M4.9: no check_density/weight sampling stage at all for this
@@ -528,7 +416,24 @@ def create_core_loop_locations(world, region) -> list:
             name = core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK[track][level]
             locations.append(WoWLocation(world.player, name, location_id, region))
         zone_data = zone_leveler_content_data.ZONES[zone_key]
-        for instance_key in zone_data.instance_keys:
+        # M4.11.3.3: zone_data.instance_keys is now computed from real,
+        # independently-verified instance-entrance reachability data
+        # (zone_leveler_content_data._instance_keys_reachable_from,
+        # M4.11.3.2's instance_entrance_data) rather than the old
+        # hand-curated tuple -- for Barrens this is a real, WIDER set than
+        # core_loop.yaml's own curated 8-instance
+        # INSTANCE_CLEAR_LOCATIONS/INSTANCE_CLEAR_LOCATION_NAMES roster
+        # (dire_maul/maraudon/onyxia_s_lair are real, physically-reachable
+        # instances from Barrens' own territory, but neither has ever had a
+        # core_loop.yaml "Clear X" AP location or "Instance Unlock" item
+        # curated for it at all -- that's a separate, pre-existing content
+        # gap this task doesn't fabricate a fix for). curated_instance_keys
+        # narrows WHICH of the real, correct instance_keys actually
+        # contribute an AP location here, without narrowing
+        # zone_data.instance_keys itself (which stays the real, full
+        # reachability set other consumers, e.g. goals.py's instance_clears
+        # goal, read directly via the same shared helper).
+        for instance_key in zone_leveler_content_data.curated_instance_keys(zone_data):
             location_id = core_loop_content_data.INSTANCE_CLEAR_LOCATIONS[instance_key]
             name = core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES[instance_key]
             locations.append(WoWLocation(world.player, name, location_id, region))

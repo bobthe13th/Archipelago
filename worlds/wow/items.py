@@ -342,7 +342,15 @@ def _trap_baseline_location_count(world) -> int:
     # test case above.
     track, zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
     if zone_key is not None:
-        instance_count = len(zone_leveler_content_data.ZONES[zone_key].instance_keys)
+        # M4.11.3.3: instance_keys is now a real, wider reachability set
+        # than core_loop.yaml's own curated instance-clear roster (see
+        # zone_leveler_content_data.curated_instance_keys's own docstring)
+        # -- this baseline must match the locations create_core_loop_locations
+        # actually creates (only the curated subset), not the full real
+        # reachability count, or item/location parity breaks.
+        instance_count = len(zone_leveler_content_data.curated_instance_keys(
+            zone_leveler_content_data.ZONES[zone_key]
+        ))
     else:
         instance_count = len(core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
     return (

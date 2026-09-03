@@ -25,25 +25,50 @@ class TestZoneLevelerContentData(unittest.TestCase):
         )
         self.assertEqual((barrens.min_level, barrens.max_level), (10, 30))
 
-    def test_barrens_has_three_curated_instances(self) -> None:
-        self.assertEqual(zl.ZONES["barrens"].instance_keys, ("wailing_caverns", "razorfen_kraul", "razorfen_downs"))
+    def test_barrens_instance_keys_include_the_three_originally_curated_instances(self) -> None:
+        # M4.11.3.3: instance_keys is now computed from real
+        # instance-entrance reachability data (Task 1's own
+        # _instance_keys_reachable_from) instead of a hand-typed tuple --
+        # independently verified as genuine, correct WorldMapArea.dbc
+        # geometry (Task 1's own review): a real 3-zone border-overlap
+        # wedge (barrens/thousand_needles/dustwallow_marsh) also puts
+        # dire_maul/maraudon/onyxia_s_lair's real entrances within reach
+        # from Barrens, growing the set beyond the original 3. Subset
+        # check, not exact-equality, since the wider set is real and
+        # correct, not a regression to narrow away.
+        instance_keys = zl.ZONES["barrens"].instance_keys
+        for key in ("wailing_caverns", "razorfen_kraul", "razorfen_downs"):
+            self.assertIn(key, instance_keys)
+
+    def test_barrens_instance_keys_are_the_real_verified_wider_set(self) -> None:
+        # Pins the real, independently-verified full set (Task 1's own
+        # review, 2026-09-02) -- dire_maul/maraudon/onyxia_s_lair's real
+        # entrances genuinely resolve into Barrens' own area_tags via the
+        # same barrens/thousand_needles/dustwallow_marsh border-overlap
+        # wedge, confirmed against live areatrigger/areatrigger_teleport
+        # positions, not a defect to narrow away.
+        self.assertEqual(
+            zl.ZONES["barrens"].instance_keys,
+            ("dire_maul", "maraudon", "onyxia_s_lair", "razorfen_downs", "razorfen_kraul", "wailing_caverns"),
+        )
 
     def test_barrens_quest_names_are_all_real_zone_tagged_quest_rewards(self) -> None:
         # M4.11.3.1 (Task 5): repointed from the old scalar
         # TRIGGERS[name]["zone_id"] int comparison onto the unified
         # TAGS[name]["area"] canonical-name mechanism -- a pure reshape,
-        # not a behavior change.
+        # not a behavior change. M4.11.3.3: ZoneLevelerZoneData no longer
+        # carries a zone_id field at all (Task 1's flattening) -- reads
+        # area_tags directly instead of resolving it via zone_level_data.
         from .. import quest_rewards_content_data
-        area_name = zone_level_data.area_name_for_zone_id(zl.ZONES["barrens"].zone_id)
+        area_tags = zl.ZONES["barrens"].area_tags
         # Final whole-branch review fix (M4.11.3.1, Finding 4b): guard
         # against a vacuous pass -- without this, a silently-empty
-        # quest_reward_location_names (e.g. from Finding 4's now-fixed
-        # area_name_for_zone_id silently returning None) would make the
-        # loop below iterate zero times and the test would "pass" without
-        # actually checking anything.
+        # quest_reward_location_names would make the loop below iterate
+        # zero times and the test would "pass" without actually checking
+        # anything.
         self.assertGreater(len(zl.ZONES["barrens"].quest_reward_location_names), 0)
         for name in zl.ZONES["barrens"].quest_reward_location_names:
-            self.assertIn(area_name, quest_rewards_content_data.TAGS[name].get("area", frozenset()))
+            self.assertTrue(quest_rewards_content_data.TAGS[name].get("area", frozenset()) & area_tags)
 
 
 if __name__ == "__main__":

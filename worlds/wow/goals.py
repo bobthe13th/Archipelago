@@ -525,13 +525,20 @@ def _validate_zone_leveler(world) -> None:
 
     if "instance_clears" in selected_goals:
         required = world.options.zone_leveler_instances_required.value
-        available = len(zone_data.instance_keys)
+        # M4.11.3.3: zone_data.instance_keys is now a real, wider physical-
+        # reachability set (zone_leveler_content_data._instance_keys_reachable_from)
+        # than core_loop.yaml's own curated "Instance Unlock" item roster --
+        # only curated_instance_keys actually have an item this goal's own
+        # completion rule below can require, so "available" must count that
+        # subset, not the full real reachability set.
+        curated = zone_leveler_content_data.curated_instance_keys(zone_data)
+        available = len(curated)
         if required > available:
             raise OptionError(
                 f"WoW: game_mode 'zone_leveler' with zone_leveler_instances_required="
                 f"{required} needs at least that many curated instances for zone "
                 f"'{zone_key}', but it only has {available} "
-                f"({', '.join(zone_data.instance_keys) if zone_data.instance_keys else 'none'})."
+                f"({', '.join(curated) if curated else 'none'})."
             )
 
     if "golden_boar_statues" in selected_goals:
@@ -585,8 +592,14 @@ def _set_completion_rule_zone_leveler(world) -> None:
 
     if "instance_clears" in selected_goals:
         required = world.options.zone_leveler_instances_required.value
+        # M4.11.3.3: only zone_data's real curated_instance_keys subset has
+        # an "Instance Unlock: <name>" item at all (_INSTANCE_KEY_DISPLAY_NAMES
+        # is keyed by the same curated 8-instance core_loop.yaml roster) --
+        # see _validate_zone_leveler's own instance_clears branch above for
+        # the matching "available" count fix.
         instance_item_names = frozenset(
-            f"Instance Unlock: {_INSTANCE_KEY_DISPLAY_NAMES[key]}" for key in zone_data.instance_keys
+            f"Instance Unlock: {_INSTANCE_KEY_DISPLAY_NAMES[key]}"
+            for key in zone_leveler_content_data.curated_instance_keys(zone_data)
         )
         sub_rules.append(
             lambda state, names=instance_item_names, count=required:
