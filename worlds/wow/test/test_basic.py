@@ -963,3 +963,23 @@ class TestZoneLevelerCoreLoopExclusionEnemysanityReachability(WoWTestBase):
         "enemysanity_type_pools": {"boss", "regular"},
         "enemysanity_expansion_pools": {"vanilla", "tbc", "wotlk"},
     }
+
+
+class TestZoneLevelerZoneDataFlattened(unittest.TestCase):
+    def test_barrens_area_tags_is_just_barrens(self) -> None:
+        from worlds.wow import zone_leveler_content_data
+        zone_data = zone_leveler_content_data.ZONES["barrens"]
+        self.assertEqual(zone_data.area_tags, frozenset({"barrens"}))
+
+    def test_barrens_no_longer_has_zone_id_or_allowed_hub_zone_ids_fields(self) -> None:
+        from worlds.wow import zone_leveler_content_data
+        zone_data = zone_leveler_content_data.ZONES["barrens"]
+        self.assertFalse(hasattr(zone_data, "zone_id"))
+        self.assertFalse(hasattr(zone_data, "allowed_hub_zone_ids"))
+
+    def test_instance_keys_computed_from_real_entrance_data_includes_known_three(self) -> None:
+        from worlds.wow import zone_leveler_content_data
+        zone_data = zone_leveler_content_data.ZONES["barrens"]
+        self.assertIn("wailing_caverns", zone_data.instance_keys)
+        self.assertIn("razorfen_kraul", zone_data.instance_keys)
+        self.assertIn("razorfen_downs", zone_data.instance_keys)

@@ -1,67 +1,61 @@
-"""Hand-curated per-zone registry for the zone_leveler game mode (M4.11.1).
-Only "barrens" (BarrensBeater) is curated this milestone -- adding a zone here
-is pure curation against this shape, no new engineering (see the design spec's
-§2/M4.11.2 note)."""
+"""Hand-curated per-zone registry for the zone_leveler game mode (M4.11.1,
+revised M4.11.3.3). Only "barrens" (BarrensBeater) is curated this
+milestone -- adding a zone here is pure curation against this shape, no new
+engineering."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from . import quest_rewards_content_data, zone_level_data
+from . import instance_entrance_data, quest_rewards_content_data
 
 
 @dataclass(frozen=True)
 class ZoneLevelerZoneData:
-    zone_id: int
+    area_tags: frozenset[str]
     display_name: str
     min_level: int
     max_level: int
     hub_spawn_map: int
     hub_spawn_position: tuple[float, float, float, float]  # x, y, z, orientation
-    allowed_hub_zone_ids: frozenset[int]
     instance_keys: tuple[str, ...]
     treasure_item_name: str
     quest_reward_location_names: tuple[str, ...]
 
 
-def _quest_names_for_zone(zone_id: int) -> tuple[str, ...]:
-    """M4.11.3.1 (Task 5): repointed from the old scalar
-    TRIGGERS[name]["zone_id"] int comparison onto the unified
-    TAGS[name]["area"] canonical-name mechanism (Task 2's parse_area_names)
-    -- a pure reshape, not a behavior change, since a QuestSortID already
-    resolved to exactly one real zone or none (see
-    locations.py's _zone_leveler_quest_reward_zone_matches for the fuller
-    rationale)."""
-    area_name = zone_level_data.area_name_for_zone_id(zone_id)
+def _instance_keys_reachable_from(area_tags: frozenset[str]) -> tuple[str, ...]:
+    """M4.11.3.3: replaces a hand-curated instance list with a real,
+    computed one -- an instance counts if ANY of its real entrances
+    (M4.11.3.2's instance_entrance_data, itself computed from the real
+    areatrigger/areatrigger_teleport world-DB tables) resolves into this
+    zone's own area_tags. Stays correct if an instance's entrance is ever
+    relocated (a future door-shuffle feature would only need to change
+    areatrigger_teleport's own real data -- nothing here)."""
+    return tuple(sorted(
+        name for name, entrance_tags in instance_entrance_data.INSTANCE_ENTRANCE_AREA_TAGS.items()
+        if entrance_tags & area_tags
+    ))
+
+
+def _quest_names_for_zone(area_tags: frozenset[str]) -> tuple[str, ...]:
+    """M4.11.3.3: reads quest_rewards_content_data.TAGS (M4.11.3.1's own
+    migrated shape) instead of the old scalar TRIGGERS[...]['zone_id']."""
     return tuple(
         name for name, tags in quest_rewards_content_data.TAGS.items()
-        if area_name in tags.get("area", frozenset())
+        if tags.get("area", frozenset()) & area_tags
     )
 
 
-# Crossroads inn coordinates and Durotar/Orgrimmar zone ids: verified
-# (M4.11.1 Task 13) against this checkout's real live `acore_world` DB and
-# `AreaTable.dbc`. ZONE_ID_DUROTAR (14) and ZONE_ID_ORGRIMMAR (1637) were
-# confirmed by directly decoding this checkout's real AreaTable.dbc string
-# data (14 -> "Durotar", 1637 -> "Orgrimmar") -- no change from their
-# recalled values. hub_spawn_position below was confirmed/updated in the
-# same task; see the SQL migration's own header comment
-# (data/sql/updates/pending_db_world/2026_09_01_00_zone_leveler_barrens_playercreateinfo.sql
-# in the azerothcore-wotlk repo) for the full citation.
-ZONE_ID_DUROTAR = 14
-ZONE_ID_ORGRIMMAR = 1637
-
 ZONES: dict[str, ZoneLevelerZoneData] = {
     "barrens": ZoneLevelerZoneData(
-        zone_id=zone_level_data.ZONE_ID_BARRENS,
+        area_tags=frozenset({"barrens"}),
         display_name="BarrensBeater",
         min_level=10,
         max_level=30,
         hub_spawn_map=1,  # Kalimdor
-        hub_spawn_position=(-410.0, -2643.0, 96.3063, 3.4383),  # Crossroads inn, verified live (Task 13)
-        allowed_hub_zone_ids=frozenset({ZONE_ID_DUROTAR, ZONE_ID_ORGRIMMAR}),
-        instance_keys=("wailing_caverns", "razorfen_kraul", "razorfen_downs"),
+        hub_spawn_position=(-410.0, -2643.0, 96.3063, 3.4383),  # Crossroads inn, unchanged
+        instance_keys=_instance_keys_reachable_from(frozenset({"barrens"})),
         treasure_item_name="Golden Boar Statue",
-        quest_reward_location_names=_quest_names_for_zone(zone_level_data.ZONE_ID_BARRENS),
+        quest_reward_location_names=_quest_names_for_zone(frozenset({"barrens"})),
     ),
 }
 
