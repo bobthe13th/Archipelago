@@ -247,7 +247,17 @@ class TestAddZoneLevelerData(unittest.TestCase):
         self.assertEqual(data["zone_leveler_goals"], sorted({"golden_boar_statues", "instance_clears"}))
         self.assertEqual(data["zone_leveler_statues_required"], 5)
         self.assertEqual(data["zone_leveler_instances_required"], 1)
-        self.assertEqual(data["zone_leveler_instance_keys"], list(zone_data.instance_keys))
+        # Final whole-branch review fix (Minor #6): emits the CURATED subset,
+        # not the raw, wider zone_data.instance_keys -- and for Barrens these
+        # two sets genuinely differ (dire_maul/maraudon/onyxia_s_lair are
+        # real, reachable, but never curated with a core_loop.yaml
+        # instance_clear row), so this assertion would have failed before
+        # the slot_data.py fix if it had compared against the curated set.
+        self.assertEqual(
+            data["zone_leveler_instance_keys"],
+            list(zone_leveler_content_data.curated_instance_keys(zone_data)),
+        )
+        self.assertNotEqual(data["zone_leveler_instance_keys"], list(zone_data.instance_keys))
 
     def test_drops_hub_zone_fields(self) -> None:
         """M4.11.3.3 Task 3: zone_leveler_zone_id/zone_leveler_allowed_hub_zone_ids/

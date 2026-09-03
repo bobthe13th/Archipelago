@@ -60,41 +60,17 @@ def zones_in_level_range(min_level: int, max_level: int) -> set[int]:
     }
 
 
-# M4.11.3.1: hand-curated raw-zone-id -> canonical area-tag-name lookup, the
-# same kind of hand-curated constant ZONE_ID_BARRENS/ZONE_ID_MOLTEN_CORE
-# already are (not a live DBC read -- the apworld has no DBC access at
-# generation time, all DBC parsing is compile-time-only tooling work under
-# modules/archipelago_wow, per this project's established architecture).
-# Only the 3 real zone ids _zone_leveler_trainer_spell_zone_matches
-# (locations.py) ever compares against (zone_data.zone_id/
-# allowed_hub_zone_ids for the one currently-curated Zone Leveler zone,
-# Barrens) need an entry here, not a full project-wide table.
-ZONE_ID_TO_AREA_NAME: dict[int, str] = {
-    ZONE_ID_BARRENS: "barrens",
-    14: "durotar",     # Durotar -- verified against real AreaTable.dbc (M4.11.3.1 Task 2)
-    1637: "orgrimmar",  # Orgrimmar -- verified against real AreaTable.dbc (M4.11.1 Task 13)
-}
-
-
-def area_name_for_zone_id(zone_id: int) -> str:
-    """Final whole-branch review fix (M4.11.3.1, Finding 4): raises loudly
-    instead of returning None for an unmapped zone_id. All three call sites
-    (locations.py's two _zone_leveler_*_zone_matches functions and this
-    module's _quest_names_for_zone caller in zone_leveler_content_data.py)
-    build a Python set from this function's return value and intersect/
-    check membership against it -- a silently-returned None never matches
-    any real area-tag string, so an unmapped zone_id would previously
-    degrade every filter for that zone to "nothing in bounds" with no
-    error. options.py's ZoneLevelerStartingZone docstring already
-    advertises that curating a new Zone Leveler zone is "pure data
-    curation, not new engineering"; raising here ensures forgetting to add
-    the new zone's entry to ZONE_ID_TO_AREA_NAME fails loudly (a KeyError
-    naming the missing zone_id) instead of shipping a silently-empty quest
-    roster and trainer pool for that zone."""
-    if zone_id not in ZONE_ID_TO_AREA_NAME:
-        raise KeyError(
-            f"No canonical area name registered for zone_id={zone_id} in "
-            "ZONE_ID_TO_AREA_NAME -- add an entry before curating a Zone "
-            "Leveler zone with this zone_id."
-        )
-    return ZONE_ID_TO_AREA_NAME[zone_id]
+# Final whole-branch review fix (Minor #4, M4.11.3 milestone final review):
+# ZONE_ID_TO_AREA_NAME/area_name_for_zone_id (added M4.11.3.1, hardened with
+# a "raise loudly" fix in that plan's own final review) were DELETED here.
+# Task 2 of M4.11.3.3 replaced their only 3 real call sites
+# (_zone_leveler_trainer_spell_zone_matches/_zone_leveler_quest_reward_zone_matches
+# in locations.py, and this module's own _quest_names_for_zone caller in
+# zone_leveler_content_data.py) with the new generic _zone_leveler_row_matches,
+# which reads real per-row `area` tags directly and never resolves a zone_id
+# through this module at all. A fresh grep across worlds/wow/ (this review)
+# confirmed zero remaining references. No test exercised
+# area_name_for_zone_id/ZONE_ID_TO_AREA_NAME directly (test_zone_level_data.py
+# only covers ZONE_ID_TO_LEVEL_RANGE/level_range_for_zone/
+# zones_in_level_range, all still real and in place above), so nothing to
+# remove there.

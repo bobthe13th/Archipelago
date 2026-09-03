@@ -86,6 +86,48 @@ def curated_instance_keys(zone_data: ZoneLevelerZoneData) -> tuple[str, ...]:
     return tuple(key for key in zone_data.instance_keys if key in core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
 
 
+def _validate_instance_key_namespaces(
+    instance_clear_locations: dict[str, int] | None = None,
+    instance_entrance_area_tags: dict[str, frozenset[str]] | None = None,
+) -> None:
+    """Final whole-branch review fix (Important #1, M4.11.3 milestone final
+    review): curated_instance_keys above joins two independently-derived
+    string namespaces by plain `in` membership --
+    core_loop_content_data.INSTANCE_CLEAR_LOCATIONS (hand-curated against
+    core_loop.yaml) and instance_entrance_data.INSTANCE_ENTRANCE_AREA_TAGS
+    (computed from real Map.dbc data). A key present in the former but
+    absent from the latter (the historical "sunwell_plateau" vs. real
+    "sunwell" mismatch this fix corrects) would make curated_instance_keys
+    silently drop that instance from every zone whose area_tags reach it --
+    no error, no test failure, just a quietly-missing instance-clear
+    requirement. Same "raise loudly on unmapped lookup" precedent as
+    zone_level_data.py's own area_name_for_zone_id fix (M4.11.3.1 final
+    review). Run at module import time with the real, live dicts (both
+    optional params exist only so a test can pass a deliberately-mismatched
+    synthetic pair without monkeypatching module globals)."""
+    clear_keys = (
+        core_loop_content_data.INSTANCE_CLEAR_LOCATIONS
+        if instance_clear_locations is None else instance_clear_locations
+    )
+    entrance_tags = (
+        instance_entrance_data.INSTANCE_ENTRANCE_AREA_TAGS
+        if instance_entrance_area_tags is None else instance_entrance_area_tags
+    )
+    missing = sorted(key for key in clear_keys if key not in entrance_tags)
+    if missing:
+        raise AssertionError(
+            "core_loop_content_data.INSTANCE_CLEAR_LOCATIONS has instance "
+            f"key(s) with no matching entry in "
+            f"instance_entrance_data.INSTANCE_ENTRANCE_AREA_TAGS: {missing!r} -- "
+            "these two namespaces must agree (the real Map.dbc-derived slug, "
+            "no suffix embellishment) or curated_instance_keys will silently "
+            "drop the mismatched instance from every zone that should reach it."
+        )
+
+
+_validate_instance_key_namespaces()
+
+
 def resolve_core_loop_track(world) -> tuple[str, str | None]:
     """Resolve which core_loop_content_data track key
     (LEVEL_LOCATIONS_BY_TRACK / LEVEL_CAP_TOTAL_BY_TRACK /

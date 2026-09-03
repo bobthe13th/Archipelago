@@ -158,12 +158,15 @@ def set_rules(world):
     # Cap"][1] count -- this clamp stays anchored to whichever track the
     # connected slot uses (including zone_leveler_<zone_key>, resolved above),
     # reusing the same starting_cap/step/track locals already computed above.
-    # Comment correction (final whole-branch review M6, 2026-09-01): a
+    # Comment correction (final whole-branch review M6, 2026-09-01; function
+    # name updated by the M4.11.3 milestone final review, Minor #5): a
     # zone_leveler slot DOES create quest_rewards locations -- the ~103 real
-    # Barrens-tagged quest_rewards rows for zone_leveler_barrens. M4.11.2 Task 2
-    # zone-filters the 19 always-present rows via _zone_leveler_quest_reward_zone_matches
-    # in locations.py; none match Barrens. This clamp genuinely applies to Zone
-    # Leveler's quest rewards too, not only standard/death_knight's.
+    # Barrens-tagged quest_rewards rows for zone_leveler_barrens. M4.11.3.3
+    # Task 2's generic _zone_leveler_row_matches (locations.py, which
+    # collapsed and replaced the old per-family filter stack including
+    # _zone_leveler_quest_reward_zone_matches) zone-filters the 19
+    # always-present rows; none match Barrens. This clamp genuinely applies
+    # to Zone Leveler's quest rewards too, not only standard/death_knight's.
     total_caps = core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK[track]
     for loc in world.multiworld.get_locations(world.player):
         if not loc.name.startswith("Quest:") or loc.name not in quest_rewards_content_data.LOCATIONS:

@@ -136,7 +136,7 @@ _INSTANCE_KEY_DISPLAY_NAMES = {
     "ragefire_chasm": "Ragefire Chasm",
     "deadmines": "Deadmines",
     "molten_core": "Molten Core",
-    "sunwell_plateau": "Sunwell Plateau",
+    "sunwell": "Sunwell Plateau",
     "icecrown_citadel": "Icecrown Citadel",
     # M4.11.1 (Task 4, BarrensBeater): without these 3, Key Hunt's own
     # completion rule (_set_completion_rule_key_hunt below, which builds its
@@ -159,7 +159,7 @@ _INSTANCE_KEY_DISPLAY_NAMES = {
 # instance_key/display name to check.
 _TIER1_RAID_INSTANCE_KEYS = {
     2: "molten_core",  # classic
-    3: "sunwell_plateau",  # burning_crusade
+    3: "sunwell",  # burning_crusade
     4: "icecrown_citadel",  # wrath
 }
 

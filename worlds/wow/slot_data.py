@@ -181,4 +181,15 @@ def _add_zone_leveler_data(world, data: dict) -> None:
     data["zone_leveler_goals"] = sorted(world.options.zone_leveler_goals.value)
     data["zone_leveler_statues_required"] = world.options.zone_leveler_statues_required.value
     data["zone_leveler_instances_required"] = world.options.zone_leveler_instances_required.value
-    data["zone_leveler_instance_keys"] = list(zone_data.instance_keys)
+    # Final whole-branch review fix (Minor #6, M4.11.3 milestone final
+    # review): emit the curated subset (zone_leveler_content_data.
+    # curated_instance_keys), not the raw, wider zone_data.instance_keys --
+    # matching every other real consumer of this distinction (goals.py's
+    # instance_clears goal, items.py's _trap_baseline_location_count,
+    # locations.py's create_core_loop_locations, all switched onto
+    # curated_instance_keys by Task 2). The C++ side that reads this field
+    # only ever counts instances with a real "Instance Unlock: <name>" item
+    # (which don't exist for the non-curated, merely-reachable instances),
+    # so this narrows a list the C++ side already effectively treats as its
+    # own ceiling -- no interface change on either side of the wire.
+    data["zone_leveler_instance_keys"] = list(zone_leveler_content_data.curated_instance_keys(zone_data))

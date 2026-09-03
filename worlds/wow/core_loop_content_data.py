@@ -31,7 +31,7 @@ INSTANCE_UNLOCK_ITEM_TO_KEY: dict[int, str] = {
     810001: "ragefire_chasm",
     810002: "deadmines",
     810005: "molten_core",
-    810006: "sunwell_plateau",
+    810006: "sunwell",
     810007: "icecrown_citadel",
     810008: "wailing_caverns",
     810009: "razorfen_kraul",
@@ -76,6 +76,25 @@ LEVEL_LOCATION_NAMES_BY_TRACK: dict[str, dict[int, str]] = {
     "death_knight": {55: "Reach Level 55 (Death Knight)", 56: "Reach Level 56 (Death Knight)", 57: "Reach Level 57 (Death Knight)", 58: "Reach Level 58 (Death Knight)", 59: "Reach Level 59 (Death Knight)", 60: "Reach Level 60 (Death Knight)", 61: "Reach Level 61 (Death Knight)", 62: "Reach Level 62 (Death Knight)", 63: "Reach Level 63 (Death Knight)", 64: "Reach Level 64 (Death Knight)", 65: "Reach Level 65 (Death Knight)", 66: "Reach Level 66 (Death Knight)", 67: "Reach Level 67 (Death Knight)", 68: "Reach Level 68 (Death Knight)", 69: "Reach Level 69 (Death Knight)", 70: "Reach Level 70 (Death Knight)", 71: "Reach Level 71 (Death Knight)", 72: "Reach Level 72 (Death Knight)", 73: "Reach Level 73 (Death Knight)", 74: "Reach Level 74 (Death Knight)", 75: "Reach Level 75 (Death Knight)", 76: "Reach Level 76 (Death Knight)", 77: "Reach Level 77 (Death Knight)", 78: "Reach Level 78 (Death Knight)", 79: "Reach Level 79 (Death Knight)", 80: "Reach Level 80 (Death Knight)"},
 }
 
+# Final whole-branch review fix (Important #1, M4.11.3 milestone final
+# review): this key was hand-curated as "sunwell_plateau" in an earlier
+# milestone (M4.11.1), but M4.11.3.2's instance_entrance_data.py --
+# computed directly from real Map.dbc data -- names the same real instance
+# "sunwell" (map id 580's own real DBC slug, no suffix embellishment). The
+# other 2 instances this same milestone added (wailing_caverns,
+# razorfen_kraul, razorfen_downs) already matched their own real Map.dbc
+# slugs exactly, confirming "sunwell_plateau" was the one outlier, not the
+# convention. Renamed to "sunwell" here (and everywhere else this file and
+# goals.py use it as an internal instance_key) so
+# zone_leveler_content_data.curated_instance_keys' plain `in` membership
+# check against instance_entrance_data.INSTANCE_ENTRANCE_AREA_TAGS stops
+# silently missing this instance. The player-facing "Clear Sunwell
+# Plateau"/"Instance Unlock: Sunwell Plateau" name strings are UNCHANGED --
+# only this internal dict key moved. Regenerating this GENERATED FILE from
+# its real core_loop.yaml source (out of scope here -- lives under the
+# azerothcore-wotlk submodule) should preserve this same "sunwell" key;
+# if a future regeneration reintroduces "sunwell_plateau", the
+# module-load-time guard in zone_leveler_content_data.py will raise loudly.
 INSTANCE_CLEAR_LOCATIONS: dict[str, int] = {
     "ragefire_chasm": 720000,
     "deadmines": 720001,
@@ -83,7 +102,7 @@ INSTANCE_CLEAR_LOCATIONS: dict[str, int] = {
     "razorfen_kraul": 720006,
     "razorfen_downs": 720007,
     "molten_core": 720002,
-    "sunwell_plateau": 720003,
+    "sunwell": 720003,
     "icecrown_citadel": 720004,
 }
 
@@ -101,7 +120,7 @@ INSTANCE_CLEAR_LOCATION_NAMES: dict[str, str] = {
     "razorfen_kraul": "Clear Razorfen Kraul",
     "razorfen_downs": "Clear Razorfen Downs",
     "molten_core": "Clear Molten Core",
-    "sunwell_plateau": "Clear Sunwell Plateau",
+    "sunwell": "Clear Sunwell Plateau",
     "icecrown_citadel": "Clear Icecrown Citadel",
 }
 
@@ -112,7 +131,7 @@ INSTANCE_CLEAR_LOCATION_NAMES: dict[str, str] = {
 # emitted for parity with the C++ side per this task's own Files list.
 INSTANCE_BOSS_ENTRIES: dict[str, list[int]] = {
     "molten_core": [12118, 11982, 12259, 12057, 12264, 12056, 12098, 11988, 12018, 11502],
-    "sunwell_plateau": [24892, 24882, 25038, 25165, 25166, 25840, 25315],
+    "sunwell": [24892, 24882, 25038, 25165, 25166, 25840, 25315],
     "icecrown_citadel": [36612, 36855, 37813, 36626, 36627, 36678, 37972, 37973, 37970, 37955, 36853, 36597],
 }
 
@@ -123,6 +142,6 @@ INSTANCE_BOSS_ENTRIES: dict[str, list[int]] = {
 # is simply absent from every list here, not present under a None/empty key.
 INSTANCES_BY_EXPANSION: dict[str, list[str]] = {
     "vanilla": ["ragefire_chasm", "deadmines", "wailing_caverns", "razorfen_kraul", "razorfen_downs", "molten_core"],
-    "tbc": ["sunwell_plateau"],
+    "tbc": ["sunwell"],
     "wotlk": ["icecrown_citadel"],
 }

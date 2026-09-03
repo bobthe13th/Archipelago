@@ -1,5 +1,6 @@
 import unittest
 
+from .. import core_loop_content_data, instance_entrance_data
 from .. import zone_leveler_content_data as zl
 from .. import zone_level_data
 
@@ -69,6 +70,73 @@ class TestZoneLevelerContentData(unittest.TestCase):
         self.assertGreater(len(zl.ZONES["barrens"].quest_reward_location_names), 0)
         for name in zl.ZONES["barrens"].quest_reward_location_names:
             self.assertTrue(quest_rewards_content_data.TAGS[name].get("area", frozenset()) & area_tags)
+
+
+class TestInstanceKeyNamespacesAgree(unittest.TestCase):
+    """Final whole-branch review fix (Important #1, M4.11.3 milestone final
+    review): regression coverage for the silent instance-key namespace
+    mismatch between core_loop_content_data.INSTANCE_CLEAR_LOCATIONS
+    (hand-curated) and instance_entrance_data.INSTANCE_ENTRANCE_AREA_TAGS
+    (real Map.dbc-derived). Real map id 580's own canonical DBC slug is
+    "sunwell" (parse_map_names(), azerothcore-wotlk/modules/archipelago_wow/
+    tools/db_extract.py); core_loop_content_data used to hand-curate the key
+    "sunwell_plateau" instead -- these never matched, so
+    zone_leveler_content_data.curated_instance_keys silently dropped Sunwell
+    Plateau from any zone whose area_tags would reach it. Confirmed as the
+    one real outlier by checking the other 3 instance keys this same
+    milestone curated (wailing_caverns/razorfen_kraul/razorfen_downs), which
+    already match their own real Map.dbc slugs exactly with no suffix
+    embellishment -- see the other assertions below."""
+
+    def test_sunwell_key_is_present_in_both_namespaces(self) -> None:
+        self.assertIn("sunwell", core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
+        self.assertIn("sunwell", instance_entrance_data.INSTANCE_ENTRANCE_AREA_TAGS)
+
+    def test_sunwell_plateau_is_no_longer_a_key_anywhere(self) -> None:
+        # Pins the actual rename, not just the presence of the corrected key
+        # -- guards against a future edit re-adding "sunwell_plateau"
+        # alongside "sunwell" (which would satisfy the test above but still
+        # be wrong: two keys for the same real instance).
+        self.assertNotIn("sunwell_plateau", core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
+
+    def test_every_curated_instance_key_matches_its_own_real_dbc_slug_convention(self) -> None:
+        # The 3 instances known-correct before this fix (M4.11.1's own
+        # BarrensBeater curation) already follow "real Map.dbc slug, no
+        # suffix embellishment" -- confirms this IS the convention, and that
+        # "sunwell_plateau" (fixed above) was the one outlier, not a second
+        # legitimate naming scheme.
+        for key in ("wailing_caverns", "razorfen_kraul", "razorfen_downs"):
+            self.assertIn(key, core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
+            self.assertIn(key, instance_entrance_data.INSTANCE_ENTRANCE_AREA_TAGS)
+
+    def test_every_instance_clear_locations_key_exists_in_entrance_area_tags(self) -> None:
+        # The real, general form of the two tests above -- every key, not
+        # just the ones this fix touched.
+        missing = sorted(
+            key for key in core_loop_content_data.INSTANCE_CLEAR_LOCATIONS
+            if key not in instance_entrance_data.INSTANCE_ENTRANCE_AREA_TAGS
+        )
+        self.assertEqual(missing, [])
+
+    def test_validation_guard_raises_loudly_on_a_deliberately_mismatched_key(self) -> None:
+        # Proves the module-load-time guard (zone_leveler_content_data.
+        # _validate_instance_key_namespaces) actually fires, using a
+        # synthetic pair passed via its optional params -- not the real,
+        # already-consistent module globals (which the test above already
+        # confirms have zero mismatches, so calling the guard with no args
+        # here would prove nothing about its *raising* behavior).
+        with self.assertRaises(AssertionError) as ctx:
+            zl._validate_instance_key_namespaces(
+                instance_clear_locations={"totally_fake_instance": 999999},
+                instance_entrance_area_tags={},
+            )
+        self.assertIn("totally_fake_instance", str(ctx.exception))
+
+    def test_validation_guard_is_silent_when_namespaces_agree(self) -> None:
+        zl._validate_instance_key_namespaces(
+            instance_clear_locations={"barrens_dummy": 1},
+            instance_entrance_area_tags={"barrens_dummy": frozenset({"barrens"})},
+        )
 
 
 if __name__ == "__main__":

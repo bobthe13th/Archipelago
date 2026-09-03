@@ -1,4 +1,6 @@
 # Archipelago/worlds/wow/test/test_optional_categories.py
+import unittest
+
 from .bases import WoWTestBase
 from .. import WoWWorld
 from .. import (
@@ -553,6 +555,44 @@ class TestZoneLevelerContentScope(WoWTestBase):
             self.assertEqual(len(overlap), 0, f"{key} rows leaked through zone_only")
 
 
+class TestEveryZoneBoundOptionalCategoryHasRealAreaTagData(unittest.TestCase):
+    """Final whole-branch review fix (Minor #10, M4.11.3 milestone final
+    review): TestZoneLevelerContentScope above already pins that
+    itemsanity/recipes/craftsanity (_NO_PHYSICAL_LOCATION_CATEGORY_KEYS) ARE
+    excluded under zone_only -- this is the missing complement, pinning that
+    every OTHER optional category genuinely carries real position-derived
+    `area` tag data on at least one row, so _zone_leveler_row_matches's
+    unconditional zone check has something real to match against. Without
+    this, a future family added to _OPTIONAL_CATEGORIES with no real
+    area/position data would be silently, 100% excluded under zone_leveler
+    with a fully green test suite -- exactly the failure mode this whole
+    milestone existed to fix in the first place. Repsanity is exempted: it
+    has its own separate, deliberate non-area-tag handling
+    (_zone_leveler_repsanity_matches in locations.py, an expansion-tag
+    proxy), and never reaches _zone_leveler_row_matches's area-tag branch at
+    all. A plain unittest.TestCase, not WoWTestBase -- this is a live-data
+    invariant over the real, already-loaded content-data modules, no world
+    generation needed."""
+
+    def test_every_zone_bound_category_has_at_least_one_row_with_real_area_tags(self) -> None:
+        exempt_keys = _NO_PHYSICAL_LOCATION_CATEGORY_KEYS | {"repsanity"}
+        zone_bound_categories = [c for c in _OPTIONAL_CATEGORIES if c.key not in exempt_keys]
+        # Guard against a vacuous pass (same discipline as
+        # test_barrens_quest_names_are_all_real_zone_tagged_quest_rewards in
+        # test_zone_leveler_content_data.py) -- without this, an empty list
+        # here would make the loop below "pass" without checking anything.
+        self.assertGreater(len(zone_bound_categories), 0)
+        for category in zone_bound_categories:
+            has_real_area_data = any(
+                tags.get("area") for tags in category.locations_module.TAGS.values()
+            )
+            self.assertTrue(
+                has_real_area_data,
+                f"{category.key} carries no real 'area' tag data on any row -- "
+                "it would be silently, 100% excluded under zone_leveler.",
+            )
+
+
 class TestZoneLevelerWholeGameScaledWidensTractableFamilies(WoWTestBase):
     """M4.11.1 Task 12, revised M4.11.3.3: whole_game_scaled widens the 2
     real tractable no-physical-location families (Itemsanity, Recipes) to
@@ -952,7 +992,7 @@ class TestNonZoneLevelerModeStillIncludesAllAlwaysPresentRows(WoWTestBase):
         self.assertIn("Quest: Skirmish at Echo Ridge Reward (#21)", location_names)
 
 
-class TestZoneLevelerHubZoneToggleNoLongerWidensAnything(WoWTestBase):
+class TestZoneLevelerOrgrimmarQuestExcludedNowThatHubZoneWideningIsGone(WoWTestBase):
     """Real, disclosed behavior change (M4.11.3.3): M4.11.2's own
     TestZoneLevelerQuestRewardsIncludeHubZoneWhenToggleOn/
     TestZoneLevelerQuestRewardsExcludeHubZoneWhenToggleOff pinned
@@ -961,16 +1001,28 @@ class TestZoneLevelerHubZoneToggleNoLongerWidensAnything(WoWTestBase):
     ZoneLevelerZoneData no longer carries any hub-zone data at all
     (allowed_hub_zone_ids was REMOVED, not renamed -- area_tags is a fixed,
     real per-zone constant, frozenset({"barrens"}) for Barrens), and the
-    new collapsed _zone_leveler_row_matches (M4.11.3.3) never reads
-    zone_leveler_allow_hub_zone at all -- confirmed via direct source
-    inspection, not assumed. "Quest: Ripple Delivery Reward (#81)" (real
-    area tag frozenset({"orgrimmar"}), confirmed via direct TAGS
-    inspection) is now excluded regardless of the toggle's value -- the
-    same real row M4.11.2's own tests used to pin the OLD widening
-    behavior now demonstrates its removal instead."""
-    options = {**_ZONE_LEVELER_QUEST_REWARD_OPTIONS, "zone_leveler_allow_hub_zone": True}
+    new collapsed _zone_leveler_row_matches (M4.11.3.3) never reads any
+    hub-zone toggle at all -- confirmed via direct source inspection, not
+    assumed.
 
-    def test_orgrimmar_only_quest_excluded_even_with_toggle_on(self) -> None:
+    Final whole-branch review fix (Minor #9, M4.11.3 milestone final
+    review): this class used to pass zone_leveler_allow_hub_zone=True in its
+    own options dict and was named/documented as proving the toggle no
+    longer widens anything -- but Task 3 of M4.11.3.3 deleted the
+    ZoneLevelerAllowHubZone option from options.py entirely, so that key was
+    silently dropped by Generate.py's world_setup (an unrecognized option
+    key is a warning, not an error) and this class was never actually
+    exercising a toggle-on path at all, just the plain default path with an
+    inert dict entry. Renamed and rewritten to describe what it actually
+    verifies now that there is no toggle to test: "Quest: Ripple Delivery
+    Reward (#81)" (real area tag frozenset({"orgrimmar"}), confirmed via
+    direct TAGS inspection) is excluded under the default zone_only content
+    scope, because Barrens' own area_tags never include "orgrimmar" -- the
+    same real row M4.11.2's own tests used to pin the OLD widening behavior
+    now demonstrates the mechanism's complete removal instead."""
+    options = _ZONE_LEVELER_QUEST_REWARD_OPTIONS
+
+    def test_orgrimmar_only_quest_excluded_under_default_zone_only(self) -> None:
         name = "Quest: Ripple Delivery Reward (#81)"
         self.assertEqual(quest_rewards_content_data.TAGS[name].get("area"), frozenset({"orgrimmar"}))
         location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
@@ -1027,8 +1079,13 @@ class TestZoneLevelerTrainerSpellsIncludedUnderZoneOnlyNow(WoWTestBase):
     # real, verified-correct instances (Task 1's own review) that were
     # never curated with a core_loop.yaml Instance Unlock item/location at
     # all, an out-of-scope pre-existing gap this test isn't about).
+    #
+    # Final whole-branch review fix (Minor #9, M4.11.3 milestone final
+    # review): dropped "zone_leveler_allow_hub_zone": True -- that option was
+    # deleted from options.py by Task 3 of M4.11.3.3, so it was silently
+    # dropped by Generate.py's world_setup (an unrecognized option key is a
+    # warning, not an error) and did nothing real here either.
     options = {"game_mode": "zone_leveler", "zone_leveler_starting_zone": "barrens",
-               "zone_leveler_allow_hub_zone": True,
                "zone_leveler_goals": {"reach_zone_level_cap"},
                "trainer_spell_class_pools": set(options.TrainerSpellClassPools.default),
                "trainer_spell_expansion_pools": set(options.TrainerSpellExpansionPools.default)}
