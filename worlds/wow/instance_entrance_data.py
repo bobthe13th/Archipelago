@@ -52,7 +52,7 @@ INSTANCE_ENTRANCE_AREA_TAGS: dict[str, frozenset[str]] = {
     'razorfen_downs': frozenset({'barrens', 'dustwallow_marsh', 'thousand_needles'}),
     'razorfen_kraul': frozenset({'barrens', 'dustwallow_marsh', 'thousand_needles'}),
     'ruby_sanctum': frozenset({'dragonblight'}),
-    'ruins_of_ahn_qiraj': frozenset({}),
+    'ruins_of_ahn_qiraj': frozenset(),
     'scarlet_monastery': frozenset({'tirisfal_glades', 'western_plaguelands'}),
     'scholomance': frozenset({'eastern_plaguelands', 'hinterlands', 'western_plaguelands'}),
     'shadowfang_keep': frozenset({'silverpine_forest'}),
