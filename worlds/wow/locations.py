@@ -88,7 +88,7 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
     key="containersanity",
     tag_options={"expansion": "containersanity_expansion_pools"},
     locations_module=containersanity_content_data,
-    items_module=containersanity_content_data,
+    items_module=None,
 ))
 
 _OPTIONAL_CATEGORIES.append(OptionalCategory(
@@ -206,6 +206,20 @@ def _zone_leveler_repsanity_matches(world, name: str) -> bool:
     it's a separate, always-on restriction specific to this one family."""
     expansion_tags = repsanity_content_data.TAGS[name].get("expansion", frozenset())
     return "vanilla" in expansion_tags
+
+
+def _containersanity_zone_cap_matches(world, name: str) -> bool:
+    """M4.11.4: Containersanity's own abstract zone-pool locations carry a
+    real ordinal (1-based position within their zone's own capped
+    sequence, baked at generation time up to _MAX_CHESTS_PER_ZONE --
+    extract_containersanity.py) in TRIGGERS[name]["ordinal"]. Only an
+    ordinal within the player's own configured
+    containersanity_chests_per_zone survives into the candidate pool --
+    everything past it is excluded here, the same way every other
+    optional-category filter in this module excludes rather than
+    resamples down to a smaller set."""
+    ordinal = containersanity_content_data.TRIGGERS[name]["ordinal"]
+    return ordinal <= world.options.containersanity_chests_per_zone.value
 
 
 _NO_PHYSICAL_LOCATION_CATEGORY_KEYS = frozenset({"itemsanity", "recipes", "craftsanity"})
@@ -350,6 +364,10 @@ def create_optional_category_locations(world, region) -> list:
             (name, location_id) for name, location_id in all_rows
             if name not in always_present_names
             and (force_all or _location_matches_pools(world, category, name))
+            # M4.11.4: Containersanity's own per-zone abstract-chest-count
+            # cap, ANDed in alongside tag-pool matching -- see
+            # _containersanity_zone_cap_matches's own docstring.
+            and (category.key != "containersanity" or _containersanity_zone_cap_matches(world, name))
             # M4.11.1 Task 12: zone_leveler's own zone_only/whole_game_scaled
             # content-scope filter, ANDed in alongside tag-pool matching
             # (not bypassed by force_all -- zone_leveler's own
