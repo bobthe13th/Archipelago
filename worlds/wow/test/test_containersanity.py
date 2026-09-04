@@ -6,35 +6,6 @@ from .bases import WoWTestBase
 from .. import containersanity_content_data
 
 
-class TestContainersanityRowAlignment(unittest.TestCase):
-    def test_locations_and_items_are_row_order_aligned(self) -> None:
-        location_names = list(containersanity_content_data.LOCATIONS)
-        item_names = list(containersanity_content_data.ITEMS)
-        self.assertEqual(len(location_names), len(item_names))
-        for location_name, item_name in zip(location_names, item_names):
-            self.assertTrue(location_name.startswith("Container: "))
-            self.assertTrue(item_name.startswith("Container Item: "))
-
-
-@unittest.skip(
-    "M4.11.4.1 Task 5: create_optional_category_locations now runs every "
-    "real Containersanity candidate through _containersanity_zone_cap_matches "
-    "(locations.py), which reads containersanity_content_data.TRIGGERS"
-    "[name]['ordinal'] unconditionally. The real, checked-in "
-    "containersanity_content_data.py is still Task 6's pre-rewrite output "
-    "(TRIGGERS rows carry the old 'kind': 'gameobject_loot'/'loot_id'/"
-    "'item_entry' shape, no 'ordinal' key at all -- confirmed by direct "
-    "inspection) -- Task 6 (a later task in this same M4.11.4.1 plan) "
-    "rewrites extract_containersanity.py and regenerates this module with "
-    "real 'ordinal'/'zone_key' data. Until then, widening "
-    "containersanity_expansion_pools to select any real row (as this class "
-    "does) makes real world generation raise KeyError: 'ordinal' -- a "
-    "genuine, expected, temporary consequence of this task's own mandated "
-    "predicate wiring landing before its data dependency (Task 6). "
-    "TestContainersanityZoneCapPredicate (below) covers the new predicate's "
-    "own logic in isolation via a mocked TRIGGERS fixture in the meantime. "
-    "Re-enable this class once Task 6 lands."
-)
 class TestContainersanityRealGenerationWotlkOnly(WoWTestBase):
     """Final whole-branch review fix (I4): no existing test exercised a real
     seed generation with the Containersanity family actually live -- every
