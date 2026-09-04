@@ -1,5 +1,6 @@
 # Archipelago/worlds/wow/test/test_gathersanity.py
 import unittest
+from unittest.mock import patch
 
 from .bases import WoWTestBase
 from .. import gathersanity_content_data
@@ -112,6 +113,87 @@ class TestGathersanityRealGenerationDisenchantOnly(WoWTestBase):
         }
         self.assertTrue(placed_gathersanity_ids)
         self.assertTrue(placed_gathersanity_ids <= set(display))
+
+
+class TestProgressiveMiningHerbalismItemsRegistered(unittest.TestCase):
+    """M4.11.4.2 Task 4: two new stackable progression items gate
+    Gathersanity's new zone+tier abstract (zone_pool_credit) locations, the
+    same "Progressive Level Cap" shape (name -> (item_id, count)) core_loop
+    already established, hand-declared just outside core_loop's own
+    generated 810000-810010 id block so a future core_loop regeneration can
+    never collide with them."""
+
+    def test_progressive_mining_and_herbalism_items_registered(self) -> None:
+        from worlds.wow import items
+        self.assertEqual(items.GATHERING_SKILL_PROGRESSION_ITEMS, {
+            "Progressive Mining": (811000, 6),
+            "Progressive Herbalism": (811001, 6),
+        })
+
+
+class TestGatheringNodeTierRuleGatesOnProgressiveItem(WoWTestBase):
+    """M4.11.4.2 Task 4: a gathering_node location whose own TRIGGERS entry
+    is the new "zone_pool_credit" kind (Task 2's real "<zone>|<profession>|
+    <tier>" composite zone_key) must be gated on enough copies of the
+    matching Progressive Mining/Herbalism item for its own tier.
+
+    gathersanity_content_data.TRIGGERS has NOT been regenerated with any
+    real "zone_pool_credit" rows yet as of this task (that's Task 5's own
+    job, later in this plan) -- scanning today's real, pre-regeneration data
+    for this shape would silently find zero matches, which would make an
+    assertion here vacuous rather than a real RED/GREEN proof of the
+    rule-gating logic. So this test monkeypatches TRIGGERS with a small
+    fixture in the NEW shape instead of relying on real regenerated data --
+    Task 5 verifies against the real regenerated content as part of its own
+    full-suite run, which is the intended end-to-end check, not this task's.
+    """
+    options = {
+        "game_mode": "sprint", "check_density": 0,
+        "quest_reward_weight": 0, "vendor_stock_weight": 0,
+    }
+
+    def test_gathering_node_tier_rule_gates_on_progressive_item(self) -> None:
+        from BaseClasses import ItemClassification
+        from .. import rules
+        from ..items import WoWItem
+
+        # Reuse any real, already-present location purely as a name to hang
+        # our fixture's fake zone_pool_credit trigger on -- world.get_location
+        # requires a name that actually exists in this slot's multiworld, and
+        # which underlying real location it is does not matter: our own code
+        # unconditionally calls world.set_rule for every zone_pool_credit
+        # TRIGGERS entry, so whatever rule the location started with is
+        # replaced by ours below.
+        target_location_name = next(iter(self.multiworld.get_locations(self.player))).name
+        fake_triggers = {
+            target_location_name: {
+                "kind": "zone_pool_credit",
+                # "expert" is index 2 (0-based) of GATHERING_SKILL_TIERS --
+                # rules.py's own tier_index = index + 1 means this location
+                # must require exactly 3 Progressive Mining copies.
+                "zone_key": "barrens|mining|expert",
+            },
+        }
+        with patch.object(gathersanity_content_data, "TRIGGERS", fake_triggers):
+            rules.set_rules(self.world)
+
+        location = self.multiworld.get_location(target_location_name, self.player)
+        self.assertIsNotNone(location.access_rule)
+
+        state = self.multiworld.state
+
+        def mining_item() -> WoWItem:
+            return WoWItem("Progressive Mining", ItemClassification.progression, 811000, self.player)
+
+        # Behavioral check, the actual RED/GREEN evidence (not just a
+        # not-None structural check): unreachable below 3 copies, reachable
+        # at exactly 3, the "expert" tier's own real threshold.
+        self.assertFalse(location.access_rule(state))
+        state.collect(mining_item())
+        state.collect(mining_item())
+        self.assertFalse(location.access_rule(state))
+        state.collect(mining_item())
+        self.assertTrue(location.access_rule(state))
 
 
 if __name__ == "__main__":

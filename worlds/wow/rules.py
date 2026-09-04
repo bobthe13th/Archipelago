@@ -9,6 +9,35 @@ from . import world_state
 from . import zone_leveler_content_data
 
 
+def _set_rules_gathersanity_progression(world) -> None:
+    """M4.11.4.2 Task 4: gate every Gathersanity "zone_pool_credit"-kind
+    location (Task 2's real "<zone>|<profession>|<tier>" composite zone_key)
+    on enough copies of the matching Progressive Mining/Herbalism item for
+    its own tier -- exactly the same state.has(name, world.player, count)
+    shape core_loop's own Progressive Level Cap rule above already
+    establishes. No-ops cleanly (zero iterations do anything) against
+    gathersanity_content_data.TRIGGERS before Task 5 regenerates it with
+    real zone_pool_credit rows, since `if trigger.get("kind") !=
+    "zone_pool_credit"` skips every real entry that exists today."""
+    from . import gathersanity_content_data
+    from .items import GATHERING_SKILL_TIERS
+    for name, trigger in gathersanity_content_data.TRIGGERS.items():
+        if trigger.get("kind") != "zone_pool_credit":
+            continue
+        parts = trigger.get("zone_key", "").split("|")
+        if len(parts) != 3:
+            continue  # a Containersanity-shaped bare zone_key never reaches this family's own TRIGGERS
+        _zone, profession, tier = parts
+        if tier not in GATHERING_SKILL_TIERS:
+            continue
+        tier_index = GATHERING_SKILL_TIERS.index(tier) + 1
+        item_name = "Progressive Mining" if profession == "mining" else "Progressive Herbalism"
+        world.set_rule(
+            world.get_location(name),
+            lambda state, item_name=item_name, count=tier_index: state.has(item_name, world.player, count),
+        )
+
+
 # M2: all 19 Northshire/Goldshire locations are always accessible (no
 # prerequisite logic yet -- matches the real quest line's actual structure,
 # where these are early low-level quests with no hard level/item gates).
@@ -178,3 +207,9 @@ def set_rules(world):
                 loc,
                 lambda state, count=copies_needed: state.has("Progressive Level Cap", world.player, count),
             )
+
+    # M4.11.4.2 (Task 4): Gathersanity's own zone+tier abstract
+    # (zone_pool_credit) locations, gated on Progressive Mining/Herbalism --
+    # see the function's own docstring for why this stays a clean no-op
+    # until Task 5 regenerates real zone_pool_credit TRIGGERS rows.
+    _set_rules_gathersanity_progression(world)

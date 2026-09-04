@@ -65,6 +65,64 @@ _ZONE_LEVELER_IRRELEVANT_CORE_LOOP_ITEM_NAMES = frozenset({
 })
 
 
+# M4.11.4.2: NOT core_loop content (core_loop_content_data.py is a
+# GENERATED FILE regenerated from content/core_loop.yaml -- these two are
+# Gathersanity-specific profession-progression gates, hand-declared here
+# the same shape as "Progressive Level Cap" itself (name -> (item_id,
+# count)), just outside core_loop's own generated 810000-810010 block so a
+# future core_loop regeneration can never collide with them.
+GATHERING_SKILL_TIERS = ["apprentice", "journeyman", "expert", "artisan", "master", "northrend_capped"]
+
+GATHERING_SKILL_PROGRESSION_ITEMS: dict[str, tuple[int, int]] = {
+    "Progressive Mining": (811000, len(GATHERING_SKILL_TIERS)),
+    "Progressive Herbalism": (811001, len(GATHERING_SKILL_TIERS)),
+}
+
+
+def _real_tiers_present(tiers_for_profession: set[str]) -> list[str]:
+    """Which of GATHERING_SKILL_TIERS actually has at least one real
+    generated Gathersanity location for this profession (a tier with zero
+    real nodes in this checkout's own data -- e.g. a profession's higher
+    tiers not populating for a small curated zone set -- gets no
+    Progressive item copies pooled for it, so the item's own total copy
+    count never outpaces what's actually gatable)."""
+    return [tier for tier in GATHERING_SKILL_TIERS if tier in tiers_for_profession]
+
+
+def create_gathering_skill_progression_item_pool(world) -> list[WoWItem]:
+    """New for M4.11.4.2: one 'Progressive Mining'/'Progressive Herbalism'
+    copy per real skill tier that has at least one real generated
+    gathering_node location for that profession, derived directly from
+    gathersanity_content_data.TRIGGERS' own real "<zone>|<profession>|<tier>"
+    composite zone_key strings (Task 2) -- no separate profession tag is
+    needed since profession is already encoded in the composite key
+    itself. This never pools a copy for a tier with zero real content."""
+    from . import gathersanity_content_data
+    herbalism_tiers: set[str] = set()
+    mining_tiers: set[str] = set()
+    for trigger in gathersanity_content_data.TRIGGERS.values():
+        if trigger.get("kind") != "zone_pool_credit":
+            continue
+        parts = trigger.get("zone_key", "").split("|")
+        if len(parts) != 3:
+            continue  # a Containersanity-shaped bare zone_key (no "|") never has 3 parts
+        _zone, profession, tier = parts
+        if profession == "herbalism":
+            herbalism_tiers.add(tier)
+        elif profession == "mining":
+            mining_tiers.add(tier)
+
+    pool = []
+    for tiers, item_name in (
+        (herbalism_tiers, "Progressive Herbalism"),
+        (mining_tiers, "Progressive Mining"),
+    ):
+        item_id, _max_count = GATHERING_SKILL_PROGRESSION_ITEMS[item_name]
+        for tier in _real_tiers_present(tiers):
+            pool.append(WoWItem(item_name, ItemClassification.progression, item_id, world.player))
+    return pool
+
+
 def _core_loop_natural_item_count(track: str) -> int:
     """Total real, unconditional core_loop item copies pooled for `track` --
     Progressive Level Cap's own per-track total

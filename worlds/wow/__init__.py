@@ -1,5 +1,5 @@
 from worlds.AutoWorld import World
-from .items import WoWItem, create_core_loop_item_pool, create_gates_item_pool, create_holidaysanity_item_pool, create_trap_item_pool, create_key_hunt_item_pool, create_golden_boar_statues_item_pool, create_fish_item_pool, create_professions_item_pool, create_collections_item_pool, create_optional_category_item_pool, create_achievements_item_pool, create_explorer_item_pool
+from .items import WoWItem, create_core_loop_item_pool, create_gates_item_pool, create_holidaysanity_item_pool, create_trap_item_pool, create_key_hunt_item_pool, create_golden_boar_statues_item_pool, create_fish_item_pool, create_professions_item_pool, create_collections_item_pool, create_optional_category_item_pool, create_achievements_item_pool, create_explorer_item_pool, create_gathering_skill_progression_item_pool, GATHERING_SKILL_PROGRESSION_ITEMS
 from .regions import create_regions
 from .rules import set_rules
 from . import goals
@@ -77,6 +77,12 @@ class WoWWorld(World):
         **{name: item_id for name, (item_id, _count) in containersanity_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in craftsanity_content_data.ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in gathersanity_content_data.ITEMS.items()},
+        # M4.11.4.2 (Task 4): Progressive Mining/Herbalism are hand-declared
+        # in items.py, not generated from gathersanity_content_data.ITEMS
+        # (they gate the new zone+tier abstract locations, not any single
+        # gathering_node row) -- see GATHERING_SKILL_PROGRESSION_ITEMS' own
+        # docstring/comment for why they live outside the generated file.
+        **{name: item_id for name, (item_id, _count) in GATHERING_SKILL_PROGRESSION_ITEMS.items()},
         **{name: item_id for name, (item_id, _count) in itemsanity_content_data.ITEMS.items()},
     }
     location_name_to_id = {
@@ -139,6 +145,12 @@ class WoWWorld(World):
         self.multiworld.itempool += create_achievements_item_pool(self)
         self.multiworld.itempool += create_explorer_item_pool(self)
         self.multiworld.itempool += create_optional_category_item_pool(self)
+        # M4.11.4.2 (Task 4): Progressive Mining/Herbalism are an ADDITIONAL
+        # pool contribution alongside create_optional_category_item_pool's
+        # own 1:1 gathersanity_content_data.ITEMS pooling above -- gathering_
+        # node locations still need their own filler-consumable item too
+        # (Global Constraints), so this never replaces that pooling.
+        self.multiworld.itempool += create_gathering_skill_progression_item_pool(self)
 
     def set_rules(self) -> None:
         set_rules(self)
