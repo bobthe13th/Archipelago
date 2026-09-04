@@ -34,17 +34,64 @@ class TestContainersanityRealGenerationWotlkOnly(WoWTestBase):
         containersanity_locations = [n for n in names if n in containersanity_content_data.LOCATIONS]
         self.assertTrue(len(containersanity_locations) > 0)
 
-    def test_every_wotlk_tagged_row_is_present_no_sampling(self) -> None:
-        # Direct proof of the no-check_density/weight-sampling contract:
-        # with the wotlk tag selected, ALL real wotlk-tagged containersanity
-        # rows must be present, not just a density-sampled subset.
-        wotlk_rows = [
-            name for name, tags in containersanity_content_data.TAGS.items()
-            if "wotlk" in tags["expansion"]
-        ]
+    def test_wotlk_zones_capped_at_configured_chests_per_zone(self) -> None:
+        # M4.11.4.1 fix (coordinator ruling): this test used to assert that
+        # EVERY real wotlk-tagged row survives into the generated world
+        # unconditionally -- true before Task 5's containersanity_chests_
+        # per_zone cap existed (Containersanity has no weight_option to
+        # zero out, so the tag-pool filter really was the only thing that
+        # could shrink the sampled set back then). That premise is now
+        # intentionally FALSE: containersanity_chests_per_zone (this
+        # milestone's own core feature, options.py's own default of 5) caps
+        # each real zone at a player-configured number of its own baked-in
+        # "Chest N" locations, regardless of how many real ordinals that
+        # zone was extracted with (up to extract_containersanity.py's own
+        # _MAX_CHESTS_PER_ZONE=15 ceiling). A zone with more real baked-in
+        # units than the cap deliberately does NOT have every row survive
+        # -- by design, not a bug (see locations.py's
+        # _containersanity_zone_cap_matches). This replaces the stale
+        # assertion with the real, intentional per-zone cap contract:
+        # for every real wotlk-tagged zone, the number of that zone's
+        # locations that actually survive equals
+        # min(configured cap, that zone's own real baked-in ordinal count).
+        cap = self.multiworld.worlds[self.player].options.containersanity_chests_per_zone.value
+
+        # Real baked-in ordinal count per zone_key, from TRIGGERS (every
+        # containersanity location, not just wotlk-tagged ones -- but every
+        # location within one zone_key shares the same "expansion" tags
+        # list, since extract_containersanity.py computes it once per
+        # zone_key, so filtering wotlk_zone_keys off TAGS below picks up
+        # every one of a wotlk zone's own locations regardless of which
+        # single location's TAGS entry is inspected).
+        baked_count_by_zone: dict[str, int] = {}
+        wotlk_zone_keys: set[str] = set()
+        for name, trigger in containersanity_content_data.TRIGGERS.items():
+            zone_key = trigger["zone_key"]
+            baked_count_by_zone[zone_key] = baked_count_by_zone.get(zone_key, 0) + 1
+            if "wotlk" in containersanity_content_data.TAGS[name]["expansion"]:
+                wotlk_zone_keys.add(zone_key)
+
         names = {loc.name for loc in self.multiworld.get_locations(self.player)}
-        sampled_containersanity = [n for n in names if n in containersanity_content_data.LOCATIONS]
-        self.assertEqual(sorted(sampled_containersanity), sorted(wotlk_rows))
+        survivor_count_by_zone: dict[str, int] = {}
+        for name in names:
+            trigger = containersanity_content_data.TRIGGERS.get(name)
+            if trigger is not None and trigger["zone_key"] in wotlk_zone_keys:
+                zone_key = trigger["zone_key"]
+                survivor_count_by_zone[zone_key] = survivor_count_by_zone.get(zone_key, 0) + 1
+
+        self.assertTrue(len(wotlk_zone_keys) > 0)
+        saw_a_capped_zone = False
+        for zone_key in wotlk_zone_keys:
+            expected = min(cap, baked_count_by_zone[zone_key])
+            self.assertEqual(survivor_count_by_zone.get(zone_key, 0), expected)
+            if baked_count_by_zone[zone_key] > cap:
+                saw_a_capped_zone = True
+        # Non-vacuous: at least one real wotlk zone must actually have MORE
+        # baked-in locations than the cap, or this test couldn't distinguish
+        # "capping works" from "capping doesn't exist". Confirmed against
+        # real current data: 17 of 25 real wotlk zone_keys have 15 baked-in
+        # locations against the real default cap of 5.
+        self.assertTrue(saw_a_capped_zone)
 
     def test_only_wotlk_tagged_rows_are_present(self) -> None:
         names = {loc.name for loc in self.multiworld.get_locations(self.player)}
