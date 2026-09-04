@@ -62,9 +62,19 @@ class TestGathersanityRealGenerationDisenchantOnly(WoWTestBase):
         # Direct proof of the no-check_density/weight-sampling contract: with
         # the disenchant source selected, ALL real disenchant-tagged rows must
         # be present, not just a density-sampled subset.
+        #
+        # M4.11.4.2 fix: `tags["source"]` used to be a safe direct index --
+        # every real Gathersanity row (gathering_node/skinning/disenchant)
+        # carried a "source" tag before this milestone. Now that
+        # gathering_node is real zone_pool_credit-shaped abstract locations
+        # (M4.11.4.2 Tasks 2/5), its own tags are `{"area": [...]}` only, with
+        # no "source" key at all -- a direct index KeyErrors the instant
+        # iteration reaches one of those 21,084 real rows. `.get("source",
+        # ())` treats "no source tag" as "not disenchant", matching this
+        # project's own established "absent tag means excluded" convention.
         disenchant_rows = [
             name for name, tags in gathersanity_content_data.TAGS.items()
-            if "disenchant" in tags["source"]
+            if "disenchant" in tags.get("source", ())
         ]
         self.assertEqual(sorted(self._gathersanity_location_names()), sorted(disenchant_rows))
 
@@ -73,7 +83,15 @@ class TestGathersanityRealGenerationDisenchantOnly(WoWTestBase):
         self.assertTrue(len(sampled) > 0)
         self.assertLess(len(sampled), len(gathersanity_content_data.LOCATIONS))
         for name in sampled:
-            self.assertIn("disenchant", gathersanity_content_data.TAGS[name]["source"])
+            # M4.11.4.2 fix: `sampled` is already narrowed to real
+            # `gathersanity_source_pools={"disenchant"}` rows (this class's
+            # own options), so every name here really is disenchant-tagged --
+            # this assertion is about the row's own TAGS agreeing, not a
+            # scan over every row, so a direct index would be fine here in
+            # isolation, but `.get` keeps this test consistent with the
+            # sibling test above and equally defensive against a future
+            # sourceless row shape.
+            self.assertIn("disenchant", gathersanity_content_data.TAGS[name].get("source", ()))
 
     def test_item_pool_matches_location_count_exactly(self) -> None:
         self.assertEqual(len(self.multiworld.itempool), len(self.multiworld.get_locations()))
