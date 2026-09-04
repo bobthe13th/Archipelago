@@ -418,7 +418,7 @@ def _trap_baseline_location_count(world) -> int:
     # core_loop's real instances (locations.py's create_core_loop_locations
     # zone_leveler branch never creates the other 5). getattr (not direct
     # attribute access) since this function is also called directly by
-    # test_basic.py's TestFillerPoolCoversWorstCaseGatesTrapsAndHolidaysanity
+    # test_basic.py's TestFillerPoolCoversWorstCaseGatesTrapsHolidaysanityAndGatheringSkillProgression
     # with a bare `types.SimpleNamespace(options=...)` fake world that has
     # no game_mode attribute at all -- that fake world must keep resolving
     # to the standard/death_knight branch exactly as before.

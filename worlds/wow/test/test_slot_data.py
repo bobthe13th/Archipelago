@@ -22,28 +22,56 @@ class _FakeLocation:
 
 class _FakeFamilyLocationsModule:
     LOCATIONS = {"Quest: Fake Reward (#1)": 2000000}
+    TRIGGERS = {"Quest: Fake Reward (#1)": {"kind": "quest_reward", "quest_id": 1}}
 
 
 class _FakeVendorLocationsModule:
     LOCATIONS = {"Vendor: Fake NPC - Fake Item (#1)": 2500000}
+    TRIGGERS = {"Vendor: Fake NPC - Fake Item (#1)": {"kind": "vendor_purchase", "npc_entry": 1}}
 
 
 class _FakeContainersanityLocationsModule:
+    # M4.11.4.1 rewrote this family to 100% abstract zone-pool locations --
+    # there is no backing gameobject_loot_template row for one, so
+    # SynthesizeAndRewireLocations can never resolve it (see Fix 3).
     LOCATIONS = {"Container: Fake Chest - Fake Item (#1/1)": 8000000}
+    TRIGGERS = {
+        "Container: Fake Chest - Fake Item (#1/1)":
+            {"kind": "zone_pool_credit", "zone_key": "fake_zone", "ordinal": 1},
+    }
 
 
 class _FakeGathersanityLocationsModule:
-    LOCATIONS = {"Gathersanity: Fake Vein - Fake Ore (#1/1)": 9000000}
+    # Deliberately MIXED, mirroring the real family after M4.11.4.2: a
+    # zone_pool_credit gathering-node row (not resolvable) alongside a real
+    # skinning_loot row (resolvable, still needs synthesis).
+    LOCATIONS = {
+        "Gathersanity: Fake Vein - Fake Ore (#1/1)": 9000000,
+        "Gathersanity: Fake Hide (skinning #1/2)": 9000001,
+    }
+    TRIGGERS = {
+        "Gathersanity: Fake Vein - Fake Ore (#1/1)":
+            {"kind": "zone_pool_credit", "zone_key": "fake_zone|mining|apprentice", "ordinal": 1},
+        "Gathersanity: Fake Hide (skinning #1/2)":
+            {"kind": "skinning_loot", "loot_id": 1, "wow_item_entry": 2},
+    }
+
+
+class _FakeHookOnlyLocationsModule:
+    # A family with no TRIGGERS table at all (fired by a C++ hook, never by
+    # rewriting a real DB row) must contribute nothing and must not raise.
+    LOCATIONS = {"Achievement: Fake Deed": 3000000}
 
 
 class TestAddApItemDisplayData(unittest.TestCase):
     def setUp(self) -> None:
-        # Finding I3: _add_ap_item_display_data now only includes locations
-        # whose name is registered under the quest_rewards/vendor_stock
-        # OptionalCategory entries -- swap the registry for this test's
-        # duration so it exercises the real filtering logic against a small,
-        # controlled set of names instead of the full 41k-row real content
-        # tables. Restored in tearDown regardless of test outcome.
+        # Finding I3 + M4.11.4.2 Fix 3: _add_ap_item_display_data now only
+        # includes locations whose OWN generated trigger kind
+        # SynthesizeAndRewireLocations can actually resolve -- swap the
+        # registry for this test's duration so it exercises the real filtering
+        # logic against a small, controlled set of names instead of the full
+        # 130k-row real content tables. Restored in tearDown regardless of
+        # test outcome.
         self._original_categories = locations_module._OPTIONAL_CATEGORIES
         locations_module._OPTIONAL_CATEGORIES = [
             locations_module.OptionalCategory(
@@ -67,6 +95,10 @@ class TestAddApItemDisplayData(unittest.TestCase):
                 },
                 weight_option=None,
                 locations_module=_FakeGathersanityLocationsModule, items_module=None,
+            ),
+            locations_module.OptionalCategory(
+                key="achievements", tag_options={}, weight_option=None,
+                locations_module=_FakeHookOnlyLocationsModule, items_module=None,
             ),
         ]
 
@@ -108,15 +140,18 @@ class TestAddApItemDisplayData(unittest.TestCase):
         slot_data_module._add_ap_item_display_data(world, data)
         self.assertEqual(data["ap_item_display"], {})
 
-    def test_includes_containersanity_locations(self) -> None:
-        # M4.10.1 final regression pass (Task 8): _AP_ITEM_DISPLAY_FAMILY_KEYS
-        # originally omitted "containersanity" entirely, which silently made
-        # SynthesizeAndRewireLocations (APItemDisplay.cpp) skip the whole
-        # family -- it iterates ONLY this slot_data map, so
-        # BuildLocationIdToGameobjectLootSlot's own map (built server-side
-        # from the exact same location ids) was never even consulted. A
-        # Containersanity location must appear in ap_item_display exactly
-        # like quest_rewards/vendor_stock locations do.
+    def test_excludes_zone_pool_credit_locations(self) -> None:
+        # M4.11.4.2 final review fix wave 2 (Fix 3). This test previously
+        # asserted the OPPOSITE (test_includes_containersanity_locations,
+        # M4.10.1) -- correctly, back when every Containersanity location was
+        # a real gameobject_loot row. M4.11.4.1 rewrote the family to abstract
+        # zone-pool locations, which by construction have NO backing
+        # quest_template/npc_vendor/loot_template row for
+        # SynthesizeAndRewireLocations (APItemDisplay.cpp) to rewrite. Leaving
+        # them eligible made the C++ side synthesize a permanent orphan
+        # item_template row AND log one "no matching ... trigger -- skipped,
+        # no row to rewrite" LOG_ERROR per location, on every server boot
+        # (22,519 of them at real scale across both families).
         locations = [
             _FakeLocation("Container: Fake Chest - Fake Item (#1/1)", 8000000, _FakeItem("Fishing Pole", player=1, classification=ItemClassification.useful)),
         ]
@@ -126,25 +161,23 @@ class TestAddApItemDisplayData(unittest.TestCase):
         )
         data: dict = {}
         slot_data_module._add_ap_item_display_data(world, data)
-        self.assertEqual(
-            data["ap_item_display"],
-            {8000000: {"name": "Tester's Fishing Pole", "flags": int(ItemClassification.useful)}},
-        )
+        self.assertEqual(data["ap_item_display"], {})
 
-    def test_includes_gathersanity_locations(self) -> None:
-        # M4.10.2 final whole-branch review (C1): the SECOND occurrence of the
-        # exact bug test_includes_containersanity_locations above was written
-        # for -- _AP_ITEM_DISPLAY_FAMILY_KEYS omitted "gathersanity" too,
-        # silently making SynthesizeAndRewireLocations (APItemDisplay.cpp) a
-        # no-op for all 2,302 locations in the family. That C++ step iterates
-        # ONLY this slot_data map, so the server-side skinning/disenchant/
-        # gameobject loot-slot lookup maps (built from the exact same location
-        # ids) were never even consulted. A Gathersanity location must appear
-        # in ap_item_display exactly like the other three families' do.
-        # RED/GREEN verified against the real fix: this test fails with
-        # "gathersanity" removed from that frozenset and passes with it in.
+    def test_includes_gathersanity_loot_rows_but_not_its_zone_pool_rows(self) -> None:
+        # M4.10.2 final whole-branch review (C1) established that Gathersanity
+        # locations must reach ap_item_display at all -- SynthesizeAndRewireLocations
+        # iterates ONLY this slot_data map, so the server-side skinning/
+        # disenchant loot-slot lookup maps (built from the exact same location
+        # ids) are never even consulted for a location missing from it.
+        #
+        # M4.11.4.2 Fix 3 narrows that: the family is now MIXED. Its
+        # skinning_loot/disenchant_loot rows still need real synthesis; its
+        # gathering_node rows are abstract zone_pool_credit locations that can
+        # never resolve. A family-keyed filter cannot express this -- that is
+        # exactly why eligibility moved to the per-location trigger kind.
         locations = [
             _FakeLocation("Gathersanity: Fake Vein - Fake Ore (#1/1)", 9000000, _FakeItem("Copper Ore", player=1, classification=ItemClassification.filler)),
+            _FakeLocation("Gathersanity: Fake Hide (skinning #1/2)", 9000001, _FakeItem("Rugged Leather", player=1, classification=ItemClassification.filler)),
         ]
         world = SimpleNamespace(
             player=1,
@@ -154,27 +187,67 @@ class TestAddApItemDisplayData(unittest.TestCase):
         slot_data_module._add_ap_item_display_data(world, data)
         self.assertEqual(
             data["ap_item_display"],
-            {9000000: {"name": "Tester's Copper Ore", "flags": int(ItemClassification.filler)}},
+            {9000001: {"name": "Tester's Rugged Leather", "flags": int(ItemClassification.filler)}},
         )
 
-    def test_every_loot_slot_family_is_registered_for_ap_item_display(self) -> None:
-        # Generalized trip-wire for the bug class that has now recurred twice
-        # (M4.10.1 containersanity, M4.10.2 gathersanity): every family whose
-        # locations the C++ loot-slot trigger-lookup maps can resolve must be
-        # in _AP_ITEM_DISPLAY_FAMILY_KEYS, or the whole family is a runtime
-        # no-op. Checked against the REAL registry (not this class's fake
-        # one), so a third loot-slot family added without registering it here
-        # fails immediately instead of shipping silently broken.
-        for key in ("quest_rewards", "vendor_stock", "containersanity", "gathersanity"):
-            self.assertIn(key, slot_data_module._AP_ITEM_DISPLAY_FAMILY_KEYS)
-        real_keys = {c.key for c in self._original_categories}
-        self.assertTrue(slot_data_module._AP_ITEM_DISPLAY_FAMILY_KEYS <= real_keys)
+    def test_family_with_no_triggers_table_contributes_nothing(self) -> None:
+        # A hook-fired family (achievements, rares, ...) has no TRIGGERS table
+        # at all; the eligibility scan must skip it silently rather than raise.
+        locations = [
+            _FakeLocation("Achievement: Fake Deed", 3000000, _FakeItem("Tabard", player=1, classification=ItemClassification.filler)),
+        ]
+        world = SimpleNamespace(
+            player=1,
+            multiworld=SimpleNamespace(get_locations=lambda player: locations, get_player_name=lambda p: "Tester"),
+        )
+        data: dict = {}
+        slot_data_module._add_ap_item_display_data(world, data)
+        self.assertEqual(data["ap_item_display"], {})
 
-    def test_excludes_locations_outside_quest_rewards_and_vendor_stock(self) -> None:
+    def test_eligible_trigger_kinds_match_the_cpp_dispatch(self) -> None:
+        # Generalized trip-wire for the bug class that has now recurred three
+        # times (M4.10.1 containersanity omitted, M4.10.2 gathersanity
+        # omitted, M4.11.4.2 zone_pool_credit wrongly INCLUDED). The set below
+        # must stay in lock-step with the branches
+        # SynthesizeAndRewireLocations (APItemDisplay.cpp) actually dispatches
+        # on -- if that C++ function grows or loses a branch, change this too.
+        self.assertEqual(
+            slot_data_module._AP_ITEM_DISPLAY_TRIGGER_KINDS,
+            frozenset({"quest_reward", "vendor_purchase", "skinning_loot", "disenchant_loot"}),
+        )
+        # And "abstract pool slot" must never be in it, whichever family emits it.
+        self.assertNotIn("zone_pool_credit", slot_data_module._AP_ITEM_DISPLAY_TRIGGER_KINDS)
+
+    def test_no_real_zone_pool_credit_location_is_eligible(self) -> None:
+        # Checked against the REAL registry (not this class's fakes), so a
+        # future family emitting zone_pool_credit rows can't silently
+        # reintroduce the orphan-row/log-spam regression. Also asserts the
+        # real resolvable rows ARE still eligible, so this can't pass
+        # vacuously by excluding everything. setUp swapped the registry for
+        # fakes, so restore the real one for the duration of this one test.
+        locations_module._OPTIONAL_CATEGORIES = self._original_categories
+        eligible = slot_data_module._ap_item_display_eligible_location_names()
+        resolvable_seen = 0
+        for category in self._original_categories:
+            triggers = getattr(category.locations_module, "TRIGGERS", None)
+            if not triggers:
+                continue
+            for name, trigger in triggers.items():
+                kind = trigger.get("kind")
+                if kind == "zone_pool_credit":
+                    self.assertNotIn(name, eligible)
+                elif kind in slot_data_module._AP_ITEM_DISPLAY_TRIGGER_KINDS:
+                    self.assertIn(name, eligible)
+                    resolvable_seen += 1
+        self.assertGreater(resolvable_seen, 0)
+        self.assertEqual(len(eligible), resolvable_seen)
+
+    def test_excludes_locations_with_no_resolvable_trigger(self) -> None:
         # Finding I3's actual regression target: a location that has a real
-        # item placed and a real address, but does NOT belong to either
-        # registered family (e.g. a core-loop level-up location) must be
-        # excluded, not included "harmlessly" as the pre-fix code did.
+        # item placed and a real address, but whose trigger the C++ side can't
+        # resolve (e.g. a core-loop level-up location, which isn't in any
+        # OptionalCategory at all) must be excluded, not included
+        # "harmlessly" as the pre-fix code did.
         locations = [
             _FakeLocation("Reach Level 10", 900010, _FakeItem("Progressive Level Cap", player=1, classification=ItemClassification.progression)),
             _FakeLocation("Quest: Fake Reward (#1)", 2000000, _FakeItem("Sword of Might", player=1, classification=ItemClassification.progression)),

@@ -89,8 +89,11 @@ class TestGathersanityRealGenerationDisenchantOnly(WoWTestBase):
     with Gathersanity live -- every other test covers either the extraction/
     compiler tooling in isolation or fake location/item modules
     (test_slot_data.py). That gap is exactly why finding C1
-    (_AP_ITEM_DISPLAY_FAMILY_KEYS omitting "gathersanity", making the entire
-    family a runtime no-op) survived seven individually-reviewed, individually
+    (the eligibility check omitting "gathersanity" -- keyed by family via
+    _AP_ITEM_DISPLAY_FAMILY_KEYS at the time, since replaced by
+    _AP_ITEM_DISPLAY_TRIGGER_KINDS's per-location trigger-kind check in
+    M4.11.4.2's final review fix wave, Fix 3/I2 -- made the entire family a
+    runtime no-op) survived seven individually-reviewed, individually
     passing implementation tasks.
 
     Mirrors TestContainersanityRealGenerationWotlkOnly's pattern
@@ -174,12 +177,15 @@ class TestGathersanityRealGenerationDisenchantOnly(WoWTestBase):
         # containersanity occurrence): drives the REAL build_slot_data over a
         # REAL generated seed and proves real Gathersanity location ids reach
         # the emitted ap_item_display map. APItemDisplay.cpp's
-        # SynthesizeAndRewireLocations iterates ONLY this map -- if a family's
-        # key is missing from slot_data.py's _AP_ITEM_DISPLAY_FAMILY_KEYS,
-        # nothing is ever synthesized, no loot table is ever rewritten, and no
-        # check in the family can ever fire, no matter how correct every other
+        # SynthesizeAndRewireLocations iterates ONLY this map -- if a
+        # location's own trigger kind is missing from slot_data.py's
+        # _AP_ITEM_DISPLAY_TRIGGER_KINDS (the per-location check that
+        # replaced the old per-family _AP_ITEM_DISPLAY_FAMILY_KEYS in
+        # M4.11.4.2's final review fix wave, Fix 3/I2), nothing is ever
+        # synthesized, no loot table is ever rewritten, and no check for
+        # that location can ever fire, no matter how correct every other
         # layer is. The fake-module unit tests in test_slot_data.py can only
-        # ever prove the family keys they were explicitly told about; this one
+        # ever prove the kinds they were explicitly told about; this one
         # cannot be fooled that way.
         #
         # WorldTestBase's world_setup only runs gen_steps through pre_fill, so

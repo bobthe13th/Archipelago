@@ -55,9 +55,36 @@ from . import zone_leveler_content_data
 #     level at which both occurrences would have been caught: the fake-module
 #     unit tests can only ever prove the keys they were told about.
 # ANY new family whose locations the C++ trigger-lookup maps can resolve MUST
-# be added here AND given both of those tests.
-_AP_ITEM_DISPLAY_FAMILY_KEYS = frozenset(
-    {"quest_rewards", "vendor_stock", "containersanity", "gathersanity"}
+# be given both of those tests.
+#
+# M4.11.4.2 final review fix wave 2 (Fix 3): eligibility is now keyed by each
+# location's OWN trigger KIND, not by its family. The family-keyed frozenset
+# this replaced was correct only while "family" and "resolvable by
+# SynthesizeAndRewireLocations" meant the same thing -- M4.11.4's abstracted
+# zone pool broke that equivalence:
+#   * containersanity is now 100% zone_pool_credit (1,435 rows, M4.11.4.1) --
+#     it has NO resolvable locations left at all.
+#   * gathersanity is now MIXED: its gathering_node sub-family is
+#     zone_pool_credit (M4.11.4.2), while its skinning_loot (1,895) and
+#     disenchant_loot (123) rows still are, and still need, real synthesis.
+# A zone_pool_credit location is an ABSTRACT pool slot -- there is no backing
+# quest_template/npc_vendor/loot_template row anywhere for it, by construction
+# -- so SynthesizeAndRewireLocations can never resolve one. Under the old
+# family filter it nonetheless synthesized a permanent orphan item_template row
+# AND logged one "...no matching quest_reward, vendor_purchase, gameobject_loot,
+# skinning_loot, or disenchant_loot trigger -- skipped, no row to rewrite"
+# LOG_ERROR per such location, on every server boot: 22,519 of them at this
+# checkout's real scale (1,435 + 21,084) -- the exact log-spam/orphan-row
+# failure mode Finding I3 originally introduced this filter to prevent,
+# reintroduced through a different door.
+#
+# These are the real trigger kinds SynthesizeAndRewireLocations
+# (APItemDisplay.cpp) actually dispatches on, in its own order. Note
+# "gameobject_loot" is NOT among them: its last real consumer was retired in
+# M4.11.4.2 (Task 5) along with BuildLocationIdToGameobjectLootSlot itself, so
+# no generated content emits that kind at all any more.
+_AP_ITEM_DISPLAY_TRIGGER_KINDS = frozenset(
+    {"quest_reward", "vendor_purchase", "skinning_loot", "disenchant_loot"}
 )
 
 
@@ -83,28 +110,38 @@ def _add_instance_clear_mode(world, data: dict) -> None:
 
 
 def _ap_item_display_eligible_location_names() -> frozenset[str]:
-    """Finding I3 (M4.7 final review) + M4.10.1 Task 8: the set of location
-    NAMES belonging to a family whose C++ trigger-lookup map
-    (QUEST_ID_TO_LOCATION_ID / VENDOR_SLOT_TO_LOCATION_ID, Task 1;
-    BuildLocationIdToGameobjectLootSlot, M4.10.1) can actually resolve a
-    synthesized item back to a real quest_template/npc_vendor/
-    gameobject_loot_template row. Originally
-    _add_ap_item_display_data included EVERY location in the whole world
-    unconditionally ("extra entries are harmless" -- see the superseded
-    docstring this replaced), but that was wrong in practice: it made the
-    C++ side issue a wasted item_template INSERT per non-family location
-    (permanent orphan rows), made SynthesizeAndRewireLocations's "no
-    matching trigger" branch LOG_ERROR once per such location (hundreds of
-    misleading lines on every server boot), and bloated slot_data (sent to
-    every connecting client) with entries no C++ code ever looks up. Reads
-    locations.py's own _OPTIONAL_CATEGORIES registry -- the single source of
-    truth for which family owns which location names -- rather than
-    hardcoding a duplicate list here, so this stays correct automatically if
-    a family's content table changes shape."""
+    """Finding I3 (M4.7 final review) + M4.10.1 Task 8 + M4.11.4.2 final
+    review fix wave 2: the set of location NAMES whose OWN trigger kind the
+    C++ side's SynthesizeAndRewireLocations can actually resolve back to a
+    real quest_template/npc_vendor/skinning_loot_template/
+    disenchant_loot_template row. Originally _add_ap_item_display_data
+    included EVERY location in the whole world unconditionally ("extra
+    entries are harmless" -- see the superseded docstring this replaced), but
+    that was wrong in practice: it made the C++ side issue a wasted
+    item_template INSERT per non-resolvable location (permanent orphan rows),
+    made SynthesizeAndRewireLocations's "no matching trigger" branch LOG_ERROR
+    once per such location (thousands of misleading lines on every server
+    boot), and bloated slot_data (sent to every connecting client) with
+    entries no C++ code ever looks up.
+
+    Reads each family's own generated TRIGGERS table -- the single source of
+    truth for what kind of real backing row (if any) a location has -- via
+    locations.py's _OPTIONAL_CATEGORIES registry, rather than hardcoding
+    either a family list or a name list here. That keeps this correct
+    automatically when a family's trigger kinds change shape, which is
+    exactly what M4.11.4 did to both Containersanity and Gathersanity.
+
+    A content module with no TRIGGERS table at all (families whose locations
+    are fired by a hook rather than by rewriting a real DB row -- e.g.
+    achievements, rares) contributes nothing here, same as before."""
     names: set[str] = set()
     for category in locations_module._OPTIONAL_CATEGORIES:
-        if category.key in _AP_ITEM_DISPLAY_FAMILY_KEYS:
-            names.update(category.locations_module.LOCATIONS.keys())
+        triggers = getattr(category.locations_module, "TRIGGERS", None)
+        if not triggers:
+            continue
+        for name, trigger in triggers.items():
+            if trigger.get("kind") in _AP_ITEM_DISPLAY_TRIGGER_KINDS:
+                names.add(name)
     return frozenset(names)
 
 

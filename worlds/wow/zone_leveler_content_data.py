@@ -139,7 +139,7 @@ def resolve_core_loop_track(world) -> tuple[str, str | None]:
     apart on what "the connected slot's track" means. getattr (not direct
     attribute access) on game_mode since items.py's
     _trap_baseline_location_count is also called directly by
-    test_basic.py's TestFillerPoolCoversWorstCaseGatesTrapsAndHolidaysanity
+    test_basic.py's TestFillerPoolCoversWorstCaseGatesTrapsHolidaysanityAndGatheringSkillProgression
     with a bare `types.SimpleNamespace(options=...)` fake world that has no
     game_mode attribute at all -- that fake world must keep resolving to the
     standard/death_knight branch exactly as before."""

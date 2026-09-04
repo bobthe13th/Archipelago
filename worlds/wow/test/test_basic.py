@@ -60,11 +60,24 @@ class TestNorthshireGeneration(WoWTestBase):
         "both", see items.py's _COMBO_SCOPE_GATED_HOLIDAYS). Computed via
         count_enabled_holidaysanity_items (items.py) rather than hardcoding
         9, so this stays correct if Holidaysanity's roster is ever
-        regenerated."""
+        regenerated.
+
+        M4.11.4.2 (final review fix wave 2, Fix 4): Progressive Mining/
+        Herbalism are pure items-only content too, same "no location of its
+        own" shape as Holidaysanity -- unconditional (no enable/disable
+        option), so all 12 real copies (this checkout's real
+        zone_pool_credit content: 6 tiers x 2 professions) are always
+        pooled. This formula previously had no term for them at all, so it
+        under-counted the real itempool by exactly 12 the moment Task 5
+        regenerated real gathering_node content -- caught by this test
+        going red in the whole-milestone final review's full local pytest
+        run. Computed via count_gathering_skill_progression_items (items.py)
+        rather than hardcoding 12, so this stays correct if Gathersanity's
+        content is ever regenerated with a different real tier spread."""
         from .. import density
         from .. import quest_rewards_content_data
         from .. import vendor_stock_content_data
-        from ..items import count_enabled_holidaysanity_items
+        from ..items import count_enabled_holidaysanity_items, count_gathering_skill_progression_items
         is_dk_slot = bool(self.world.options.death_knight_slot)
         track = "death_knight" if is_dk_slot else "standard"
         core_loop_item_count = (
@@ -86,10 +99,11 @@ class TestNorthshireGeneration(WoWTestBase):
         # locations here and correctly has no term in this formula, same as
         # its weight_option=None siblings above.
         holidaysanity_default_count = count_enabled_holidaysanity_items(self.world)
+        gathering_skill_progression_count = count_gathering_skill_progression_items(self.world)
         expected = (
             fixed_count + always_present_count + quest_reward_sampled
             + vendor_stock_always_present_count + vendor_stock_sampled
-            + holidaysanity_default_count
+            + holidaysanity_default_count + gathering_skill_progression_count
         )
         self.assertEqual(len(self.multiworld.itempool), expected)
 
@@ -559,12 +573,19 @@ class TestTrapsGatesAndHolidaysanityCombinedParity(WoWTestBase):
     INSTANCE_CLEAR_LOCATIONS (5 -> 8) raised the trap ceiling
     (_trap_baseline_location_count) from 85 to 88, per filler.yaml's own
     trip-wire note anticipating exactly this kind of core_loop growth.
-    Stress-tests all three at their most extreme settings simultaneously
-    (including combo_unlocks_scope: "both", the setting that actually
-    reaches the full 37-item gates worst case AND Holidaysanity's full
-    14-item worst case) -- if the combined count_enabled_gates_items() +
-    count_enabled_trap_items() + count_enabled_holidaysanity_items() ever
-    exceeds 139, or if the three counts are computed inconsistently between
+    M4.11.4.2 (final review fix wave, Fix 4) grew it again to 151 (139 +
+    12): Progressive Mining/Herbalism are a fourth "no AP location of its
+    own" family (count_gathering_skill_progression_items), unconditional
+    like Holidaysanity -- see
+    TestFillerPoolCoversWorstCaseGatesTrapsHolidaysanityAndGatheringSkillProgression
+    for the dedicated trip-wire.
+    Stress-tests all three (gates/traps/Holidaysanity) at their most extreme
+    settings simultaneously (including combo_unlocks_scope: "both", the
+    setting that actually reaches the full 37-item gates worst case AND
+    Holidaysanity's full 14-item worst case) -- if the combined
+    count_enabled_gates_items() + count_enabled_trap_items() +
+    count_enabled_holidaysanity_items() + count_gathering_skill_progression_items()
+    ever exceeds 151, or if the counts are computed inconsistently between
     create_items and create_regions' create_filler_locations, this is
     where it would show up as a FillError."""
     options = {
@@ -597,7 +618,7 @@ class TestTrapsGatesAndHolidaysanityCombinedParity(WoWTestBase):
             self.assertTrue(self.can_reach_location(name))
 
 
-class TestFillerPoolCoversWorstCaseGatesTrapsAndHolidaysanity(unittest.TestCase):
+class TestFillerPoolCoversWorstCaseGatesTrapsHolidaysanityAndGatheringSkillProgression(unittest.TestCase):
     """M4.9.5 final review (Fix 12): TestTrapsGatesAndHolidaysanityCombinedParity
     above (renamed by M4.10.7 when Holidaysanity joined it) is
     the one test that would normally prove this milestone's most
@@ -619,9 +640,19 @@ class TestFillerPoolCoversWorstCaseGatesTrapsAndHolidaysanity(unittest.TestCase)
     the same known, out-of-scope M4.9.3 drift -- that is this test
     correctly surfacing a real, already-known gap, not a bug in this
     test. Do not "fix" this test by changing the filler pool size; that
-    belongs to whichever effort is already tracking the M4.9.3 drift."""
+    belongs to whichever effort is already tracking the M4.9.3 drift.
 
-    def test_filler_pool_covers_worst_case_gates_traps_and_holidaysanity(self) -> None:
+    M4.11.4.2 (final review fix wave 2, Fix 4): renamed again (class and
+    method) and gained a 4th term, count_gathering_skill_progression_items --
+    Progressive Mining/Herbalism are unconditional (no enable/disable option,
+    same shape as Holidaysanity), and this class's own assertion had not
+    been taught about them, so it kept passing (139 >= 139) even after the
+    real `needed` total in locations.py's create_filler_locations grew past
+    content/filler.yaml's actual row count by exactly 12 -- the drift this
+    trip-wire exists to catch. See filler.yaml's own header comment for the
+    matching 139 -> 151 row-count resize."""
+
+    def test_filler_pool_covers_worst_case_gates_traps_holidaysanity_and_gathering_skill_progression(self) -> None:
         from .. import filler_content_data, gates_content_data, holidaysanity_content_data
         from .. import items as items_module
 
@@ -647,9 +678,15 @@ class TestFillerPoolCoversWorstCaseGatesTrapsAndHolidaysanity(unittest.TestCase)
             items_module._trap_baseline_location_count(dk_world),
         )
 
+        # M4.11.4.2: also unconditional (no enable/disable option), same
+        # shape as Holidaysanity above -- count_gathering_skill_progression_items
+        # ignores `world` entirely today (kept for signature consistency, see
+        # its own docstring), so any world works here.
+        max_gathering_skill_items = items_module.count_gathering_skill_progression_items(standard_world)
+
         self.assertGreaterEqual(
             len(filler_content_data.LOCATIONS),
-            max_gate_items + max_trap_items + max_holidaysanity_items,
+            max_gate_items + max_trap_items + max_holidaysanity_items + max_gathering_skill_items,
         )
 
 
