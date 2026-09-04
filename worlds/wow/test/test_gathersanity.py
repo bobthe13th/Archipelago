@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from .bases import WoWTestBase
 from .. import gathersanity_content_data
+from ..locations import _OPTIONAL_CATEGORIES, _location_matches_pools
 
 
 class TestGathersanityRowAlignment(unittest.TestCase):
@@ -14,6 +15,72 @@ class TestGathersanityRowAlignment(unittest.TestCase):
         for location_name, item_name in zip(location_names, item_names):
             self.assertTrue(location_name.startswith("Gathersanity: "))
             self.assertTrue(item_name.startswith("Gathersanity Item: "))
+
+
+class TestGathersanityExpansionPoolsFilterGatheringNode(unittest.TestCase):
+    """M4.11.4.2 fix round 1: real regression test for the bug found by
+    Task 5's own full-suite pytest run -- gathering_node's own
+    zone_pool_credit rows used to carry NEITHER a "source" nor an
+    "expansion" tag, so gathersanity_source_pools/gathersanity_expansion_
+    pools silently never gated them at all (locations.py's
+    _location_matches_pools treats a tag dimension entirely absent from a
+    row's own TAGS entry as "doesn't apply, auto-pass" -- a real,
+    deliberate M4.10.5 craftsanity precedent for a row missing ONE of two
+    configured dimensions, which gathering_node rows previously violated by
+    missing BOTH). The `source` half was fixed and regression-tested first
+    (da70249, via a real generation in TestGathersanityRealGenerationDisenchantOnly
+    below); this class covers the `expansion` half the same real bug
+    exposed, fixed by extract_gathersanity.py's own new zone_to_maps
+    accumulator (mirroring extract_containersanity.py's identical
+    mechanism).
+
+    Calls _location_matches_pools directly against REAL
+    gathersanity_content_data (not a fake fixture module) with a fully
+    fake, generation-free `world` object -- same types.SimpleNamespace
+    pattern TestZoneLevelerTrainerSpellRowMatches (test_optional_
+    categories.py) already establishes for this exact "pure function,
+    real content, no real generation" shape. Deliberately NOT a
+    WoWTestBase subclass: a real WoWTestBase world with
+    gathersanity_source_pools unrestricted enough to keep the "source"
+    dimension from blocking every match would also actually generate
+    thousands of real wotlk-tagged gathering_node locations into this
+    test's own multiworld, making its inherited test_fill/
+    test_all_state_can_reach_everything slow at gathering_node's own real
+    scale (same cost class this milestone's much larger families now
+    impose on every unnarrowed WoWTestBase subclass -- see this task's own
+    report). Skipping WoWTestBase entirely avoids paying that cost for a
+    test that only needs a `world.options` object, never a real generated
+    world.
+    """
+
+    @staticmethod
+    def _fake_world(expansion_pools: set[str]):
+        import types
+
+        return types.SimpleNamespace(options=types.SimpleNamespace(
+            gathersanity_source_pools=types.SimpleNamespace(value={"gathering_node"}),
+            gathersanity_expansion_pools=types.SimpleNamespace(value=expansion_pools),
+        ))
+
+    def test_gathering_node_row_only_matches_its_own_real_expansion(self) -> None:
+        category = next(c for c in _OPTIONAL_CATEGORIES if c.key == "gathersanity")
+        world = self._fake_world({"wotlk"})
+
+        def _real_gathering_node_row(expansion: str) -> str:
+            return next(
+                name for name, tags in gathersanity_content_data.TAGS.items()
+                if "gathering_node" in tags.get("source", ()) and expansion in tags.get("expansion", ())
+            )
+
+        # A real gathering_node row confirmed vanilla-tagged (10,852 real
+        # such rows as of this task's own regeneration -- guaranteed to
+        # exist) must NOT match this fake world's own
+        # gathersanity_expansion_pools={"wotlk"} selection -- before this
+        # fix, it always matched regardless of this option (the bug).
+        self.assertFalse(_location_matches_pools(world, category, _real_gathering_node_row("vanilla")))
+        # A real gathering_node row confirmed wotlk-tagged (5,612 real such
+        # rows) DOES match.
+        self.assertTrue(_location_matches_pools(world, category, _real_gathering_node_row("wotlk")))
 
 
 class TestGathersanityRealGenerationDisenchantOnly(WoWTestBase):
@@ -63,15 +130,20 @@ class TestGathersanityRealGenerationDisenchantOnly(WoWTestBase):
         # the disenchant source selected, ALL real disenchant-tagged rows must
         # be present, not just a density-sampled subset.
         #
-        # M4.11.4.2 fix: `tags["source"]` used to be a safe direct index --
-        # every real Gathersanity row (gathering_node/skinning/disenchant)
-        # carried a "source" tag before this milestone. Now that
-        # gathering_node is real zone_pool_credit-shaped abstract locations
-        # (M4.11.4.2 Tasks 2/5), its own tags are `{"area": [...]}` only, with
-        # no "source" key at all -- a direct index KeyErrors the instant
-        # iteration reaches one of those 21,084 real rows. `.get("source",
-        # ())` treats "no source tag" as "not disenchant", matching this
-        # project's own established "absent tag means excluded" convention.
+        # M4.11.4.2 fix (round 1 update): this test's direct `tags["source"]`
+        # index KeyError'd the moment iteration reached a gathering_node row
+        # in this task's OWN full-suite pytest run -- when M4.11.4.2 first
+        # rewrote gathering_node into real zone_pool_credit-shaped abstract
+        # locations (Tasks 2/5), those rows' own tags were `{"area": [...]}`
+        # only, with no "source" key at all. Fixed at the extraction layer
+        # itself (extract_gathersanity.py, commit da70249): every
+        # gathering_node row now carries a real "source": ["gathering_node"]
+        # tag, same as every other Gathersanity source. `.get("source", ())`
+        # is kept here regardless -- defensive against any future row shape
+        # that again omits the key, matching this project's own established
+        # "absent tag means excluded" convention, and no longer load-bearing
+        # for correctness today (every real row has the key), just cheap
+        # insurance.
         disenchant_rows = [
             name for name, tags in gathersanity_content_data.TAGS.items()
             if "disenchant" in tags.get("source", ())
