@@ -89,14 +89,15 @@ def _real_tiers_present(tiers_for_profession: set[str]) -> list[str]:
     return [tier for tier in GATHERING_SKILL_TIERS if tier in tiers_for_profession]
 
 
-def create_gathering_skill_progression_item_pool(world) -> list[WoWItem]:
-    """New for M4.11.4.2: one 'Progressive Mining'/'Progressive Herbalism'
-    copy per real skill tier that has at least one real generated
-    gathering_node location for that profession, derived directly from
-    gathersanity_content_data.TRIGGERS' own real "<zone>|<profession>|<tier>"
-    composite zone_key strings (Task 2) -- no separate profession tag is
-    needed since profession is already encoded in the composite key
-    itself. This never pools a copy for a tier with zero real content."""
+def _gathering_skill_tiers_by_profession() -> tuple[set[str], set[str]]:
+    """Real (herbalism_tiers, mining_tiers) sets derived from
+    gathersanity_content_data.TRIGGERS' own "zone_pool_credit" rows' real
+    "<zone>|<profession>|<tier>" composite zone_key strings (Task 2) -- the
+    single scan both create_gathering_skill_progression_item_pool and
+    count_gathering_skill_progression_items key off of (M4.11.4.2 fix round
+    1), so the two can never drift apart on what "how many real tiers exist
+    per profession" means. No separate profession tag is needed since
+    profession is already encoded in the composite key itself."""
     from . import gathersanity_content_data
     herbalism_tiers: set[str] = set()
     mining_tiers: set[str] = set()
@@ -111,7 +112,15 @@ def create_gathering_skill_progression_item_pool(world) -> list[WoWItem]:
             herbalism_tiers.add(tier)
         elif profession == "mining":
             mining_tiers.add(tier)
+    return herbalism_tiers, mining_tiers
 
+
+def create_gathering_skill_progression_item_pool(world) -> list[WoWItem]:
+    """New for M4.11.4.2: one 'Progressive Mining'/'Progressive Herbalism'
+    copy per real skill tier that has at least one real generated
+    gathering_node location for that profession. This never pools a copy
+    for a tier with zero real content."""
+    herbalism_tiers, mining_tiers = _gathering_skill_tiers_by_profession()
     pool = []
     for tiers, item_name in (
         (herbalism_tiers, "Progressive Herbalism"),
@@ -121,6 +130,27 @@ def create_gathering_skill_progression_item_pool(world) -> list[WoWItem]:
         for tier in _real_tiers_present(tiers):
             pool.append(WoWItem(item_name, ItemClassification.progression, item_id, world.player))
     return pool
+
+
+def count_gathering_skill_progression_items(world) -> int:
+    """Total Progressive Mining/Herbalism item copies that
+    create_gathering_skill_progression_item_pool will actually pool for
+    this checkout's real content data -- same role as
+    count_enabled_gates_items/count_enabled_trap_items/
+    count_enabled_holidaysanity_items (M4.11.4.2 fix round 1): neither
+    Progressive item has an AP location of its own, so
+    locations.py's create_filler_locations needs this exact count to size
+    its own sink-location count and keep item/location parity holding by
+    construction, not just in the worst case. Computed independently
+    rather than calling create_gathering_skill_progression_item_pool and
+    taking len() (avoids constructing throwaway WoWItem instances), the
+    same style count_enabled_gates_items et al. already establish.
+    `world` is currently unused (this family has no per-slot enable
+    toggle to read, unlike the gates/traps/holidaysanity precedents) but
+    kept for signature consistency with those functions and in case a
+    future option needs to gate this."""
+    herbalism_tiers, mining_tiers = _gathering_skill_tiers_by_profession()
+    return len(_real_tiers_present(herbalism_tiers)) + len(_real_tiers_present(mining_tiers))
 
 
 def _core_loop_natural_item_count(track: str) -> int:

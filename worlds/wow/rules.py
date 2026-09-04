@@ -18,11 +18,24 @@ def _set_rules_gathersanity_progression(world) -> None:
     establishes. No-ops cleanly (zero iterations do anything) against
     gathersanity_content_data.TRIGGERS before Task 5 regenerates it with
     real zone_pool_credit rows, since `if trigger.get("kind") !=
-    "zone_pool_credit"` skips every real entry that exists today."""
+    "zone_pool_credit"` skips every real entry that exists today.
+
+    M4.11.4.2 fix round 1 (real generation-time crash found by review):
+    iterates the real locations THIS generation actually created
+    (world.multiworld.get_locations), matching each one into TRIGGERS by
+    name -- the same safe idiom the Enemysanity and Quest Rewards blocks
+    above already use -- rather than iterating TRIGGERS' own full,
+    unfiltered dict and assuming every zone_pool_credit row has a matching
+    location. Once Task 5 populates real zone_pool_credit rows, tag/pool
+    filtering, zone_leveler zone matching, etc. can and will exclude some
+    rows from any given generation; world.get_location(name) would
+    KeyError for those if TRIGGERS were iterated directly instead,
+    crashing generation."""
     from . import gathersanity_content_data
     from .items import GATHERING_SKILL_TIERS
-    for name, trigger in gathersanity_content_data.TRIGGERS.items():
-        if trigger.get("kind") != "zone_pool_credit":
+    for loc in world.multiworld.get_locations(world.player):
+        trigger = gathersanity_content_data.TRIGGERS.get(loc.name)
+        if trigger is None or trigger.get("kind") != "zone_pool_credit":
             continue
         parts = trigger.get("zone_key", "").split("|")
         if len(parts) != 3:
@@ -33,7 +46,7 @@ def _set_rules_gathersanity_progression(world) -> None:
         tier_index = GATHERING_SKILL_TIERS.index(tier) + 1
         item_name = "Progressive Mining" if profession == "mining" else "Progressive Herbalism"
         world.set_rule(
-            world.get_location(name),
+            loc,
             lambda state, item_name=item_name, count=tier_index: state.has(item_name, world.player, count),
         )
 

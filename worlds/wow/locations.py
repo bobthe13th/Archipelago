@@ -29,6 +29,7 @@ from .items import (
     count_enabled_gates_items,
     count_enabled_holidaysanity_items,
     count_enabled_trap_items,
+    count_gathering_skill_progression_items,
 )
 
 
@@ -499,11 +500,21 @@ def create_filler_locations(world, region) -> list:
     # item count and both tracks' core-loop floors by 3 in lockstep --
     # 77->80 items, 31->34 death_knight floor, 85->88 standard floor -- so
     # the surplus itself is unchanged at 46/0.)
+    # M4.11.4.2 (Task 4 fix round 1): Progressive Mining/Herbalism add a 5th
+    # term -- same "no AP location of its own" shape as the three optional-
+    # family terms above (up to 12 item copies total, one per real skill
+    # tier with at least one real gathering_node location for that
+    # profession). A clean 0 today (no real zone_pool_credit TRIGGERS rows
+    # exist until Task 5 regenerates gathersanity_content_data), but without
+    # this term the moment Task 5 lands, every pooled Progressive copy would
+    # be an item with no location to absorb it, breaking the exact parity
+    # this function exists to guarantee.
     needed = (
         count_enabled_gates_items(world)
         + count_enabled_trap_items(world)
         + count_enabled_holidaysanity_items(world)
         + core_loop_item_surplus(world)
+        + count_gathering_skill_progression_items(world)
     )
     return [
         WoWLocation(world.player, name, location_id, region)

@@ -195,6 +195,52 @@ class TestGatheringNodeTierRuleGatesOnProgressiveItem(WoWTestBase):
         state.collect(mining_item())
         self.assertTrue(location.access_rule(state))
 
+    def test_gathering_node_rule_setup_skips_missing_locations_safely(self) -> None:
+        """M4.11.4.2 fix round 1 (real generation-time crash found by
+        review): a zone_pool_credit TRIGGERS row whose name is NOT among
+        this generation's own real locations (once Task 5 populates real
+        data, tag/pool filtering, zone_leveler zone matching, etc. can and
+        will exclude any given row from a particular generation) must not
+        crash rule-setting via world.get_location's own KeyError.
+        _set_rules_gathersanity_progression now iterates the real locations
+        that actually exist (world.multiworld.get_locations) instead of
+        TRIGGERS' own full, unfiltered dict, so a row with no matching
+        location is silently skipped rather than crashing generation."""
+        from .. import rules
+
+        fake_triggers = {
+            "Gathersanity: Nonexistent Location Not In This Generation": {
+                "kind": "zone_pool_credit",
+                "zone_key": "barrens|mining|expert",
+            },
+        }
+        with patch.object(gathersanity_content_data, "TRIGGERS", fake_triggers):
+            rules.set_rules(self.world)  # must not raise KeyError
+
+    def test_count_gathering_skill_progression_items_matches_pool_size(self) -> None:
+        """M4.11.4.2 fix round 1: locations.py's create_filler_locations
+        needs count_gathering_skill_progression_items to return exactly the
+        real pooled count (create_gathering_skill_progression_item_pool's
+        own len()), or item/location parity breaks the moment Task 5
+        populates real zone_pool_credit rows. Neither function depends on
+        world.get_location/real locations existing, so this is independent
+        of the two rule-gating tests above."""
+        from ..items import count_gathering_skill_progression_items, create_gathering_skill_progression_item_pool
+
+        fake_triggers = {
+            "Loc 1": {"kind": "zone_pool_credit", "zone_key": "barrens|mining|expert"},
+            "Loc 2": {"kind": "zone_pool_credit", "zone_key": "barrens|herbalism|apprentice"},
+            # A second real node for the SAME (profession, tier) must not
+            # double-count -- one Progressive Mining copy per real TIER, not
+            # per real node.
+            "Loc 3": {"kind": "zone_pool_credit", "zone_key": "durotar|mining|expert"},
+        }
+        with patch.object(gathersanity_content_data, "TRIGGERS", fake_triggers):
+            count = count_gathering_skill_progression_items(self.world)
+            pool = create_gathering_skill_progression_item_pool(self.world)
+        self.assertEqual(count, len(pool))
+        self.assertEqual(count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()
