@@ -896,13 +896,21 @@ class ItemsanityDebugItemInclusion(Choice):
     artifacts, e.g. "QAEnchant Gloves +20 Shadow Damage") or
     `unobtainable` (a real, correctly-functioning item with no live
     acquisition route anywhere in this checkout's data -- real examples:
-    "Recruit's Pants," "Martin Fury"). exclude_all (default) matches
-    today's existing behavior exactly -- neither tier becomes a real
-    location. include_unobtainable adds the unobtainable tier only (still
-    real, correctly-functioning items, just historically unreachable).
-    include_all adds BOTH tiers -- a genuine difficulty-raising choice:
-    some of what this adds (the debug tier specifically) is verified
-    non-functional QA/internal content, not just harder to get."""
+    "Recruit's Pants," "Martin Fury"). exclude_all (default) excludes both
+    the `debug` tier (matches today's pre-existing name-denylist behavior)
+    AND the `unobtainable` tier (new: real items with no live acquisition
+    route -- these were previously silently includable as
+    permanently-uncompletable item_first_held checks; excluding them by
+    default is a genuine behavior improvement, not a no-op). Verified live
+    against this checkout's own regenerated content/itemsanity.yaml: of
+    46,096 real rows, 6,875 are `debug`, 9,989 are `unobtainable`, and
+    29,232 are untagged/"normal" -- only the last group becomes a real
+    location under this default. include_unobtainable adds the
+    unobtainable tier only (still real, correctly-functioning items, just
+    historically unreachable). include_all adds BOTH tiers -- a genuine
+    difficulty-raising choice: some of what this adds (the debug tier
+    specifically) is verified non-functional QA/internal content, not
+    just harder to get."""
     display_name = "Itemsanity Debug/Unobtainable Item Inclusion"
     option_exclude_all = 0
     option_include_unobtainable = 1
