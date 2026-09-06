@@ -131,6 +131,18 @@ class TestItemsanityPools(unittest.TestCase):
         self.assertEqual(set(ItemsanityExpansionPools.valid_keys), {"vanilla", "tbc", "wotlk"})
 
 
+class TestItemsanityDebugItemInclusion(unittest.TestCase):
+    def test_default_is_exclude_all(self) -> None:
+        from ..options import ItemsanityDebugItemInclusion
+        self.assertEqual(ItemsanityDebugItemInclusion.default, ItemsanityDebugItemInclusion.option_exclude_all)
+
+    def test_three_real_values(self) -> None:
+        from ..options import ItemsanityDebugItemInclusion
+        self.assertEqual(ItemsanityDebugItemInclusion.option_exclude_all, 0)
+        self.assertEqual(ItemsanityDebugItemInclusion.option_include_unobtainable, 1)
+        self.assertEqual(ItemsanityDebugItemInclusion.option_include_all, 2)
+
+
 class TestHolidaysanityStacking(unittest.TestCase):
     def test_default_is_off(self) -> None:
         from ..options import HolidaysanityStacking

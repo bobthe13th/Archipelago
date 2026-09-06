@@ -886,6 +886,30 @@ class ItemsanityExpansionPools(OptionSet):
     default = valid_keys
 
 
+class ItemsanityDebugItemInclusion(Choice):
+    """Whether Itemsanity includes its own debug/QA/GM-only rows and its
+    own real-but-currently-unreachable rows as checkable locations
+    (M4.11.5.1). Every Itemsanity row is tagged at extraction time into
+    exactly one of two special tiers, or left untagged (the default,
+    "normal" case): `debug` (matches exclusion_rules.yaml's own
+    name_denylist -- genuinely non-functional/internal Blizzard QA
+    artifacts, e.g. "QAEnchant Gloves +20 Shadow Damage") or
+    `unobtainable` (a real, correctly-functioning item with no live
+    acquisition route anywhere in this checkout's data -- real examples:
+    "Recruit's Pants," "Martin Fury"). exclude_all (default) matches
+    today's existing behavior exactly -- neither tier becomes a real
+    location. include_unobtainable adds the unobtainable tier only (still
+    real, correctly-functioning items, just historically unreachable).
+    include_all adds BOTH tiers -- a genuine difficulty-raising choice:
+    some of what this adds (the debug tier specifically) is verified
+    non-functional QA/internal content, not just harder to get."""
+    display_name = "Itemsanity Debug/Unobtainable Item Inclusion"
+    option_exclude_all = 0
+    option_include_unobtainable = 1
+    option_include_all = 2
+    default = 0
+
+
 class TrainerSpellClassPools(OptionSet):
     """Which Trainer Spells & Abilities class pools to include (M4.9). A
     location is a candidate iff its own class tag(s) intersect this
@@ -1158,6 +1182,7 @@ class WoWOptions(PerGameCommonOptions):
     itemsanity_class_pools: ItemsanityClassPools
     itemsanity_quality_pools: ItemsanityQualityPools
     itemsanity_expansion_pools: ItemsanityExpansionPools
+    itemsanity_debug_item_inclusion: ItemsanityDebugItemInclusion
     quest_reward_weight: QuestRewardWeight
     vendor_stock_weight: VendorStockWeight
     recipe_profession_pools: RecipeProfessionPools
