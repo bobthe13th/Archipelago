@@ -1141,3 +1141,94 @@ class TestZoneLevelerVendorStockContainersanityGathersanityEnemysanityNowFiltere
         self.assertIn("barrens", enemysanity_content_data.TAGS[name]["area"])
         location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
         self.assertIn(name, location_names)
+
+
+class TestGenericCategoryItemClassification(WoWTestBase):
+    # M4.11.5.0.1: create_optional_category_item_pool used to unconditionally
+    # assign ItemClassification.progression to every item it pooled,
+    # regardless of what family or row it was. None of quest_rewards/
+    # vendor_stock/recipes/trainer_spells/gathersanity/craftsanity/itemsanity
+    # gate the goal or other locations, so progression must never appear
+    # here -- only filler (is_filler_reward rows) or useful (everything
+    # else) are ever correct.
+    options = {
+        "game_mode": "sprint", "check_density": 100,
+        "quest_reward_weight": 100,
+        "quest_reward_type_pools": set(options.QuestRewardTypePools.default),
+        "quest_reward_expansion_pools": set(options.QuestRewardExpansionPools.default),
+        "trainer_spell_class_pools": set(options.TrainerSpellClassPools.default),
+        "trainer_spell_expansion_pools": set(options.TrainerSpellExpansionPools.default),
+    }
+
+    def test_no_optional_category_item_pool_row_is_ever_progression(self) -> None:
+        from BaseClasses import ItemClassification
+        generic_item_names = (
+            set(quest_rewards_content_data.ITEMS) | set(trainer_spells_content_data.ITEMS)
+            | set(recipes_content_data.ITEMS) | set(craftsanity_content_data.ITEMS)
+            | set(itemsanity_content_data.ITEMS)
+        )
+        offenders = [
+            item for item in self.multiworld.itempool
+            if item.name in generic_item_names and item.classification == ItemClassification.progression
+        ]
+        self.assertEqual(offenders, [])
+
+    def test_trainer_spells_rows_get_filler_classification_today(self) -> None:
+        # Every Trainer Spells TRIGGERS row hardcodes is_filler_reward=True
+        # today (confirmed live) -- until M4.11.5.0.5 gives this family real
+        # per-spell rewards and revises this flag, every sampled Trainer
+        # Spells item must classify as filler, never useful or progression.
+        from BaseClasses import ItemClassification
+        trainer_items = [
+            item for item in self.multiworld.itempool
+            if item.name in trainer_spells_content_data.ITEMS
+        ]
+        self.assertTrue(trainer_items)
+        for item in trainer_items:
+            self.assertEqual(item.classification, ItemClassification.filler, item.name)
+
+
+class TestIsFillerRewardFlagDrivesClassification(WoWTestBase):
+    # M4.11.5.0.1: a small, controlled fake category (same swap-in pattern
+    # TestTwoStageComposition/TestHundredPercentModeStashesSampledNames
+    # already use) rather than depending on real quest_rewards/trainer_spells
+    # data happening to include both a filler and a non-filler row under
+    # random weighted sampling -- direct, deterministic coverage of the
+    # is_filler_reward -> filler/useful branch itself.
+    options = {"game_mode": "sprint", "check_density": 100, "vendor_stock_weight": 0, "quest_reward_weight": 100}
+
+    def test_is_filler_reward_true_yields_filler_false_yields_useful(self) -> None:
+        from BaseClasses import ItemClassification
+        from .. import locations as locations_module
+        from ..items import create_optional_category_item_pool
+
+        class _FakeLocationsModuleWithTriggers:
+            LOCATIONS = {"Fake Loc A": 999900, "Fake Loc B": 999901}
+            TAGS = {name: {} for name in LOCATIONS}
+            TRIGGERS = {
+                "Fake Loc A": {"is_filler_reward": True},
+                "Fake Loc B": {},
+            }
+            ALWAYS_PRESENT = frozenset()
+
+        class _FakeItemsModuleTwoRows:
+            ITEMS = {"Fake Item A": (999800, 1), "Fake Item B": (999801, 1)}
+
+        fake_category = OptionalCategory(
+            key="fake", tag_options={}, weight_option="quest_reward_weight",
+            locations_module=_FakeLocationsModuleWithTriggers, items_module=_FakeItemsModuleTwoRows,
+        )
+        world = self.world
+        region = self.multiworld.get_region("Northshire", world.player)
+        original = locations_module._OPTIONAL_CATEGORIES
+        locations_module._OPTIONAL_CATEGORIES = [fake_category]
+        try:
+            created = create_optional_category_locations(world, region)
+            self.assertEqual({loc.name for loc in created}, {"Fake Loc A", "Fake Loc B"})
+            region.locations += created
+            pool = create_optional_category_item_pool(world)
+        finally:
+            locations_module._OPTIONAL_CATEGORIES = original
+        by_name = {item.name: item for item in pool}
+        self.assertEqual(by_name["Fake Item A"].classification, ItemClassification.filler)
+        self.assertEqual(by_name["Fake Item B"].classification, ItemClassification.useful)

@@ -765,10 +765,27 @@ def create_optional_category_item_pool(world) -> list:
             for loc in world.multiworld.get_locations(world.player)
             if loc.name in index_by_location_name
         }
+        triggers = category.locations_module.TRIGGERS
         for i in sampled_indices:
             item_name, (item_id, count) = item_rows[i]
+            # M4.11.5.0.1: none of the families that reach this branch
+            # (quest_rewards, vendor_stock, recipes, trainer_spells,
+            # gathersanity, craftsanity, itemsanity) gate the goal or other
+            # locations, so progression is never correct here -- only the
+            # two real signals below distinguish filler from useful. TRIGGERS
+            # is keyed by LOCATION name, not item name (every family here
+            # names its LOCATIONS/ITEMS rows with different prefixes for the
+            # same underlying row, per this function's own docstring above)
+            # -- location_names[i] is the same row's own location name,
+            # index-aligned with item_rows[i] exactly like sampled_indices
+            # itself already relies on.
+            classification = (
+                ItemClassification.filler
+                if triggers[location_names[i]].get("is_filler_reward", False)
+                else ItemClassification.useful
+            )
             for _ in range(count):
-                pool.append(WoWItem(item_name, ItemClassification.progression, item_id, world.player))
+                pool.append(WoWItem(item_name, classification, item_id, world.player))
     return pool
 
 
