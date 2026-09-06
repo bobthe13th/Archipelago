@@ -1,5 +1,6 @@
 # Archipelago/worlds/wow/test/test_optional_categories.py
 import unittest
+from unittest.mock import patch
 
 from .bases import WoWTestBase
 from .. import WoWWorld
@@ -10,7 +11,8 @@ from .. import (
 )
 from ..locations import (
     _NO_PHYSICAL_LOCATION_CATEGORY_KEYS, _OPTIONAL_CATEGORIES, OptionalCategory,
-    create_optional_category_locations, _location_matches_pools, _min_level_for_row, _zone_leveler_row_matches,
+    create_optional_category_locations, _itemsanity_debug_category_matches, _location_matches_pools,
+    _min_level_for_row, _zone_leveler_row_matches,
 )
 
 
@@ -1243,3 +1245,56 @@ class TestIsFillerRewardFlagDrivesClassification(WoWTestBase):
         by_name = {item.name: item for item in pool}
         self.assertEqual(by_name["Fake Item A"].classification, ItemClassification.filler)
         self.assertEqual(by_name["Fake Item B"].classification, ItemClassification.useful)
+
+
+class TestItemsanityDebugCategoryMatches(unittest.TestCase):
+    """M4.11.5.1: unit-level coverage of _itemsanity_debug_category_matches
+    itself, same types.SimpleNamespace fake-world pattern
+    TestZoneLevelerTrainerSpellRowMatches above uses. Patches
+    itemsanity_content_data.TAGS with small fixture rows rather than
+    depending on real regenerated data -- the real debug_category tag
+    values don't exist in this checkout until this plan's own final
+    regeneration task runs."""
+
+    @staticmethod
+    def _fake_world(inclusion: str):
+        import types
+        return types.SimpleNamespace(options=types.SimpleNamespace(
+            itemsanity_debug_item_inclusion=inclusion,
+        ))
+
+    def test_untagged_normal_row_always_matches_regardless_of_option(self) -> None:
+        name = "Itemsanity: Hearthstone (#6948)"
+        with patch.object(itemsanity_content_data, "TAGS", {name: {}}):
+            for inclusion in ("exclude_all", "include_unobtainable", "include_all"):
+                self.assertTrue(_itemsanity_debug_category_matches(self._fake_world(inclusion), name))
+
+    def test_debug_row_excluded_by_default(self) -> None:
+        name = "Itemsanity: QAEnchant Gloves +20 Shadow Damage (#22031)"
+        with patch.object(itemsanity_content_data, "TAGS", {name: {"debug_category": frozenset({"debug"})}}):
+            self.assertFalse(_itemsanity_debug_category_matches(self._fake_world("exclude_all"), name))
+
+    def test_debug_row_excluded_under_include_unobtainable(self) -> None:
+        name = "Itemsanity: QAEnchant Gloves +20 Shadow Damage (#22031)"
+        with patch.object(itemsanity_content_data, "TAGS", {name: {"debug_category": frozenset({"debug"})}}):
+            self.assertFalse(_itemsanity_debug_category_matches(self._fake_world("include_unobtainable"), name))
+
+    def test_debug_row_included_under_include_all(self) -> None:
+        name = "Itemsanity: QAEnchant Gloves +20 Shadow Damage (#22031)"
+        with patch.object(itemsanity_content_data, "TAGS", {name: {"debug_category": frozenset({"debug"})}}):
+            self.assertTrue(_itemsanity_debug_category_matches(self._fake_world("include_all"), name))
+
+    def test_unobtainable_row_excluded_by_default(self) -> None:
+        name = "Itemsanity: Martin Fury (#17)"
+        with patch.object(itemsanity_content_data, "TAGS", {name: {"debug_category": frozenset({"unobtainable"})}}):
+            self.assertFalse(_itemsanity_debug_category_matches(self._fake_world("exclude_all"), name))
+
+    def test_unobtainable_row_included_under_include_unobtainable(self) -> None:
+        name = "Itemsanity: Martin Fury (#17)"
+        with patch.object(itemsanity_content_data, "TAGS", {name: {"debug_category": frozenset({"unobtainable"})}}):
+            self.assertTrue(_itemsanity_debug_category_matches(self._fake_world("include_unobtainable"), name))
+
+    def test_unobtainable_row_included_under_include_all(self) -> None:
+        name = "Itemsanity: Martin Fury (#17)"
+        with patch.object(itemsanity_content_data, "TAGS", {name: {"debug_category": frozenset({"unobtainable"})}}):
+            self.assertTrue(_itemsanity_debug_category_matches(self._fake_world("include_all"), name))

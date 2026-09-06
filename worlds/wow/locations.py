@@ -223,6 +223,33 @@ def _containersanity_zone_cap_matches(world, name: str) -> bool:
     return ordinal <= world.options.containersanity_chests_per_zone.value
 
 
+def _itemsanity_debug_category_matches(world, name: str) -> bool:
+    """M4.11.5.1: Itemsanity's own debug/unobtainable-tier inclusion gate.
+    A row's debug_category tag is present only for the two special tiers
+    (extract_itemsanity.py tags it ["debug"] or ["unobtainable"], and
+    omits the key entirely for the default "normal" case) -- an absent
+    key always matches, regardless of the player's own option value,
+    exactly like every other tag dimension in this project (a row with no
+    real tag in a given dimension is never gated by that dimension's own
+    pool option). Deliberately a bespoke function, not a
+    _location_matches_pools tag_options entry: that generic mechanism
+    ANDs a Set-valued option against a row's own tag set, but this
+    dimension's real player-facing option is an ORDERED Choice
+    (exclude_all/include_unobtainable/include_all), not an independent
+    per-value Set -- the same "small per-family special filter alongside
+    the generic one" pattern _containersanity_zone_cap_matches already
+    established for a Range-valued check."""
+    debug_category = itemsanity_content_data.TAGS[name].get("debug_category", frozenset())
+    if not debug_category:
+        return True
+    inclusion = world.options.itemsanity_debug_item_inclusion
+    if inclusion == "include_all":
+        return True
+    if inclusion == "include_unobtainable":
+        return "unobtainable" in debug_category
+    return False
+
+
 _NO_PHYSICAL_LOCATION_CATEGORY_KEYS = frozenset({"itemsanity", "recipes", "craftsanity"})
 
 
@@ -369,6 +396,7 @@ def create_optional_category_locations(world, region) -> list:
             # cap, ANDed in alongside tag-pool matching -- see
             # _containersanity_zone_cap_matches's own docstring.
             and (category.key != "containersanity" or _containersanity_zone_cap_matches(world, name))
+            and (category.key != "itemsanity" or _itemsanity_debug_category_matches(world, name))
             # M4.11.1 Task 12: zone_leveler's own zone_only/whole_game_scaled
             # content-scope filter, ANDed in alongside tag-pool matching
             # (not bypassed by force_all -- zone_leveler's own
