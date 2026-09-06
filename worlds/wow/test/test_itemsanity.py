@@ -78,11 +78,19 @@ class TestItemsanityContentDataRosterCleanliness(WoWTestBase):
 
     def test_no_location_name_has_a_double_space(self) -> None:
         for name in itemsanity_content_data.LOCATIONS:
+            if "debug" in itemsanity_content_data.TAGS[name].get("debug_category", frozenset()):
+                continue  # M4.11.5.1: debug-tier rows are now real, kept, tagged
+                # locations (opt-in-able via itemsanity_debug_item_inclusion), not
+                # dropped -- their real, junky Blizzard-internal names are expected
+                # to look like junk; this guard is about genuinely player-facing
+                # ("normal") content only.
             self.assertNotIn("  ", name)
 
     def test_no_location_name_contains_junk_placeholder_text(self) -> None:
         junk_patterns = ("m4-7test", "zzdeprecated", "obsolete")
         for name in itemsanity_content_data.LOCATIONS:
+            if "debug" in itemsanity_content_data.TAGS[name].get("debug_category", frozenset()):
+                continue  # M4.11.5.1: see test_no_location_name_has_a_double_space above.
             lowered = name.lower()
             for junk in junk_patterns:
                 self.assertNotIn(junk, lowered)
