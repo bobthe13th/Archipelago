@@ -1029,15 +1029,18 @@ class FillerCategoryPools(OptionSet):
     Filler section). Filler is a generic, reusable reward pool any content
     family with more locations than items can draw from to close its own
     deficit -- core_loop's every-level granularity change (M4.9.3) is the
-    first real consumer. 17 categories total: 5 curated reward EFFECTS
+    first real consumer. 18 categories total: 5 curated reward EFFECTS
     (random_buff/gold_reward/xp_reward/title/portable_service -- new
-    delivery mechanisms this milestone built) and 12 real, DB-extracted WoW
+    delivery mechanisms this milestone built) and 13 real, DB-extracted WoW
     ITEM categories (badge_currency/consumable/bag/
     gear_enhancement/equipment/openable/toy/seasonal/mount/pet/tabard/
-    reagent). A pooled filler item's category is EITHER its
+    reagent/container_loot -- the last added M4.11.5.0.3, the real union of
+    every GAMEOBJECT_TYPE_CHEST gameobject's real loot table, shared
+    globally like every other category here, not Containersanity-exclusive).
+    A pooled filler item's category is EITHER its
     filler_reward_items row's own `category` tag OR its
     filler_reward_effects row's own `effect` field, mapped 1:1 to one of
-    these 17 keys by items.py's create_filler_item_pool. Default selects
+    these 18 keys by items.py's create_filler_item_pool. Default selects
     every value -- Filler is on by default, matching every other pooled
     optional family in this apworld.
 
@@ -1057,6 +1060,7 @@ class FillerCategoryPools(OptionSet):
         "random_buff", "gold_reward", "xp_reward", "title", "portable_service",
         "badge_currency", "consumable", "bag", "gear_enhancement",
         "equipment", "openable", "toy", "seasonal", "mount", "pet", "tabard", "reagent",
+        "container_loot",
     ]
     default = valid_keys
 
