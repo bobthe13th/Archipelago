@@ -789,12 +789,15 @@ class TestZoneLevelerRowMatchesQuestRewards(WoWTestBase):
         self.assertTrue(_zone_leveler_row_matches(world, self._category(), name))
 
     def test_row_in_a_different_real_zone_is_excluded(self) -> None:
-        # "Quest: Kanrethad's Quest Reward (#1)" -- real area tag
-        # "designer_island" (a real, resolved zone, just not Barrens),
+        # "Quest: Kanrethad's Quest Reward (#1) [RewardItem1]" -- real area
+        # tag "designer_island" (a real, resolved zone, just not Barrens),
         # confirmed by direct TAGS inspection. Must be excluded under BOTH
         # content_scope values -- this is not the no-physical-location
-        # widening path.
-        name = "Quest: Kanrethad's Quest Reward (#1)"
+        # widening path. M4.11.5.0.6: quest 1 has two real fixed reward
+        # slots, so this bare unsuffixed name no longer exists -- both
+        # slots carry the same real area tag, so either would do; this one
+        # is named explicitly rather than picked arbitrarily at runtime.
+        name = "Quest: Kanrethad's Quest Reward (#1) [RewardItem1]"
         self.assertEqual(quest_rewards_content_data.TAGS[name].get("area"), frozenset({"designer_island"}))
         self.assertFalse(_zone_leveler_row_matches(self._fake_world("zone_only"), self._category(), name))
         self.assertFalse(_zone_leveler_row_matches(self._fake_world("whole_game_scaled"), self._category(), name))
@@ -988,8 +991,13 @@ class TestNonZoneLevelerModeStillIncludesAllAlwaysPresentRows(WoWTestBase):
     options = {"game_mode": "sprint"}
 
     def test_always_present_row_still_included(self) -> None:
+        # M4.11.5.0.6: quest 21 has 3 real choice reward slots, so its bare
+        # unsuffixed name no longer exists -- every split location for an
+        # always_present quest still bypasses tag/weight filtering (each
+        # one gets its own always_present: True), so at least one of its
+        # 3 real suffixed names must be present here.
         location_names = {loc.name for loc in self.multiworld.get_locations(self.player)}
-        self.assertIn("Quest: Skirmish at Echo Ridge Reward (#21)", location_names)
+        self.assertIn("Quest: Skirmish at Echo Ridge Reward (#21) [RewardChoiceItemID1]", location_names)
 
 
 class TestZoneLevelerOrgrimmarQuestExcludedNowThatHubZoneWideningIsGone(WoWTestBase):
@@ -1173,11 +1181,14 @@ class TestGenericCategoryItemClassification(WoWTestBase):
         ]
         self.assertEqual(offenders, [])
 
-    def test_trainer_spells_rows_get_filler_classification_today(self) -> None:
-        # Every Trainer Spells TRIGGERS row hardcodes is_filler_reward=True
-        # today (confirmed live) -- until M4.11.5.0.5 gives this family real
-        # per-spell rewards and revises this flag, every sampled Trainer
-        # Spells item must classify as filler, never useful or progression.
+    def test_trainer_spells_rows_get_useful_classification_after_real_rewards_landed(self) -> None:
+        # M4.11.5.0.5 gave this family real per-spell rewards (a real, safe
+        # consumable item per row) and removed the is_filler_reward flag
+        # that used to be hardcoded True on every Trainer Spells row --
+        # every sampled Trainer Spells item now classifies as useful (a real,
+        # meaningful reward), never filler or progression. Superseded from
+        # this test's own pre-M4.11.5.0.5 assertion (every row was filler
+        # back then, confirmed correct for that state at the time).
         from BaseClasses import ItemClassification
         trainer_items = [
             item for item in self.multiworld.itempool
@@ -1185,7 +1196,7 @@ class TestGenericCategoryItemClassification(WoWTestBase):
         ]
         self.assertTrue(trainer_items)
         for item in trainer_items:
-            self.assertEqual(item.classification, ItemClassification.filler, item.name)
+            self.assertEqual(item.classification, ItemClassification.useful, item.name)
 
 
 class TestIsFillerRewardFlagDrivesClassification(WoWTestBase):

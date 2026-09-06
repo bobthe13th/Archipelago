@@ -1028,12 +1028,13 @@ class TestZoneLevelerClearAllZoneQuestsItemNamePairing(unittest.TestCase):
 
     Deliberately a plain unittest.TestCase, not a WoWTestBase generation
     test: exercising this end-to-end would require quest_reward_weight=100
-    and check_density=100 to guarantee every one of Barrens' 103 zone-tagged
+    and check_density=100 to guarantee every one of Barrens' 140 zone-tagged
     quest locations actually samples into the pool (quest_rewards.yaml has
     no zone-tag dimension to sample-restrict against, only type/expansion),
-    which would also sample quest_rewards' full ~9,207-row table at those
-    same settings -- exactly the multi-hour test blowup WoWTestBase's own
-    docstring warns against. Testing the pure pairing function directly
+    which would also sample quest_rewards' full ~13,104-row table (M4.11.5.0.6
+    split every real reward slot into its own location, up from ~3,735) at
+    those same settings -- exactly the multi-hour test blowup WoWTestBase's
+    own docstring warns against. Testing the pure pairing function directly
     gives the same correctness guarantee at negligible cost."""
 
     def test_pairing_matches_locations_py_own_positional_mechanism(self) -> None:
@@ -1046,7 +1047,10 @@ class TestZoneLevelerClearAllZoneQuestsItemNamePairing(unittest.TestCase):
             item_rows[row_index_by_location_name[name]][0]
             for name in zone_data.quest_reward_location_names
         )
-        self.assertEqual(len(expected), 103)  # Barrens' real zone-tagged quest reward count
+        # M4.11.5.0.6: was 103 before the multi-choice/multi-fixed-reward
+        # split; real, regenerated count is now 140 (some Barrens quests
+        # split into multiple real reward-slot locations).
+        self.assertEqual(len(expected), 140)  # Barrens' real zone-tagged quest reward count
         self.assertEqual(goals._quest_reward_item_names_for_zone(zone_data), expected)
 
     def test_pairing_is_not_naive_location_name_string_matching(self) -> None:

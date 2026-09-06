@@ -18,15 +18,19 @@ class TestQuestRewardsRowAlignment(unittest.TestCase):
     mismatch -- length parity and fill would both still pass even if row 5's
     location paired with row 900's item -- so this test pins the ordering
     invariant directly by cross-checking the shared quest-id suffix "(#N)"
-    both names carry."""
+    both names carry. M4.11.5.0.6: a multi-slot quest's names now carry an
+    additional "[ColumnName]" suffix after "(#N)" -- the quest-id group
+    still anchors on "(#N)" itself, just no longer at the literal end of
+    the string, so the trailing "$" is relaxed to allow an optional
+    " [...]" tail after it."""
 
     def test_locations_and_items_are_row_order_aligned_by_quest_id(self) -> None:
         location_names = list(quest_rewards_content_data.LOCATIONS)
         item_names = list(quest_rewards_content_data.ITEMS)
         self.assertEqual(len(location_names), len(item_names))
         for index, (location_name, item_name) in enumerate(zip(location_names, item_names)):
-            location_quest_id = re.search(r"\(#(\d+)\)$", location_name).group(1)
-            item_quest_id = re.search(r"\(#(\d+)\)$", item_name).group(1)
+            location_quest_id = re.search(r"\(#(\d+)\)(?: \[.+\])?$", location_name).group(1)
+            item_quest_id = re.search(r"\(#(\d+)\)(?: \[.+\])?$", item_name).group(1)
             self.assertEqual(
                 location_quest_id, item_quest_id,
                 f"row {index}: location {location_name!r} (#{location_quest_id}) does not "
@@ -47,15 +51,32 @@ class TestQuestRewardsAlwaysPresentSet(unittest.TestCase):
     regression here fails loudly."""
 
     def test_always_present_has_the_19_dk_reachability_rows(self) -> None:
+        # M4.11.5.0.6: the underlying 19 real DK-reachability QUESTS are
+        # unchanged, but 5 of them (6, 18, 21, 33, 3905) have multiple real
+        # reward slots and so now contribute multiple, individually-suffixed
+        # ALWAYS_PRESENT locations each -- every split location for an
+        # always_present quest still carries always_present: True (this
+        # plan's own extract_quest_rewards.py change applies the flag inside
+        # the per-slot loop, not once per quest), so the real set is now 28
+        # names, not 19.
         self.assertEqual(
             quest_rewards_content_data.ALWAYS_PRESENT,
             frozenset({
-                "Quest: Bounty on Garrick Padfoot Reward (#6)",
+                "Quest: Bounty on Garrick Padfoot Reward (#6) [RewardChoiceItemID1]",
+                "Quest: Bounty on Garrick Padfoot Reward (#6) [RewardChoiceItemID2]",
+                "Quest: Bounty on Garrick Padfoot Reward (#6) [RewardChoiceItemID3]",
                 "Quest: Kobold Camp Cleanup Reward (#7)",
                 "Quest: Investigate Echo Ridge Reward (#15)",
-                "Quest: Brotherhood of Thieves Reward (#18)",
-                "Quest: Skirmish at Echo Ridge Reward (#21)",
-                "Quest: Wolves Across the Border Reward (#33)",
+                "Quest: Brotherhood of Thieves Reward (#18) [RewardChoiceItemID1]",
+                "Quest: Brotherhood of Thieves Reward (#18) [RewardChoiceItemID2]",
+                "Quest: Brotherhood of Thieves Reward (#18) [RewardChoiceItemID3]",
+                "Quest: Brotherhood of Thieves Reward (#18) [RewardChoiceItemID4]",
+                "Quest: Brotherhood of Thieves Reward (#18) [RewardChoiceItemID5]",
+                "Quest: Skirmish at Echo Ridge Reward (#21) [RewardChoiceItemID1]",
+                "Quest: Skirmish at Echo Ridge Reward (#21) [RewardChoiceItemID2]",
+                "Quest: Skirmish at Echo Ridge Reward (#21) [RewardChoiceItemID3]",
+                "Quest: Wolves Across the Border Reward (#33) [RewardChoiceItemID1]",
+                "Quest: Wolves Across the Border Reward (#33) [RewardChoiceItemID2]",
                 "Quest: Report to Goldshire Reward (#54)",
                 "Quest: A Threat Within Reward (#783)",
                 "Quest: Simple Letter Reward (#3100)",
@@ -66,7 +87,8 @@ class TestQuestRewardsAlwaysPresentSet(unittest.TestCase):
                 "Quest: Tainted Letter Reward (#3105)",
                 "Quest: Milly Osworth Reward (#3903)",
                 "Quest: Milly's Harvest Reward (#3904)",
-                "Quest: Grape Manifest Reward (#3905)",
+                "Quest: Grape Manifest Reward (#3905) [RewardChoiceItemID1]",
+                "Quest: Grape Manifest Reward (#3905) [RewardChoiceItemID2]",
                 "Quest: Eagan Peltskinner Reward (#5261)",
                 "Quest: In Favor of the Light Reward (#5623)",
             }),
@@ -102,14 +124,18 @@ class TestQuestRewardsRules(WoWTestBase):
     # correctness requirement.
     options = {"game_mode": "sprint", "check_density": 100, "quest_reward_weight": 100, "vendor_stock_weight": 0}
 
-    # "Quest: Morbent Fel Reward (#55)" has trigger.min_level == 20 in the
-    # real DB-extracted content/quest_rewards.yaml (quest_id 55). With
-    # core_loop's standard-track STARTING_LEVEL_CAP_BY_TRACK["standard"]=10
-    # and LEVEL_CAP_STEP=1 (M4.11.1, was 5), that requires
-    # ceil((20-10)/1) == 10 Progressive Level Cap copies -- picked because
-    # it's a real, moderate (not 0, not extreme) min_level, not a
-    # hand-picked edge case.
-    _GATED_LOCATION = "Quest: Morbent Fel Reward (#55)"
+    # "Quest: Morbent Fel Reward (#55) [RewardItem1]" has trigger.min_level
+    # == 20 in the real DB-extracted content/quest_rewards.yaml (quest_id
+    # 55, min_level is a per-QUEST value shared by every one of its split
+    # slots). With core_loop's standard-track
+    # STARTING_LEVEL_CAP_BY_TRACK["standard"]=10 and LEVEL_CAP_STEP=1
+    # (M4.11.1, was 5), that requires ceil((20-10)/1) == 10 Progressive
+    # Level Cap copies -- picked because it's a real, moderate (not 0, not
+    # extreme) min_level, not a hand-picked edge case. M4.11.5.0.6: quest 55
+    # has 4 real reward slots (RewardItem1 + 3 choices) -- this test names
+    # the RewardItem1 slot explicitly, rather than picking one arbitrarily,
+    # since the bare unsuffixed name no longer exists.
+    _GATED_LOCATION = "Quest: Morbent Fel Reward (#55) [RewardItem1]"
 
     def test_min_level_rule_blocks_until_level_cap_items_held(self) -> None:
         # Any quest_reward location with min_level > 0 must require enough
@@ -138,9 +164,10 @@ class TestQuestRewardsRules(WoWTestBase):
 
     def test_at_least_one_location_is_min_level_gated(self) -> None:
         # Sanity check on the family as a whole (not just the one hand-picked
-        # location above): with every one of the 3,735 real rows sampled in,
-        # at least one quest_reward location must end up with a non-default
-        # access rule.
+        # location above): with every one of the ~13,104 real rows sampled in
+        # (M4.11.5.0.6's multi-choice/multi-fixed-reward split, up from
+        # ~3,735), at least one quest_reward location must end up with a
+        # non-default access rule.
         gated = [
             loc for loc in self.multiworld.get_locations(self.player)
             if loc.name.startswith("Quest:")
