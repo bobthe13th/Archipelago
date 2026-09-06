@@ -129,7 +129,7 @@ class WoWTestBase(WorldTestBase):
         # M4.10.6: itemsanity shares the exact same weight_option=None shape
         # (every tag-matched row included unconditionally). Without this
         # default, every WoWTestBase test would additionally sample/pool the
-        # full 39,355-row itemsanity family on every single run.
+        # full 46,096-row itemsanity family on every single run.
         if "itemsanity_class_pools" not in merged:
             merged["itemsanity_class_pools"] = set()
         if "itemsanity_quality_pools" not in merged:
