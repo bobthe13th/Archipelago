@@ -7,7 +7,7 @@ from .. import WoWWorld
 from .. import (
     craftsanity_content_data, enemysanity_content_data, itemsanity_content_data, options,
     quest_rewards_content_data, recipes_content_data, repsanity_content_data, trainer_spells_content_data,
-    zone_leveler_content_data,
+    vendor_stock_content_data, zone_leveler_content_data,
 )
 from ..locations import (
     _NO_PHYSICAL_LOCATION_CATEGORY_KEYS, _OPTIONAL_CATEGORIES, OptionalCategory,
@@ -56,7 +56,8 @@ class TestOptionalCategoryRegistry(WoWTestBase):
         self.assertEqual(_OPTIONAL_CATEGORIES[1].key, "vendor_stock")
         self.assertEqual(
             _OPTIONAL_CATEGORIES[1].tag_options,
-            {"expansion": "vendor_stock_expansion_pools"},
+            # M4.11.5.5: added vendor_type -> vendor_stock_utility_pools.
+            {"expansion": "vendor_stock_expansion_pools", "vendor_type": "vendor_stock_utility_pools"},
         )
         self.assertEqual(_OPTIONAL_CATEGORIES[1].weight_option, "vendor_stock_weight")
         self.assertEqual(_OPTIONAL_CATEGORIES[2].key, "recipes")
@@ -158,6 +159,69 @@ class TestLocationMatchesPools(WoWTestBase):
         self.assertFalse(_location_matches_pools(world, category, "match_expansion_only"))
         self.assertFalse(_location_matches_pools(world, category, "match_neither"))
         self.assertTrue(_location_matches_pools(world, category, "match_via_or_within_type"))
+
+
+class TestVendorStockUtilityPoolsFiltering(WoWTestBase):
+    """M4.11.5.5: vendor_stock_utility_pools is a pure tag_options entry --
+    no bespoke filter function needed, unlike Itemsanity's own ordered-Choice
+    debug_category dimension (M4.11.5.1, see TestItemsanityDebugCategoryMatches
+    below). Patches vendor_stock_content_data.TAGS with small fixture rows
+    rather than depending on real regenerated data -- the real vendor_type
+    tag values don't exist in this checkout until this plan's own Task 4
+    regeneration runs. Uses self.world (a real generated WoWWorld, same as
+    TestLocationMatchesPools above) rather than a bare types.SimpleNamespace
+    fake world: _location_matches_pools reads
+    getattr(world.options, option_name).value, which requires a real Option
+    instance, not a raw set -- unlike _itemsanity_debug_category_matches/
+    _zone_leveler_row_matches, which read their own option attributes
+    directly and tolerate a bare SimpleNamespace fake."""
+    # vendor_stock_weight: 0 (M4.8.0) -- see TestOptionalCategoryRegistry's
+    # own comment; these tests call _location_matches_pools directly and
+    # never sample via create_optional_category_locations, so the real
+    # weight doesn't matter, but every other class in this file states it
+    # explicitly by the same established convention.
+    options = {"game_mode": "sprint", "vendor_stock_weight": 0}
+
+    @staticmethod
+    def _category():
+        return next(c for c in _OPTIONAL_CATEGORIES if c.key == "vendor_stock")
+
+    def test_untagged_vendor_row_always_matches_regardless_of_option(self) -> None:
+        world = self.world
+        name = "Vendor: Ordinary Vendor - Widget (#0)"
+        with patch.object(vendor_stock_content_data, "TAGS", {name: {"expansion": frozenset({"vanilla"})}}):
+            world.options.vendor_stock_utility_pools.value = set()
+            self.assertTrue(_location_matches_pools(world, self._category(), name))
+
+    def test_innkeeper_tagged_row_excluded_by_default_empty_option(self) -> None:
+        world = self.world
+        name = "Vendor: Innkeeper Bob - Hearthstone (#1)"
+        with patch.object(vendor_stock_content_data, "TAGS", {name: {
+            "expansion": frozenset({"vanilla"}), "vendor_type": frozenset({"innkeeper"}),
+        }}):
+            world.options.vendor_stock_utility_pools.value = set()
+            self.assertFalse(_location_matches_pools(world, self._category(), name))
+
+    def test_innkeeper_tagged_row_included_when_opted_back_in(self) -> None:
+        world = self.world
+        name = "Vendor: Innkeeper Bob - Hearthstone (#1)"
+        with patch.object(vendor_stock_content_data, "TAGS", {name: {
+            "expansion": frozenset({"vanilla"}), "vendor_type": frozenset({"innkeeper"}),
+        }}):
+            world.options.vendor_stock_utility_pools.value = {"innkeeper"}
+            self.assertTrue(_location_matches_pools(world, self._category(), name))
+
+    def test_row_tagged_with_multiple_categories_needs_only_one_selected(self) -> None:
+        # A vendor tagged BOTH general_goods and food -- OR within the
+        # dimension means selecting just "food" is enough to include it.
+        world = self.world
+        name = "Vendor: General Store Bob - Rations (#2)"
+        with patch.object(vendor_stock_content_data, "TAGS", {name: {
+            "expansion": frozenset({"vanilla"}),
+            "vendor_type": frozenset({"general_goods", "food"}),
+        }}):
+            world.options.vendor_stock_utility_pools.value = {"food"}
+            self.assertTrue(_location_matches_pools(world, self._category(), name))
 
 
 class TestZeroRegressionDefaultTagSelection(WoWTestBase):

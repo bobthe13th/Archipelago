@@ -65,7 +65,7 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
 
 _OPTIONAL_CATEGORIES.append(OptionalCategory(
     key="vendor_stock",
-    tag_options={"expansion": "vendor_stock_expansion_pools"},
+    tag_options={"expansion": "vendor_stock_expansion_pools", "vendor_type": "vendor_stock_utility_pools"},
     weight_option="vendor_stock_weight",
     locations_module=vendor_stock_content_data,
     items_module=vendor_stock_content_data,
