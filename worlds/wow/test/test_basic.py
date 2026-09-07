@@ -89,7 +89,24 @@ class TestNorthshireGeneration(WoWTestBase):
         quest_reward_candidates = len(quest_rewards_content_data.LOCATIONS) - always_present_count
         quest_reward_sampled = density.predict_sample_size(25, 100, quest_reward_candidates)
         vendor_stock_always_present_count = len(vendor_stock_content_data.ALWAYS_PRESENT)
-        vendor_stock_candidates = len(vendor_stock_content_data.LOCATIONS) - vendor_stock_always_present_count
+        # M4.11.5.5: vendor_stock_utility_pools defaults to EMPTY (opposite of
+        # every other Vendor Stock/tag-dimension option's own "everything on
+        # by default" convention) -- a real utility-vendor-tagged row (Vendor
+        # Stock has 0 ALWAYS_PRESENT rows, confirmed live, so no double-count
+        # risk with the subtraction above) is excluded from the candidate pool
+        # entirely under this test's own default options, before density
+        # sampling ever runs. Computed via TAGS rather than hardcoding a
+        # count, so this stays correct if the DB-derived vendor_type tagging
+        # is ever regenerated with a different real tier spread.
+        vendor_stock_utility_tagged_count = sum(
+            1 for name in vendor_stock_content_data.LOCATIONS
+            if "vendor_type" in vendor_stock_content_data.TAGS[name]
+        )
+        vendor_stock_candidates = (
+            len(vendor_stock_content_data.LOCATIONS)
+            - vendor_stock_always_present_count
+            - vendor_stock_utility_tagged_count
+        )
         vendor_stock_sampled = density.predict_sample_size(25, 100, vendor_stock_candidates)
         # M4.10.4: repsanity is weight_option=None (every tag-matched row
         # included unconditionally), same shape as recipes/trainer_spells/
