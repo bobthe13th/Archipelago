@@ -667,6 +667,24 @@ class VendorStockExpansionPools(OptionSet):
     default = valid_keys
 
 
+class VendorStockUtilityPools(OptionSet):
+    """Which "boring utility vendor" subtypes to include as real Vendor
+    Stock locations (M4.11.5.5) -- a vendor is tagged by every real
+    creature_template.npcflag utility-vendor bit it carries
+    (innkeeper/general_goods/food/poison/reagent; a vendor with none of
+    these five flags is untagged for this dimension entirely and is
+    always included, unaffected by this option's value). Default: EMPTY
+    -- the opposite direction from vendor_stock_expansion_pools's own
+    "everything on by default" convention. A player who wants innkeepers
+    back but nothing else adds just "innkeeper" to their own set; the
+    other four categories stay excluded independently. Real per-category
+    row counts, verified live this checkout: innkeeper 1,388 /
+    general_goods 2,823 / food 3,700 / poison 2,127 / reagent 3,246."""
+    display_name = "Vendor Stock Utility Pools"
+    valid_keys = ["innkeeper", "general_goods", "food", "poison", "reagent"]
+    default = frozenset()
+
+
 class ContainersanityExpansionPools(OptionSet):
     """Which expansion tiers' containers Containersanity draws locations
     from -- a container is tagged by every expansion where a real
@@ -1193,6 +1211,7 @@ class WoWOptions(PerGameCommonOptions):
     itemsanity_debug_item_inclusion: ItemsanityDebugItemInclusion
     quest_reward_weight: QuestRewardWeight
     vendor_stock_weight: VendorStockWeight
+    vendor_stock_utility_pools: VendorStockUtilityPools
     recipe_profession_pools: RecipeProfessionPools
     recipe_expansion_pools: RecipeExpansionPools
     trainer_spell_class_pools: TrainerSpellClassPools

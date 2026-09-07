@@ -164,5 +164,17 @@ class TestContainersanityChestsPerZone(unittest.TestCase):
         self.assertEqual(ContainersanityChestsPerZone.range_end, 15)
 
 
+class TestVendorStockUtilityPools(unittest.TestCase):
+    def test_default_is_empty(self) -> None:
+        from ..options import VendorStockUtilityPools
+        self.assertEqual(VendorStockUtilityPools.default, frozenset())
+
+    def test_valid_keys_match_the_five_real_utility_categories(self) -> None:
+        from ..options import VendorStockUtilityPools
+        self.assertEqual(set(VendorStockUtilityPools.valid_keys), {
+            "innkeeper", "general_goods", "food", "poison", "reagent",
+        })
+
+
 if __name__ == "__main__":
     unittest.main()
