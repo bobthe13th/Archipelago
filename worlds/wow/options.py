@@ -679,7 +679,20 @@ class VendorStockUtilityPools(OptionSet):
     back but nothing else adds just "innkeeper" to their own set; the
     other four categories stay excluded independently. Real per-category
     row counts, verified live this checkout: innkeeper 1,388 /
-    general_goods 2,823 / food 3,700 / poison 2,127 / reagent 3,246."""
+    general_goods 2,823 / food 3,700 / poison 2,127 / reagent 3,246.
+
+    Known limitation: on a realm that has already been played (i.e. some
+    vendor slots have already been intercepted and rewired to a synthesized
+    display item before this option was set), excluding a category here does
+    NOT revert an already-rewired slot back to selling its real, original
+    item -- this module's own vendor-purchase interception mechanism only
+    ever rewires a slot once and has no reverse pass. This option only
+    controls which slots become NEW candidates in a fresh or not-yet-played
+    generation; it is not retroactive on an already-played realm.
+
+    Bypassed entirely under Hundred Percent mode (force_all), same as every
+    other tag-dimension pool option in this project -- 100% mode includes
+    every row regardless of this option's own value."""
     display_name = "Vendor Stock Utility Pools"
     valid_keys = ["innkeeper", "general_goods", "food", "poison", "reagent"]
     default = frozenset()
