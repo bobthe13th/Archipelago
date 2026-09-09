@@ -48,6 +48,8 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Progressive Bag Slot: Slot 4": (830040, 1),
     "Random Flight Path Unlock": (830045, 1),
     "Portable Mailbox": (830046, 1),
+    "Progressive EXP Boost": (830043, 1),
+    "Progressive Move Speed Boost": (830044, 1),
 }
 
 FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
@@ -94,6 +96,8 @@ FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
     "Progressive Bag Slot: Slot 2": "bag_slots",
     "Progressive Bag Slot: Slot 3": "bag_slots",
     "Progressive Bag Slot: Slot 4": "bag_slots",
+    "Progressive EXP Boost": "xp_boost",
+    "Progressive Move Speed Boost": "speed_boost",
 }
 
 FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
@@ -140,4 +144,6 @@ FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
     "Progressive Bag Slot: Slot 2": 2,
     "Progressive Bag Slot: Slot 3": 3,
     "Progressive Bag Slot: Slot 4": 4,
+    "Progressive EXP Boost": 1,
+    "Progressive Move Speed Boost": 1,
 }
