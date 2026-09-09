@@ -154,6 +154,35 @@ class TestGatesItemPool(WoWTestBase):
             self.assertEqual(len(self.get_items_by_name(tier_name)), 1)
 
 
+class TestRaidloggerItemPoolNotPooledOutsideRaidloggerMode(WoWTestBase):
+    def test_count_enabled_raidlogger_items_zero_when_not_raidlogger_mode(self) -> None:
+        from ..items import count_enabled_raidlogger_items
+        self.assertEqual(count_enabled_raidlogger_items(self.world), 0)
+
+
+class TestRaidloggerItemPool(WoWTestBase):
+    options = {"game_mode": "raidlogger", "raidlogger_expansions": "classic_to_tbc"}
+
+    def test_classic_to_tbc_pools_only_the_level_70_item(self) -> None:
+        from ..items import count_enabled_raidlogger_items, create_raidlogger_item_pool
+        self.assertEqual(count_enabled_raidlogger_items(self.world), 1)
+        pool = create_raidlogger_item_pool(self.world)
+        self.assertEqual([item.name for item in pool], ["Raidlogger: Instant Level 70"])
+
+
+class TestRaidloggerItemPoolFullChain(WoWTestBase):
+    options = {"game_mode": "raidlogger", "raidlogger_expansions": "classic_to_wotlk"}
+
+    def test_classic_to_wotlk_pools_both_items(self) -> None:
+        from ..items import count_enabled_raidlogger_items, create_raidlogger_item_pool
+        self.assertEqual(count_enabled_raidlogger_items(self.world), 2)
+        pool = create_raidlogger_item_pool(self.world)
+        self.assertEqual(
+            sorted(item.name for item in pool),
+            ["Raidlogger: Instant Level 70", "Raidlogger: Instant Level 80"],
+        )
+
+
 class TestHolidaysanityItemPoolYieldsAllFourteenByDefault(WoWTestBase):
     # M4.10.7 Task 3: combo_unlocks_scope must be "both" to reach
     # Holidaysanity's own full 14-item roster -- 5 of the 14 Holiday Unlock
