@@ -9,14 +9,14 @@ class TestFillerCategoryPools(unittest.TestCase):
     def test_default_selects_every_value(self) -> None:
         self.assertEqual(set(FillerCategoryPools.default), set(FillerCategoryPools.valid_keys))
 
-    def test_covers_all_eighteen_categories(self) -> None:
+    def test_covers_all_nineteen_categories(self) -> None:
         self.assertEqual(
             set(FillerCategoryPools.valid_keys),
             {
                 "random_buff", "gold_reward", "xp_reward", "title", "portable_service",
                 "badge_currency", "consumable", "bag", "gear_enhancement",
                 "equipment", "openable", "toy", "seasonal", "mount", "pet", "tabard",
-                "reagent", "container_loot",
+                "reagent", "container_loot", "heirloom",
             },
         )
 
