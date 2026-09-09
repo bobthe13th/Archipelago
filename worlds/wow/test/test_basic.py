@@ -140,9 +140,10 @@ class TestNorthshireGeneration(WoWTestBase):
         exceed locations. So real 1:1 parity is required for every option
         combination, not just "locations >= items". locations.py's
         create_filler_locations achieves this dynamically: it slices
-        content/filler.yaml's 37 rows reserved for gates (the max possible,
+        content/filler.yaml's 47 rows reserved for gates (the max possible,
         one per gates_content_data.ITEMS entry, grown from 27 by Task 21's 2
-        combo-unlock items and M4.9's 8 new gate items) down to exactly
+        combo-unlock items, M4.9's 8 new gate items, and M4.14.1's 10 new
+        "Useful Items" gate items) down to exactly
         items.py's count_enabled_gates_items(world) for whatever options
         this generation actually has -- see TestGateItemSphereZero (every
         optional gate on) for the other end of that range."""
@@ -646,11 +647,11 @@ class TestTrapsGatesAndHolidaysanityCombinedParity(WoWTestBase):
     Move Speed Boost) grew max_gate_items from 37 to 47.
     Stress-tests all three (gates/traps/Holidaysanity) at their most extreme
     settings simultaneously (including combo_unlocks_scope: "both", the
-    setting that actually reaches the full 37-item gates worst case AND
+    setting that actually reaches the full 47-item gates worst case AND
     Holidaysanity's full 14-item worst case) -- if the combined
     count_enabled_gates_items() + count_enabled_trap_items() +
     count_enabled_holidaysanity_items() + count_gathering_skill_progression_items()
-    ever exceeds 151, or if the counts are computed inconsistently between
+    ever exceeds 161, or if the counts are computed inconsistently between
     create_items and create_regions' create_filler_locations, this is
     where it would show up as a FillError."""
     options = {

@@ -189,11 +189,12 @@ def _add_holidaysanity_stacking(world, data: dict) -> None:
 def _add_filler_needed_count(world, data: dict) -> None:
     """M4.11.6: the real per-seed count of filler.yaml rows actually placed
     as AP locations (locations.py's create_filler_locations places only the
-    first `needed` of the 151 compiled Filler Check ids) -- lets
-    ArchipelagoWorldScript send exactly this many ids (in OrderedLocationIds
-    order) at connect time instead of the full worst-case 151
-    unconditionally on every startup, closing the phantom-check gap
-    docs/guides/realm-refresh-methodology.md's investigation found."""
+    first `needed` of the 161 compiled Filler Check ids, per M4.14.1's
+    final-review resize) -- lets ArchipelagoWorldScript send exactly this
+    many ids (in OrderedLocationIds order) at connect time instead of the
+    full worst-case 161 unconditionally on every startup, closing the
+    phantom-check gap docs/guides/realm-refresh-methodology.md's
+    investigation found."""
     data["filler_needed_count"] = locations_module.compute_filler_needed_count(world)
 
 
