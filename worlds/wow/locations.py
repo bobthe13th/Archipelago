@@ -28,6 +28,7 @@ from .items import (
     core_loop_item_surplus,
     count_enabled_gates_items,
     count_enabled_holidaysanity_items,
+    count_enabled_raidlogger_items,
     count_enabled_trap_items,
     count_gathering_skill_progression_items,
 )
@@ -543,6 +544,7 @@ def create_filler_locations(world, region) -> list:
         + count_enabled_holidaysanity_items(world)
         + core_loop_item_surplus(world)
         + count_gathering_skill_progression_items(world)
+        + count_enabled_raidlogger_items(world)
     )
     return [
         WoWLocation(world.player, name, location_id, region)

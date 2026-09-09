@@ -10,6 +10,7 @@ from . import gates_content_data
 from . import golden_boar_statues_content_data
 from . import holidaysanity_content_data
 from . import professions_content_data
+from . import raidlogger_content_data
 from . import rares_content_data
 from . import traps_content_data
 from . import zone_leveler_content_data
@@ -378,6 +379,37 @@ def create_holidaysanity_item_pool(world) -> list:
     for name, (item_id, count) in holidaysanity_content_data.ITEMS.items():
         if not _is_gate_item_enabled(world, name):
             continue
+        for _ in range(count):
+            pool.append(WoWItem(name, ItemClassification.progression, item_id, world.player))
+    return pool
+
+
+# M4.11.7 (Raidlogger): "Raidlogger: Instant Level 70/80" have no AP
+# location of their own (content/raidlogger.yaml's locations: [] -- same
+# shape as gates/holidaysanity), so they need the same
+# count_enabled_*/create_*_item_pool pairing those two families use for
+# create_filler_locations's sink-location sizing. Unlike gates (every item
+# pooled unconditionally, gated only by its own toggle), these two items are
+# gated on game_mode itself: the level 70 item is pooled whenever raidlogger
+# is active (both raidlogger_expansions values need it), the level 80 item
+# only for the full classic_to_wotlk chain.
+def count_enabled_raidlogger_items(world) -> int:
+    if world.options.game_mode != "raidlogger":
+        return 0
+    if world.options.raidlogger_expansions == "classic_to_wotlk":
+        return 2
+    return 1
+
+
+def create_raidlogger_item_pool(world) -> list:
+    if world.options.game_mode != "raidlogger":
+        return []
+    names = ["Raidlogger: Instant Level 70"]
+    if world.options.raidlogger_expansions == "classic_to_wotlk":
+        names.append("Raidlogger: Instant Level 80")
+    pool = []
+    for name in names:
+        item_id, count = raidlogger_content_data.ITEMS[name]
         for _ in range(count):
             pool.append(WoWItem(name, ItemClassification.progression, item_id, world.player))
     return pool
