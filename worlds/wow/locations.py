@@ -531,46 +531,22 @@ def create_core_loop_locations(world, region) -> list:
 
 
 def create_filler_locations(world, region) -> list:
-    # Sink locations restoring item=location parity after Group 1's gate
-    # items (Task 11), Group 3's trap items (Task 17), and M4.10.7's
-    # Holidaysanity items: none of these three families has an AP location
-    # of its own, so exactly one filler location is needed per gate-,
-    # trap-, or holidaysanity-item copy pooled for this generation's
-    # options. Must match items.py's create_gates_item_pool +
-    # create_trap_item_pool + create_holidaysanity_item_pool count exactly,
-    # not a fixed worst-case number -- AP's generation pipeline has
-    # no generic step that pads a short itempool to match location count, so
-    # every option combination needs true 1:1 parity, not just locations >=
-    # items (confirmed empirically: distribute_items_restrictive raises
-    # "Unable to fill all locations" when locations exceed items, the same
-    # as it raises when items exceed locations). This runs during
-    # create_regions, before create_items runs create_gates_item_pool/
-    # create_trap_item_pool/create_holidaysanity_item_pool (see gen_steps
-    # ordering) -- all sides derive their counts from the same options each
-    # pool function reads, which is what keeps them from drifting apart
-    # despite running at different pipeline stages.
-    #
-    # M4.11.1 (Task 3): core_loop_item_surplus adds a 4th term -- a
-    # death_knight_slot generation's own core-loop item count (80, flat
-    # and track-independent since LEVEL_CAP_STEP dropped to 1) now exceeds
-    # its own 34-location core-loop floor by 46, a real surplus with no
-    # family of its own to live in (the standard track's own 88-location
-    # floor still absorbs its 80 items with room to spare, so this term is
-    # always 0 there). Same "no AP location of its own" sink-location role
-    # as the three terms above, just for an item surplus rather than a
-    # whole optional family. (M4.11.1 Task 4, BarrensBeater, grew both the
-    # item count and both tracks' core-loop floors by 3 in lockstep --
-    # 77->80 items, 31->34 death_knight floor, 85->88 standard floor -- so
-    # the surplus itself is unchanged at 46/0.)
-    # M4.11.4.2 (Task 4 fix round 1): Progressive Mining/Herbalism add a 5th
-    # term -- same "no AP location of its own" shape as the three optional-
-    # family terms above (up to 12 item copies total, one per real skill
-    # tier with at least one real gathering_node location for that
-    # profession). A clean 0 today (no real zone_pool_credit TRIGGERS rows
-    # exist until Task 5 regenerates gathersanity_content_data), but without
-    # this term the moment Task 5 lands, every pooled Progressive copy would
-    # be an item with no location to absorb it, breaking the exact parity
-    # this function exists to guarantee.
+    # Sink locations restoring item=location parity for every family/surplus
+    # term compute_filler_needed_count sums (see that function's own,
+    # per-term history) -- exactly one filler location is needed per such
+    # item copy pooled for this generation's options, not a fixed worst-case
+    # number. AP's generation pipeline has no generic step that pads a short
+    # itempool to match location count, so every option combination needs
+    # true 1:1 parity, not just locations >= items (confirmed empirically:
+    # distribute_items_restrictive raises "Unable to fill all locations"
+    # when locations exceed items, the same as it raises when items exceed
+    # locations). This runs during create_regions, before create_items runs
+    # each pool function counted below (see gen_steps ordering) -- all sides
+    # derive their counts from the same options each pool function reads,
+    # which is what keeps them from drifting apart despite running at
+    # different pipeline stages. `[:needed]` naturally clamps if `needed`
+    # ever exceeds this family's 151 compiled rows (see
+    # compute_filler_needed_count's own clamp for why the two agree).
     needed = compute_filler_needed_count(world)
     return [
         WoWLocation(world.player, name, location_id, region)
@@ -583,8 +559,45 @@ def compute_filler_needed_count(world) -> int:
     locations -- single source of truth shared by create_filler_locations
     (above) and slot_data.py's _add_filler_needed_count (M4.11.6), so the
     C++ side's per-seed send can never independently drift from what this
-    seed's own multidata actually contains."""
-    return (
+    seed's own multidata actually contains.
+
+    Sink locations restoring item=location parity after Group 1's gate
+    items (Task 11), Group 3's trap items (Task 17), and M4.10.7's
+    Holidaysanity items: none of these three families has an AP location of
+    its own, so exactly one filler location is needed per gate-, trap-, or
+    holidaysanity-item copy pooled for this generation's options.
+
+    M4.11.1 (Task 3): core_loop_item_surplus adds a 4th term -- a
+    death_knight_slot generation's own core-loop item count (80, flat and
+    track-independent since LEVEL_CAP_STEP dropped to 1) now exceeds its
+    own 34-location core-loop floor by 46, a real surplus with no family of
+    its own to live in (the standard track's own 88-location floor still
+    absorbs its 80 items with room to spare, so this term is always 0
+    there). Same "no AP location of its own" sink-location role as the
+    three terms above, just for an item surplus rather than a whole
+    optional family. (M4.11.1 Task 4, BarrensBeater, grew both the item
+    count and both tracks' core-loop floors by 3 in lockstep -- 77->80
+    items, 31->34 death_knight floor, 85->88 standard floor -- so the
+    surplus itself is unchanged at 46/0.)
+
+    M4.11.4.2 (Task 4 fix round 1): Progressive Mining/Herbalism add a 5th
+    term -- same "no AP location of its own" shape as the three optional-
+    family terms above (up to 12 item copies total, one per real skill tier
+    with at least one real gathering_node location for that profession).
+
+    M4.11.7: Raidlogger's instant_level_set items add a 6th term, same
+    shape again.
+
+    Clamped to this family's real compiled row count (151) as defense in
+    depth: create_filler_locations' own `[:needed]` slice already tolerates
+    an oversized `needed` silently, but an unclamped value would let
+    slot_data's filler_needed_count (M4.11.6) advertise a count larger than
+    any location that actually exists -- the exact over-report class of bug
+    this milestone fixes, just from the opposite direction. A `needed` this
+    large should already fail generation on item/location parity before
+    this clamp would ever matter in practice (test_basic.py's own
+    worst-case-coverage test exists to catch that drift)."""
+    raw_needed = (
         count_enabled_gates_items(world)
         + count_enabled_trap_items(world)
         + count_enabled_holidaysanity_items(world)
@@ -592,6 +605,7 @@ def compute_filler_needed_count(world) -> int:
         + count_gathering_skill_progression_items(world)
         + count_enabled_raidlogger_items(world)
     )
+    return min(raw_needed, len(filler_content_data.LOCATIONS))
 
 
 def create_rares_locations(world, region) -> list:
