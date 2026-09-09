@@ -73,7 +73,16 @@ class TestNorthshireGeneration(WoWTestBase):
         going red in the whole-milestone final review's full local pytest
         run. Computed via count_gathering_skill_progression_items (items.py)
         rather than hardcoding 12, so this stays correct if Gathersanity's
-        content is ever regenerated with a different real tier spread."""
+        content is ever regenerated with a different real tier spread.
+
+        M4.14.1 final review fix: "Useful Items" added two more real
+        unconditional gates items -- Random Flight Path Unlock and Portable
+        Mailbox, neither gated by any option (correctly absent from
+        items.py's _OPTIONAL_ITEM_PREFIXES) -- growing the fixed unconditional-
+        gates count from 7 (riding x5, flight x2) to 9. Same drift class as
+        M4.11.4.2 above: the hardcoded `+ 7` under-counted the real itempool
+        by exactly 2 the moment these two items were added, caught the same
+        way (a whole-milestone final review's full local pytest run)."""
         from .. import density
         from .. import quest_rewards_content_data
         from .. import vendor_stock_content_data
@@ -84,7 +93,7 @@ class TestNorthshireGeneration(WoWTestBase):
             len(core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track])
             + len(core_loop_content_data.INSTANCE_CLEAR_LOCATIONS)
         )
-        fixed_count = core_loop_item_count + 7  # core-loop items (track-aware) + 7 unconditional gates (riding x5, flight x2)
+        fixed_count = core_loop_item_count + 9  # core-loop items (track-aware) + 9 unconditional gates (riding x5, flight x2, random_flight_path x1, portable_mailbox x1)
         always_present_count = len(quest_rewards_content_data.ALWAYS_PRESENT)
         quest_reward_candidates = len(quest_rewards_content_data.LOCATIONS) - always_present_count
         quest_reward_sampled = density.predict_sample_size(25, 100, quest_reward_candidates)
@@ -276,6 +285,15 @@ _CHARACTER_UNLOCK_ITEM_NAMES = (
     "Progressive Glyph Slot: Slot 4",
     "Progressive Glyph Slot: Slot 5",
     "Progressive Glyph Slot: Slot 6",
+    # M4.14.1 final review fix (C5/I1): Task 1's bag slots and Task 6's
+    # XP/speed boosts also depend on character_unlock_gating (see
+    # items.py's _OPTIONAL_ITEM_PREFIXES).
+    "Progressive Bag Slot: Slot 1",
+    "Progressive Bag Slot: Slot 2",
+    "Progressive Bag Slot: Slot 3",
+    "Progressive Bag Slot: Slot 4",
+    "Progressive EXP Boost",
+    "Progressive Move Speed Boost",
 )
 
 
@@ -621,7 +639,11 @@ class TestTrapsGatesAndHolidaysanityCombinedParity(WoWTestBase):
     own" family (count_gathering_skill_progression_items), unconditional
     like Holidaysanity -- see
     TestFillerPoolCoversWorstCaseGatesTrapsHolidaysanityAndGatheringSkillProgression
-    for the dedicated trip-wire.
+    for the dedicated trip-wire. M4.14.1 ("Useful Items" final review fix
+    C3) grew it again to 161 (151 + 10): 10 new gates.yaml items (4
+    Progressive Bag Slot tiers, 2 Talent Point Access tranches, Random
+    Flight Path Unlock, Portable Mailbox, Progressive EXP Boost, Progressive
+    Move Speed Boost) grew max_gate_items from 37 to 47.
     Stress-tests all three (gates/traps/Holidaysanity) at their most extreme
     settings simultaneously (including combo_unlocks_scope: "both", the
     setting that actually reaches the full 37-item gates worst case AND
@@ -693,7 +715,15 @@ class TestFillerPoolCoversWorstCaseGatesTrapsHolidaysanityAndGatheringSkillProgr
     real `needed` total in locations.py's create_filler_locations grew past
     content/filler.yaml's actual row count by exactly 12 -- the drift this
     trip-wire exists to catch. See filler.yaml's own header comment for the
-    matching 139 -> 151 row-count resize."""
+    matching 139 -> 151 row-count resize.
+
+    M4.14.1 ("Useful Items" final review fix C3): this same drift recurred
+    -- gates.yaml grew from 37 to 47 items (10 new gate items) with no
+    matching filler.yaml resize, caught only by this milestone's
+    whole-branch final review, not by this trip-wire at task-review time
+    (each individual task's own diff doesn't show the cumulative growth).
+    Row count resized again, 151 -> 161, see filler.yaml's own header
+    comment."""
 
     def test_filler_pool_covers_worst_case_gates_traps_holidaysanity_and_gathering_skill_progression(self) -> None:
         from .. import filler_content_data, gates_content_data, holidaysanity_content_data
