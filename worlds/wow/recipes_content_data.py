@@ -7580,3 +7580,6 @@ TAGS: dict[str, dict[str, frozenset[str]]] = {
     "Recipe: Plans: Iceblade Arrow (#52023)": {"profession": frozenset({"engineering"}), "expansion": frozenset({"wotlk"})},
     "Recipe: Pattern: Frosty Flying Carpet (#54798)": {"profession": frozenset({"tailoring"}), "expansion": frozenset({"wotlk"})},
 }
+
+CHAIN_SPELL_IDS_BY_ITEM_NAME: dict[str, list[int]] = {
+}

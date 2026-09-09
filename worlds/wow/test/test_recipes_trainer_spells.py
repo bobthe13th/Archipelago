@@ -16,13 +16,43 @@ class TestRecipesRowAlignment(unittest.TestCase):
 
 
 class TestTrainerSpellsRowAlignment(unittest.TestCase):
-    def test_locations_and_items_are_row_order_aligned(self) -> None:
+    def test_every_location_spell_id_is_covered_by_exactly_one_item(self) -> None:
+        # M4.11.6's progressive-item redesign broke the old, simpler 1:1
+        # LOCATIONS/ITEMS row-order-alignment invariant this test used to
+        # assert directly -- a "Progressive X" item now covers MULTIPLE
+        # locations, one per delivery.spell_ids entry. See
+        # create_optional_category_item_pool (items.py, M4.11.7-fix) for the
+        # real, current consumer-side contract this test guards instead:
+        # every location's own spell_id is covered by exactly one item,
+        # either a chain item (CHAIN_SPELL_IDS_BY_ITEM_NAME) or, for every
+        # remaining (non-chain) location/item, the original 1:1
+        # row-order-aligned pairing on that filtered subset.
         location_names = list(trainer_spells_content_data.LOCATIONS)
         item_names = list(trainer_spells_content_data.ITEMS)
-        self.assertEqual(len(location_names), len(item_names))
-        for location_name, item_name in zip(location_names, item_names):
+        chain_map = trainer_spells_content_data.CHAIN_SPELL_IDS_BY_ITEM_NAME
+        spell_id_to_chain_item = {
+            spell_id: item_name
+            for item_name, spell_ids in chain_map.items()
+            for spell_id in spell_ids
+        }
+        triggers = trainer_spells_content_data.TRIGGERS
+        chain_item_names = set(chain_map)
+        plain_item_names = [name for name in item_names if name not in chain_item_names]
+        plain_location_names = [
+            name for name in location_names
+            if triggers[name]["spell_id"] not in spell_id_to_chain_item
+        ]
+        self.assertEqual(len(plain_location_names), len(plain_item_names))
+        for location_name, item_name in zip(plain_location_names, plain_item_names):
             self.assertTrue(location_name.startswith("Trainer Spell: "))
             self.assertTrue(item_name.startswith("Trainer Spell Item: "))
+        plain_location_names_set = set(plain_location_names)
+        for location_name in location_names:
+            spell_id = triggers[location_name]["spell_id"]
+            self.assertTrue(
+                spell_id in spell_id_to_chain_item or location_name in plain_location_names_set,
+                f"{location_name!r} (spell_id {spell_id}) is covered by neither a chain nor a plain item",
+            )
 
 
 class TestRecipesAndTrainerSpellsHaveNoOverlappingSpellIds(unittest.TestCase):
