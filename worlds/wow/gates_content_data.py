@@ -46,6 +46,7 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Progressive Bag Slot: Slot 2": (830038, 1),
     "Progressive Bag Slot: Slot 3": (830039, 1),
     "Progressive Bag Slot: Slot 4": (830040, 1),
+    "Random Flight Path Unlock": (830045, 1),
 }
 
 FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
