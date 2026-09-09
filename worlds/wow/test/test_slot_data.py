@@ -1,8 +1,10 @@
 import unittest
 from types import SimpleNamespace
 
+from .. import filler_content_data
 from .. import locations as locations_module
 from .. import slot_data as slot_data_module
+from .bases import WoWTestBase
 from BaseClasses import ItemClassification
 
 
@@ -379,3 +381,27 @@ class TestAddZoneLevelerData(unittest.TestCase):
         )
         self.assertEqual(data["zone_leveler_statues_required"], 12)
         self.assertEqual(data["zone_leveler_instances_required"], 3)
+
+
+class TestFillerNeededCountRealGeneration(WoWTestBase):
+    """M4.11.6: closes the phantom-filler-check gap
+    docs/guides/realm-refresh-methodology.md's investigation found -- proves
+    slot_data's filler_needed_count exactly matches this seed's own real,
+    generated filler-location count. Every other _add_* test in this file
+    uses a SimpleNamespace mock (TestAddVendorCheckRepeatBehavior etc.) --
+    this is the one real-generation check for this specific key, mirroring
+    TestGathersanityRealGenerationDisenchantOnly's own precedent
+    (test_gathersanity.py)."""
+    options = {
+        "game_mode": "sprint", "check_density": 100,
+        "quest_reward_weight": 0, "vendor_stock_weight": 0,
+    }
+
+    def test_filler_needed_count_matches_real_placed_filler_locations(self) -> None:
+        data = self.world.fill_slot_data()
+        placed_filler_count = sum(
+            1 for loc in self.multiworld.get_locations(self.player)
+            if loc.name in filler_content_data.LOCATIONS
+        )
+        self.assertEqual(data["filler_needed_count"], placed_filler_count)
+        self.assertGreater(data["filler_needed_count"], 0)
