@@ -25177,3 +25177,6 @@ TAGS: dict[str, dict[str, frozenset[str]]] = {
     "Filler: X-53 Touring Rocket (#54860)": {"category": frozenset({"mount"})},
     "Filler: Mini Thor (#56806)": {"category": frozenset({"pet"})},
 }
+
+CHAIN_SPELL_IDS_BY_ITEM_NAME: dict[str, list[int]] = {
+}

@@ -1311,6 +1311,107 @@ class TestIsFillerRewardFlagDrivesClassification(WoWTestBase):
         self.assertEqual(by_name["Fake Item B"].classification, ItemClassification.useful)
 
 
+class TestChainAwareItemPool(WoWTestBase):
+    # M4.11.7-fix: trainer_spells' progressive-item redesign (M4.11.6)
+    # collapsed multi-rank spell chains into one "Progressive X" item per
+    # chain (delivery.kind == learn_next_chain_rank), so LOCATIONS (one row
+    # per rank) and ITEMS (one row per chain, plus one per untouched
+    # single-rank spell) are no longer the same length -- breaking
+    # create_optional_category_item_pool's row-index-alignment invariant
+    # for the first time. Fixed generically via a new CHAIN_SPELL_IDS_BY_ITEM_NAME
+    # export (empty dict for every other family, unaffected): when present
+    # and non-empty, chain-covered locations are grouped by
+    # TRIGGERS[name]["spell_id"] and pool exactly ONE copy of their owning
+    # chain item regardless of how many of that chain's ranks were sampled,
+    # while every other (non-chain) location keeps the original 1:1
+    # row-aligned pairing on the filtered subset -- verified empirically
+    # (M4.11.7-fix investigation) that filtering both LOCATIONS and ITEMS
+    # down to their non-chain-covered rows restores that subset's original
+    # row alignment exactly, with zero mismatches across the real
+    # trainer_spells data (241 non-chain locations, 241 mail items).
+    options = {"game_mode": "sprint", "check_density": 100, "vendor_stock_weight": 0, "quest_reward_weight": 100}
+
+    @staticmethod
+    def _fake_category():
+        from ..locations import OptionalCategory
+
+        class _FakeLocationsModuleWithChain:
+            LOCATIONS = {
+                "Chain Loc A (#1)": 999900,
+                "Chain Loc B (#2)": 999901,
+                "Chain Loc C (#3)": 999902,
+                "Plain Loc D (#4)": 999903,
+            }
+            TAGS = {name: {} for name in LOCATIONS}
+            TRIGGERS = {
+                "Chain Loc A (#1)": {"spell_id": 1},
+                "Chain Loc B (#2)": {"spell_id": 2},
+                "Chain Loc C (#3)": {"spell_id": 3},
+                "Plain Loc D (#4)": {"spell_id": 4},
+            }
+            ALWAYS_PRESENT = frozenset()
+
+        class _FakeItemsModuleWithChain:
+            ITEMS = {
+                "Progressive Chain": (999800, 1),
+                "Plain Item D": (999801, 1),
+            }
+            CHAIN_SPELL_IDS_BY_ITEM_NAME = {"Progressive Chain": [1, 2, 3]}
+
+        return OptionalCategory(
+            key="fake_chain", tag_options={}, weight_option="quest_reward_weight",
+            locations_module=_FakeLocationsModuleWithChain, items_module=_FakeItemsModuleWithChain,
+        )
+
+    def _pool_for_sampled_subset(self, sampled_location_names: set) -> list:
+        from .. import locations as locations_module
+        from ..items import create_optional_category_item_pool
+        from ..locations import create_optional_category_locations
+
+        fake_category = self._fake_category()
+        world = self.world
+        region = self.multiworld.get_region("Northshire", world.player)
+        original = locations_module._OPTIONAL_CATEGORIES
+        locations_module._OPTIONAL_CATEGORIES = [fake_category]
+        try:
+            created = create_optional_category_locations(world, region)
+            region.locations += [loc for loc in created if loc.name in sampled_location_names]
+            return create_optional_category_item_pool(world)
+        finally:
+            locations_module._OPTIONAL_CATEGORIES = original
+
+    def test_pools_exactly_one_chain_item_copy_no_matter_how_many_ranks_sampled(self) -> None:
+        pool = self._pool_for_sampled_subset({"Chain Loc A (#1)", "Chain Loc B (#2)"})
+        chain_items = [item for item in pool if item.name == "Progressive Chain"]
+        self.assertEqual(len(chain_items), 1)
+
+    def test_extra_sampled_ranks_in_the_same_chain_get_a_filler_item_each(self) -> None:
+        # Real, load-bearing parity requirement: len(itempool) ==
+        # len(locations) globally, or Fill.FillError: "Unable to fill all
+        # locations" (confirmed empirically against real trainer_spells
+        # generation before this test's own deficit-closing fix landed).
+        # One rank "wins" the chain item; the other sampled rank in the same
+        # chain must still get SOME item, via create_filler_item_pool's
+        # existing generic deficit-closing mechanism (M4.9.3.1).
+        pool = self._pool_for_sampled_subset({"Chain Loc A (#1)", "Chain Loc B (#2)"})
+        self.assertEqual(len(pool), 2)
+
+    def test_pools_the_plain_item_for_its_own_non_chain_location(self) -> None:
+        pool = self._pool_for_sampled_subset({"Plain Loc D (#4)"})
+        self.assertEqual([item.name for item in pool], ["Plain Item D"])
+
+    def test_pools_both_chain_and_plain_items_when_both_sampled(self) -> None:
+        # Chain Loc A and Chain Loc C are both ranks of the SAME chain --
+        # exactly one of them wins "Progressive Chain", the other closes its
+        # own deficit via a filler item (see the dedicated deficit test
+        # above), and Plain Loc D gets its own "Plain Item D" as always.
+        pool = self._pool_for_sampled_subset({"Chain Loc A (#1)", "Chain Loc C (#3)", "Plain Loc D (#4)"})
+        self.assertEqual(len(pool), 3)
+        names = [item.name for item in pool]
+        self.assertEqual(names.count("Progressive Chain"), 1)
+        self.assertEqual(names.count("Plain Item D"), 1)
+
+
 class TestItemsanityDebugCategoryMatches(unittest.TestCase):
     """M4.11.5.1: unit-level coverage of _itemsanity_debug_category_matches
     itself, same types.SimpleNamespace fake-world pattern

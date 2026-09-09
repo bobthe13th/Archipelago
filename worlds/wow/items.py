@@ -785,39 +785,117 @@ def create_optional_category_item_pool(world) -> list:
             continue
         location_names = list(category.locations_module.LOCATIONS.keys())
         item_rows = list(category.items_module.ITEMS.items())
-        if len(location_names) != len(item_rows):
-            raise ValueError(
-                f"optional category {category.key!r}: LOCATIONS ({len(location_names)} rows) and "
-                f"ITEMS ({len(item_rows)} rows) must be the same length and row-index-aligned -- "
-                f"see create_optional_category_item_pool's docstring for why this is required."
-            )
-        index_by_location_name = {name: i for i, name in enumerate(location_names)}
-        sampled_indices = {
-            index_by_location_name[loc.name]
-            for loc in world.multiworld.get_locations(world.player)
-            if loc.name in index_by_location_name
-        }
         triggers = category.locations_module.TRIGGERS
-        for i in sampled_indices:
-            item_name, (item_id, count) = item_rows[i]
-            # M4.11.5.0.1: none of the families that reach this branch
-            # (quest_rewards, vendor_stock, recipes, trainer_spells,
-            # gathersanity, craftsanity, itemsanity) gate the goal or other
-            # locations, so progression is never correct here -- only the
-            # two real signals below distinguish filler from useful. TRIGGERS
-            # is keyed by LOCATION name, not item name (every family here
-            # names its LOCATIONS/ITEMS rows with different prefixes for the
-            # same underlying row, per this function's own docstring above)
-            # -- location_names[i] is the same row's own location name,
-            # index-aligned with item_rows[i] exactly like sampled_indices
-            # itself already relies on.
+        # M4.11.7-fix: trainer_spells' progressive-item redesign (M4.11.6)
+        # collapsed multi-rank spell chains into one "Progressive X" item
+        # per chain, so LOCATIONS (one row per rank) and ITEMS (one row per
+        # chain, plus one per untouched single-rank spell) are no longer
+        # the same length -- the row-index-alignment invariant below only
+        # holds for a category with no such rows. CHAIN_SPELL_IDS_BY_ITEM_NAME
+        # (generate_content.py's emit_python_generic, gated on
+        # export_item_delivery) is empty for every other category, so this
+        # getattr is a no-op fast path for all of them.
+        chain_spell_ids_by_item_name = getattr(category.items_module, "CHAIN_SPELL_IDS_BY_ITEM_NAME", {})
+
+        if not chain_spell_ids_by_item_name:
+            if len(location_names) != len(item_rows):
+                raise ValueError(
+                    f"optional category {category.key!r}: LOCATIONS ({len(location_names)} rows) and "
+                    f"ITEMS ({len(item_rows)} rows) must be the same length and row-index-aligned -- "
+                    f"see create_optional_category_item_pool's docstring for why this is required."
+                )
+            index_by_location_name = {name: i for i, name in enumerate(location_names)}
+            sampled_indices = {
+                index_by_location_name[loc.name]
+                for loc in world.multiworld.get_locations(world.player)
+                if loc.name in index_by_location_name
+            }
+            for i in sampled_indices:
+                item_name, (item_id, count) = item_rows[i]
+                # M4.11.5.0.1: none of the families that reach this branch
+                # (quest_rewards, vendor_stock, recipes, trainer_spells,
+                # gathersanity, craftsanity, itemsanity) gate the goal or other
+                # locations, so progression is never correct here -- only the
+                # two real signals below distinguish filler from useful. TRIGGERS
+                # is keyed by LOCATION name, not item name (every family here
+                # names its LOCATIONS/ITEMS rows with different prefixes for the
+                # same underlying row, per this function's own docstring above)
+                # -- location_names[i] is the same row's own location name,
+                # index-aligned with item_rows[i] exactly like sampled_indices
+                # itself already relies on.
+                classification = (
+                    ItemClassification.filler
+                    if triggers[location_names[i]].get("is_filler_reward", False)
+                    else ItemClassification.useful
+                )
+                for _ in range(count):
+                    pool.append(WoWItem(item_name, classification, item_id, world.player))
+            continue
+
+        # Chain-aware path: a chain item's rank spell_ids each cover their
+        # own location (TRIGGERS[location]["spell_id"]), so group locations
+        # by which chain covers them instead of assuming a bijection. Every
+        # other item in this family is still one-to-one with its own
+        # location -- verified empirically (M4.11.7-fix investigation) that
+        # filtering both LOCATIONS and ITEMS down to their non-chain-covered
+        # rows restores that subset's original row alignment exactly (real
+        # trainer_spells data: 241 non-chain locations, 241 non-chain items,
+        # zero ordering mismatches).
+        spell_id_to_chain_item_name = {
+            spell_id: item_name
+            for item_name, spell_ids in chain_spell_ids_by_item_name.items()
+            for spell_id in spell_ids
+        }
+        chain_item_names = set(chain_spell_ids_by_item_name)
+        plain_item_rows = [(name, row) for name, row in item_rows if name not in chain_item_names]
+        plain_location_names = [
+            name for name in location_names
+            if triggers[name].get("spell_id") not in spell_id_to_chain_item_name
+        ]
+        if len(plain_location_names) != len(plain_item_rows):
+            raise ValueError(
+                f"optional category {category.key!r}: non-chain LOCATIONS "
+                f"({len(plain_location_names)} rows) and non-chain ITEMS "
+                f"({len(plain_item_rows)} rows) must be the same length and "
+                f"row-index-aligned after excluding chain-covered rows -- "
+                f"see create_optional_category_item_pool's docstring for why "
+                f"this is required."
+            )
+        plain_index_by_location_name = {name: i for i, name in enumerate(plain_location_names)}
+
+        pooled_chain_item_names = set()
+        # A chain item pools exactly once regardless of how many of its
+        # ranks are sampled -- every rank BEYOND the first that triggered
+        # pooling would otherwise leave its own location with no item at
+        # all, breaking the real, load-bearing len(itempool) ==
+        # len(locations) parity generation depends on globally (confirmed:
+        # without this, real trainer_spells generation raises Fill.FillError
+        # "Unable to fill all locations"). Closed the same way M4.9.3.1's
+        # create_filler_item_pool already closes every other family's
+        # analogous deficit (e.g. core_loop's every-level granularity gap).
+        chain_deficit = 0
+        for loc in world.multiworld.get_locations(world.player):
+            if loc.name not in triggers:
+                continue
+            spell_id = triggers[loc.name].get("spell_id")
+            item_name = spell_id_to_chain_item_name.get(spell_id)
+            if item_name is not None:
+                if item_name in pooled_chain_item_names:
+                    chain_deficit += 1
+                    continue
+                pooled_chain_item_names.add(item_name)
+                item_id, count = category.items_module.ITEMS[item_name]
+            else:
+                item_name, (item_id, count) = plain_item_rows[plain_index_by_location_name[loc.name]]
             classification = (
                 ItemClassification.filler
-                if triggers[location_names[i]].get("is_filler_reward", False)
+                if triggers[loc.name].get("is_filler_reward", False)
                 else ItemClassification.useful
             )
             for _ in range(count):
                 pool.append(WoWItem(item_name, classification, item_id, world.player))
+        if chain_deficit > 0:
+            pool.extend(create_filler_item_pool(world, chain_deficit))
     return pool
 
 
