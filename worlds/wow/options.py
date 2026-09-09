@@ -466,7 +466,21 @@ class ZoneGating(Toggle):
     of being walkable from the start (M4.14.2 design spec §1 §2 -- optional,
     off by default). The connected worldserver must also have
     Archipelago.ZoneGating enabled in its .conf to match -- same manual-sync
-    requirement as the other gate toggles."""
+    requirement as the other gate toggles.
+
+    Known, deliberately deferred gap (final review, M4.14.2): rules.py does
+    not yet model these three zones as physical access requirements for any
+    location placed inside them (real, concrete case: "Clear Sunwell
+    Plateau" requires physically reaching Isle of Quel'Danas first). This
+    means a seed with this option on COULD place a Zone Access item's own
+    location, or another zone-locked location, behind that same zone's own
+    Access item, or otherwise generate a logically-unreachable placement.
+    This is the same unmodeled-physical-access gap Dark Portal
+    Access/Northrend Passage already carry for quest rewards/vendor
+    stock/trainer spells/instance clears -- not a new regression, but not
+    yet closed either. Treat seeds using this option as experimental until
+    a rules.py pass (keyed on the existing "area" tag dimension plus
+    instance_entrance_data.ZONES) closes it."""
     display_name = "Zone Gating"
     default = False
 
