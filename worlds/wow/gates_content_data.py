@@ -40,6 +40,10 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Progressive Glyph Slot: Slot 6": (830036, 1),
     "TBC Combo Unlock": (830027, 1),
     "WotLK Combo Unlock": (830028, 1),
+    "Progressive Bag Slot: Slot 1": (830037, 1),
+    "Progressive Bag Slot: Slot 2": (830038, 1),
+    "Progressive Bag Slot: Slot 3": (830039, 1),
+    "Progressive Bag Slot: Slot 4": (830040, 1),
 }
 
 FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
@@ -80,6 +84,10 @@ FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
     "Progressive Glyph Slot: Slot 6": "glyph_slots",
     "TBC Combo Unlock": "combo_unlock_tbc",
     "WotLK Combo Unlock": "combo_unlock_wotlk",
+    "Progressive Bag Slot: Slot 1": "bag_slots",
+    "Progressive Bag Slot: Slot 2": "bag_slots",
+    "Progressive Bag Slot: Slot 3": "bag_slots",
+    "Progressive Bag Slot: Slot 4": "bag_slots",
 }
 
 FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
@@ -120,4 +128,8 @@ FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
     "Progressive Glyph Slot: Slot 6": 6,
     "TBC Combo Unlock": 1,
     "WotLK Combo Unlock": 1,
+    "Progressive Bag Slot: Slot 1": 1,
+    "Progressive Bag Slot: Slot 2": 2,
+    "Progressive Bag Slot: Slot 3": 3,
+    "Progressive Bag Slot: Slot 4": 4,
 }
