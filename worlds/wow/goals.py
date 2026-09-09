@@ -188,6 +188,44 @@ def _set_completion_rule_raid_instance_clear(instance_key: str):
     return _set_rule
 
 
+# Raidlogger (M4.11.7, GameMode.option_raidlogger=14): goal is "clear this
+# chain's final tier's one raid" -- reuses the exact same completion-rule
+# shape as Tier-1's single-raid modes above (_validate_raid_instance_clear/
+# _set_completion_rule_raid_instance_clear), just resolving which
+# instance_key applies from raidlogger_expansions at call time instead of a
+# fixed per-mode value (GameMode 14 covers two different final raids
+# depending on that sub-option), the same per-option dynamic-resolution
+# style _validate_completionist/_set_completion_rule_completionist below
+# already use for completionist_expansion.
+RAIDLOGGER_FINAL_TIER_INSTANCE_KEY: dict[str, str] = {
+    "classic_to_tbc": "sunwell",
+    "classic_to_wotlk": "icecrown_citadel",
+}
+
+
+def _get_raidlogger_final_instance_key(world) -> str:
+    return RAIDLOGGER_FINAL_TIER_INSTANCE_KEY[world.options.raidlogger_expansions.current_key]
+
+
+def _validate_raidlogger(world) -> None:
+    instance_key = _get_raidlogger_final_instance_key(world)
+    if instance_key not in core_loop_content_data.INSTANCE_CLEAR_LOCATIONS:
+        raise OptionError(
+            f"WoW: game_mode 'raidlogger' with raidlogger_expansions "
+            f"'{world.options.raidlogger_expansions.current_key}' requires "
+            f"the '{instance_key}' instance-clear location, but it is "
+            f"missing from core_loop.yaml."
+        )
+
+
+def _set_completion_rule_raidlogger(world) -> None:
+    instance_key = _get_raidlogger_final_instance_key(world)
+    display_name = _INSTANCE_KEY_DISPLAY_NAMES[instance_key]
+    world.set_completion_rule(
+        lambda state: state.has(f"Instance Unlock: {display_name}", world.player)
+    )
+
+
 # Task 24 (Completionist mode, design spec Sec5.4): requires clearing every
 # instance_clear location tagged with the chosen expansion
 # (completionist_expansion option -- vanilla/tbc/wotlk). Unlike Tier-1's
@@ -640,6 +678,7 @@ _VALIDATORS = {
     11: _validate_fishing_quest,
     12: _validate_hundred_percent,  # option_hundred_percent
     13: _validate_zone_leveler,  # option_zone_leveler (M4.11.1 Task 11)
+    14: _validate_raidlogger,  # option_raidlogger (M4.11.7)
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
     **{value: _not_buildable(name, reason) for value, (name, reason) in _NOT_BUILDABLE_MODES.items()},
 }
@@ -657,6 +696,7 @@ _COMPLETION_RULES = {
     11: _set_completion_rule_fishing_quest,
     12: _set_completion_rule_hundred_percent,  # option_hundred_percent
     13: _set_completion_rule_zone_leveler,  # option_zone_leveler (M4.11.1 Task 11)
+    14: _set_completion_rule_raidlogger,  # option_raidlogger (M4.11.7)
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
     **{value: _not_buildable(name, reason) for value, (name, reason) in _NOT_BUILDABLE_MODES.items()},
 }
