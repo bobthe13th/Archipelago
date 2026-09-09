@@ -50,6 +50,9 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Portable Mailbox": (830046, 1),
     "Progressive EXP Boost": (830043, 1),
     "Progressive Move Speed Boost": (830044, 1),
+    "Zone Access: Shattrath City": (830047, 1),
+    "Zone Access: Isle of Quel'Danas": (830048, 1),
+    "Zone Access: Dalaran": (830049, 1),
 }
 
 FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
@@ -98,6 +101,9 @@ FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
     "Progressive Bag Slot: Slot 4": "bag_slots",
     "Progressive EXP Boost": "xp_boost",
     "Progressive Move Speed Boost": "speed_boost",
+    "Zone Access: Shattrath City": "zone_access_shattrath_city",
+    "Zone Access: Isle of Quel'Danas": "zone_access_isle_of_quel_danas",
+    "Zone Access: Dalaran": "zone_access_dalaran",
 }
 
 FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
@@ -146,4 +152,7 @@ FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
     "Progressive Bag Slot: Slot 4": 4,
     "Progressive EXP Boost": 1,
     "Progressive Move Speed Boost": 1,
+    "Zone Access: Shattrath City": 1,
+    "Zone Access: Isle of Quel'Danas": 1,
+    "Zone Access: Dalaran": 1,
 }

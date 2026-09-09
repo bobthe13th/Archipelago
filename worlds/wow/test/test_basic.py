@@ -314,6 +314,29 @@ class TestCharacterUnlockItemsPooledWhenOptionOn(WoWTestBase):
             self.assertEqual(len(self.get_items_by_name(name)), 1)
 
 
+_ZONE_ACCESS_ITEM_NAMES = (
+    "Zone Access: Shattrath City",
+    "Zone Access: Isle of Quel'Danas",
+    "Zone Access: Dalaran",
+)
+
+
+class TestZoneAccessItemsPooledWhenOptionOff(WoWTestBase):
+    options = {"zone_gating": False}
+
+    def test_zone_access_items_absent_when_option_is_off(self) -> None:
+        for name in _ZONE_ACCESS_ITEM_NAMES:
+            self.assertEqual(len(self.get_items_by_name(name)), 0)
+
+
+class TestZoneAccessItemsPooledWhenOptionOn(WoWTestBase):
+    options = {"zone_gating": True}
+
+    def test_zone_access_items_present_when_option_is_on(self) -> None:
+        for name in _ZONE_ACCESS_ITEM_NAMES:
+            self.assertEqual(len(self.get_items_by_name(name)), 1)
+
+
 class TestComboUnlockItemsScopeOff(WoWTestBase):
     options = {"combo_unlocks_scope": "off"}
 

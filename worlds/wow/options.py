@@ -460,6 +460,17 @@ class CharacterUnlockGating(Toggle):
     default = False
 
 
+class ZoneGating(Toggle):
+    """When on, three curated notable-zone-entry gates (Shattrath City,
+    Isle of Quel'Danas, Dalaran) are locked behind Archipelago items instead
+    of being walkable from the start (M4.14.2 design spec §1 §2 -- optional,
+    off by default). The connected worldserver must also have
+    Archipelago.ZoneGating enabled in its .conf to match -- same manual-sync
+    requirement as the other gate toggles."""
+    display_name = "Zone Gating"
+    default = False
+
+
 class CatchUpPolicy(Choice):
     """How a brand-new character catches up on WoW items the realm has
     already received (spec §7.2). Every delivered item is logged once
@@ -1213,6 +1224,7 @@ class WoWOptions(PerGameCommonOptions):
     proficiency_gating: ProficiencyGating
     access_gating: AccessGating
     character_unlock_gating: CharacterUnlockGating
+    zone_gating: ZoneGating
     catch_up_policy: CatchUpPolicy
     catch_up_percent_per_level: CatchUpPercentPerLevel
     traps_enabled: TrapsEnabled

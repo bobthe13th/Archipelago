@@ -297,6 +297,9 @@ _OPTIONAL_ITEM_PREFIXES = [
     ("Progressive Bag Slot:", "character_unlock_gating"),
     ("Progressive EXP Boost", "character_unlock_gating"),
     ("Progressive Move Speed Boost", "character_unlock_gating"),
+    # M4.14.2 Task 2: the 3 curated Zone Access gate items follow the same
+    # convention -- only pooled when the "zone_gating" apworld option is on.
+    ("Zone Access:", "zone_gating"),
 ]
 
 
