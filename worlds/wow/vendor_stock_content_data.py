@@ -150968,3 +150968,6 @@ TAGS: dict[str, dict[str, frozenset[str]]] = {
     "Vendor: Knight-Lieutenant T'Maire Sydes - Furious Gladiator's Libram of Fortitude (#37748)": {"expansion": frozenset({"vanilla"}), "area": frozenset({"elwynn_forest", "stormwind_city"})},
     "Vendor: Knight-Lieutenant T'Maire Sydes - Commendation of Bravery (#37749)": {"expansion": frozenset({"vanilla"}), "area": frozenset({"elwynn_forest", "stormwind_city"})},
 }
+
+CHAIN_SPELL_IDS_BY_ITEM_NAME: dict[str, list[int]] = {
+}

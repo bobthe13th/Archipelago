@@ -17433,6 +17433,7 @@ LOCATIONS: dict[str, int] = {
     "Enemy: Ruby Dragon (#40870)": 10517427,
     "Enemy: Conversing With the Depths Trigger (#70100)": 10517428,
     "Enemy: Archipelago Cache Keeper (#900000)": 10517429,
+    "Enemy: Archipelago Holiday Herald (#900001)": 10517430,
 }
 
 ITEMS: dict[str, tuple[int, int]] = {
@@ -34872,6 +34873,7 @@ TRIGGERS: dict[str, dict] = {
     "Enemy: Ruby Dragon (#40870)": {'kind': 'creature_kill', 'creature_entry': 40870},
     "Enemy: Conversing With the Depths Trigger (#70100)": {'kind': 'creature_kill', 'creature_entry': 70100},
     "Enemy: Archipelago Cache Keeper (#900000)": {'kind': 'creature_kill', 'creature_entry': 900000},
+    "Enemy: Archipelago Holiday Herald (#900001)": {'kind': 'creature_kill', 'creature_entry': 900001},
 }
 
 TAGS: dict[str, dict[str, frozenset[str]]] = {
@@ -52305,4 +52307,5 @@ TAGS: dict[str, dict[str, frozenset[str]]] = {
     "Enemy: Ruby Dragon (#40870)": {"type": frozenset({"regular"}), "expansion": frozenset({"wotlk"}), "area": frozenset({"ruby_sanctum"})},
     "Enemy: Conversing With the Depths Trigger (#70100)": {"type": frozenset({"regular"}), "expansion": frozenset({"wotlk"}), "area": frozenset({"dragonblight"})},
     "Enemy: Archipelago Cache Keeper (#900000)": {"type": frozenset({"regular"}), "expansion": frozenset({"vanilla"}), "area": frozenset({"elwynn_forest"})},
+    "Enemy: Archipelago Holiday Herald (#900001)": {"type": frozenset({"regular"}), "expansion": frozenset({"tbc", "vanilla", "wotlk"}), "area": frozenset({"azuremyst_isle", "barrens", "crystalsong_forest", "darnassus", "desolace", "dun_morogh", "durotar", "elwynn_forest", "eversong_woods", "exodar", "hellfire_peninsula", "icecrown", "ironforge", "mulgore", "nagrand", "orgrimmar", "shattrath_city", "silvermoon_city", "silverpine_forest", "storm_peaks", "stormwind_city", "teldrassil", "terokkar_forest", "thunder_bluff", "tirisfal_glades", "undercity", "western_plaguelands", "wetlands"})},
 }
