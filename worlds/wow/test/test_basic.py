@@ -314,6 +314,29 @@ class TestCharacterUnlockItemsPooledWhenOptionOn(WoWTestBase):
             self.assertEqual(len(self.get_items_by_name(name)), 1)
 
 
+_ZONE_ACCESS_ITEM_NAMES = (
+    "Zone Access: Shattrath City",
+    "Zone Access: Isle of Quel'Danas",
+    "Zone Access: Dalaran",
+)
+
+
+class TestZoneAccessItemsPooledWhenOptionOff(WoWTestBase):
+    options = {"zone_gating": False}
+
+    def test_zone_access_items_absent_when_option_is_off(self) -> None:
+        for name in _ZONE_ACCESS_ITEM_NAMES:
+            self.assertEqual(len(self.get_items_by_name(name)), 0)
+
+
+class TestZoneAccessItemsPooledWhenOptionOn(WoWTestBase):
+    options = {"zone_gating": True}
+
+    def test_zone_access_items_present_when_option_is_on(self) -> None:
+        for name in _ZONE_ACCESS_ITEM_NAMES:
+            self.assertEqual(len(self.get_items_by_name(name)), 1)
+
+
 class TestComboUnlockItemsScopeOff(WoWTestBase):
     options = {"combo_unlocks_scope": "off"}
 
@@ -644,20 +667,28 @@ class TestTrapsGatesAndHolidaysanityCombinedParity(WoWTestBase):
     C3) grew it again to 161 (151 + 10): 10 new gates.yaml items (4
     Progressive Bag Slot tiers, 2 Talent Point Access tranches, Random
     Flight Path Unlock, Portable Mailbox, Progressive EXP Boost, Progressive
-    Move Speed Boost) grew max_gate_items from 37 to 47.
-    Stress-tests all three (gates/traps/Holidaysanity) at their most extreme
-    settings simultaneously (including combo_unlocks_scope: "both", the
-    setting that actually reaches the full 47-item gates worst case AND
-    Holidaysanity's full 14-item worst case) -- if the combined
+    Move Speed Boost) grew max_gate_items from 37 to 47. M4.14.2
+    ("Granular Zone Gates" final review, I4) grew it again to 164
+    (161 + 3): 3 new curated Zone Access items (Shattrath City/Isle of
+    Quel'Danas/Dalaran) grew max_gate_items from 47 to 50 -- this class's
+    own options dict never enabled zone_gating, so this stress test never
+    actually reached the real 50-item gates worst case through a real
+    generation (only the non-generating trip-wire test covered it). Added
+    zone_gating: True below to close that gap.
+    Stress-tests all four (gates/traps/Holidaysanity/zone_access) at their
+    most extreme settings simultaneously (including combo_unlocks_scope:
+    "both", the setting that actually reaches the full 50-item gates worst
+    case AND Holidaysanity's full 14-item worst case) -- if the combined
     count_enabled_gates_items() + count_enabled_trap_items() +
     count_enabled_holidaysanity_items() + count_gathering_skill_progression_items()
-    ever exceeds 161, or if the counts are computed inconsistently between
+    ever exceeds 164, or if the counts are computed inconsistently between
     create_items and create_regions' create_filler_locations, this is
     where it would show up as a FillError."""
     options = {
         "proficiency_gating": True,
         "access_gating": True,
         "character_unlock_gating": True,
+        "zone_gating": True,
         "combo_unlocks_scope": "both",
         "traps_enabled": True,
         "trap_percentage_of_filler": 100,
@@ -724,7 +755,31 @@ class TestFillerPoolCoversWorstCaseGatesTrapsHolidaysanityAndGatheringSkillProgr
     whole-branch final review, not by this trip-wire at task-review time
     (each individual task's own diff doesn't show the cumulative growth).
     Row count resized again, 151 -> 161, see filler.yaml's own header
-    comment."""
+    comment.
+
+    M4.14.2 ("Granular Zone Gates" Task 2): gates.yaml grew again, 47 -> 50
+    (3 new curated Zone Access items), and this time Task 2's own
+    implementer caught the drift proactively via this exact trip-wire
+    (this class's assertion below reads len(gates_content_data.ITEMS)
+    dynamically, so it went red the moment the 3 new items were added,
+    without needing a whole-branch final review to notice) and resized
+    filler.yaml 161 -> 164 in the same task. See filler.yaml's own header
+    comment for the matching entry.
+
+    Known, separately-tracked gap (M4.14.2 final review, I3): this trip-
+    wire's assertion below sums only 4 of the 6 real terms
+    locations.py's compute_filler_needed_count actually computes for a
+    real generation (missing core_loop_item_surplus and
+    count_enabled_raidlogger_items, both real terms added by earlier
+    milestones after this trip-wire was first written). Confirmed
+    pre-existing and unrelated to M4.14.2's own changes (the same 2-item
+    deficit already existed before this milestone, at the same
+    magnitude, driven by M4.11.7's raidlogger term) -- reproducible today
+    with game_mode=raidlogger + all three legacy gating toggles +
+    combo_unlocks_scope=both + traps at 100%/lethal + zone_gating on. Not
+    fixed by this milestone; needs its own follow-up pass extending the
+    assertion to the real 6-term sum and resizing filler.yaml to whatever
+    the true worst case is."""
 
     def test_filler_pool_covers_worst_case_gates_traps_holidaysanity_and_gathering_skill_progression(self) -> None:
         from .. import filler_content_data, gates_content_data, holidaysanity_content_data

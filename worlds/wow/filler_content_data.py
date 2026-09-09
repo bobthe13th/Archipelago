@@ -164,4 +164,7 @@ LOCATIONS: dict[str, int] = {
     "Filler Check 159": 740158,
     "Filler Check 160": 740159,
     "Filler Check 161": 740160,
+    "Filler Check 162": 740161,
+    "Filler Check 163": 740162,
+    "Filler Check 164": 740163,
 }
