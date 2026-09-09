@@ -31,6 +31,8 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Progressive Bank Bag Slot: Slot 6": (830023, 1),
     "Progressive Bank Bag Slot: Slot 7": (830024, 1),
     "Talent Point Access": (830025, 1),
+    "Talent Point Access: Tranche 2": (830041, 1),
+    "Talent Point Access: Tranche 3": (830042, 1),
     "Dual Spec Unlock": (830026, 1),
     "Progressive Glyph Slot: Slot 1": (830031, 1),
     "Progressive Glyph Slot: Slot 2": (830032, 1),
@@ -40,6 +42,14 @@ ITEMS: dict[str, tuple[int, int]] = {
     "Progressive Glyph Slot: Slot 6": (830036, 1),
     "TBC Combo Unlock": (830027, 1),
     "WotLK Combo Unlock": (830028, 1),
+    "Progressive Bag Slot: Slot 1": (830037, 1),
+    "Progressive Bag Slot: Slot 2": (830038, 1),
+    "Progressive Bag Slot: Slot 3": (830039, 1),
+    "Progressive Bag Slot: Slot 4": (830040, 1),
+    "Random Flight Path Unlock": (830045, 1),
+    "Portable Mailbox": (830046, 1),
+    "Progressive EXP Boost": (830043, 1),
+    "Progressive Move Speed Boost": (830044, 1),
 }
 
 FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
@@ -71,6 +81,8 @@ FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
     "Progressive Bank Bag Slot: Slot 6": "bank_bag_slots",
     "Progressive Bank Bag Slot: Slot 7": "bank_bag_slots",
     "Talent Point Access": "access_talent_points",
+    "Talent Point Access: Tranche 2": "access_talent_points",
+    "Talent Point Access: Tranche 3": "access_talent_points",
     "Dual Spec Unlock": "dual_spec",
     "Progressive Glyph Slot: Slot 1": "glyph_slots",
     "Progressive Glyph Slot: Slot 2": "glyph_slots",
@@ -80,6 +92,12 @@ FLAG_KEY_BY_ITEM_NAME: dict[str, str] = {
     "Progressive Glyph Slot: Slot 6": "glyph_slots",
     "TBC Combo Unlock": "combo_unlock_tbc",
     "WotLK Combo Unlock": "combo_unlock_wotlk",
+    "Progressive Bag Slot: Slot 1": "bag_slots",
+    "Progressive Bag Slot: Slot 2": "bag_slots",
+    "Progressive Bag Slot: Slot 3": "bag_slots",
+    "Progressive Bag Slot: Slot 4": "bag_slots",
+    "Progressive EXP Boost": "xp_boost",
+    "Progressive Move Speed Boost": "speed_boost",
 }
 
 FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
@@ -111,6 +129,8 @@ FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
     "Progressive Bank Bag Slot: Slot 6": 6,
     "Progressive Bank Bag Slot: Slot 7": 7,
     "Talent Point Access": 1,
+    "Talent Point Access: Tranche 2": 2,
+    "Talent Point Access: Tranche 3": 3,
     "Dual Spec Unlock": 1,
     "Progressive Glyph Slot: Slot 1": 1,
     "Progressive Glyph Slot: Slot 2": 2,
@@ -120,4 +140,10 @@ FLAG_TIER_BY_ITEM_NAME: dict[str, int] = {
     "Progressive Glyph Slot: Slot 6": 6,
     "TBC Combo Unlock": 1,
     "WotLK Combo Unlock": 1,
+    "Progressive Bag Slot: Slot 1": 1,
+    "Progressive Bag Slot: Slot 2": 2,
+    "Progressive Bag Slot: Slot 3": 3,
+    "Progressive Bag Slot: Slot 4": 4,
+    "Progressive EXP Boost": 1,
+    "Progressive Move Speed Boost": 1,
 }

@@ -545,7 +545,7 @@ def create_filler_locations(world, region) -> list:
     # derive their counts from the same options each pool function reads,
     # which is what keeps them from drifting apart despite running at
     # different pipeline stages. `[:needed]` naturally clamps if `needed`
-    # ever exceeds this family's 151 compiled rows (see
+    # ever exceeds this family's 161 compiled rows (see
     # compute_filler_needed_count's own clamp for why the two agree).
     needed = compute_filler_needed_count(world)
     return [
@@ -588,7 +588,15 @@ def compute_filler_needed_count(world) -> int:
     M4.11.7: Raidlogger's instant_level_set items add a 6th term, same
     shape again.
 
-    Clamped to this family's real compiled row count (151) as defense in
+    M4.14.1 final review fix (C3): gates grew from 37 to 47 items (10 new
+    "Useful Items" gates: 4 Progressive Bag Slot tiers, 2 Talent Point
+    Access tranches, Random Flight Path Unlock, Portable Mailbox,
+    Progressive EXP Boost, Progressive Move Speed Boost), so
+    count_enabled_gates_items' own worst case (the first term above) grew by
+    10 too -- filler.yaml's own compiled row count was resized 151 -> 161 to
+    match (see its header comment).
+
+    Clamped to this family's real compiled row count (161) as defense in
     depth: create_filler_locations' own `[:needed]` slice already tolerates
     an oversized `needed` silently, but an unclamped value would let
     slot_data's filler_needed_count (M4.11.6) advertise a count larger than

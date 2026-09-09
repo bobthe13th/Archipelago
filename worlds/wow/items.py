@@ -283,6 +283,20 @@ _OPTIONAL_ITEM_PREFIXES = [
     ("Talent Point Access", "character_unlock_gating"),
     ("Dual Spec Unlock", "character_unlock_gating"),
     ("Progressive Glyph Slot:", "character_unlock_gating"),
+    # M4.14.1 final review fix (C5/I1): Task 1's bag-slot gate and Task 6's
+    # XP/speed boost auras both depend on APGating.cpp's
+    # SyncCharacterUnlocksToPlayer via IsGateFamilyEnabled("character_unlocks")
+    # -- the same function the four entries above already gate through. These
+    # three items must follow the same convention or they'd be pooled
+    # unconditionally while their C++ effect requires character_unlock_gating
+    # to be on. "Talent Point Access: Tranche 2"/"Tranche 3" need no entry of
+    # their own -- they're already covered by the "Talent Point Access" prefix
+    # above via startswith. Random Flight Path Unlock and Portable Mailbox are
+    # correctly NOT gated by character_unlocks on the C++ side (they fire
+    # unconditionally on receipt), so they get no entry either.
+    ("Progressive Bag Slot:", "character_unlock_gating"),
+    ("Progressive EXP Boost", "character_unlock_gating"),
+    ("Progressive Move Speed Boost", "character_unlock_gating"),
 ]
 
 

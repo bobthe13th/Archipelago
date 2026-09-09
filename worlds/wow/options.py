@@ -450,10 +450,12 @@ class CharacterUnlockGating(Toggle):
     Glyph Slots are locked behind Archipelago items instead of being
     free/purchasable from the start (spec §5.1 -- optional, off by
     default). All four character-unlock types named in the design are
-    implemented as of M4.9 (Glyph Slot gating closed the last gap). The
-    connected worldserver must also have Archipelago.CharacterUnlockGating
-    enabled in its .conf to match -- same manual-sync requirement as the
-    other gate toggles."""
+    implemented as of M4.9 (Glyph Slot gating closed the last gap). M4.14.1
+    ("Useful Items") extended this same toggle to also gate regular
+    (non-bank) bag slots (Task 1) and the Progressive EXP/Move Speed Boost
+    auras (Task 6). The connected worldserver must also have
+    Archipelago.CharacterUnlockGating enabled in its .conf to match -- same
+    manual-sync requirement as the other gate toggles."""
     display_name = "Character Unlock Gating"
     default = False
 
@@ -1126,20 +1128,21 @@ class FillerCategoryPools(OptionSet):
     Filler section). Filler is a generic, reusable reward pool any content
     family with more locations than items can draw from to close its own
     deficit -- core_loop's every-level granularity change (M4.9.3) is the
-    first real consumer. 18 categories total: 5 curated reward EFFECTS
+    first real consumer. 19 categories total: 5 curated reward EFFECTS
     (random_buff/gold_reward/xp_reward/title/portable_service -- new
-    delivery mechanisms this milestone built) and 13 real, DB-extracted WoW
+    delivery mechanisms this milestone built) and 14 real, DB-extracted WoW
     ITEM categories (badge_currency/consumable/bag/
     gear_enhancement/equipment/openable/toy/seasonal/mount/pet/tabard/
-    reagent/container_loot -- the last added M4.11.5.0.3, the real union of
-    every GAMEOBJECT_TYPE_CHEST gameobject's real loot table, shared
-    globally like every other category here, not Containersanity-exclusive).
-    A pooled filler item's category is EITHER its
-    filler_reward_items row's own `category` tag OR its
-    filler_reward_effects row's own `effect` field, mapped 1:1 to one of
-    these 18 keys by items.py's create_filler_item_pool. Default selects
-    every value -- Filler is on by default, matching every other pooled
-    optional family in this apworld.
+    reagent/container_loot/heirloom -- container_loot added M4.11.5.0.3, the
+    real union of every GAMEOBJECT_TYPE_CHEST gameobject's real loot table,
+    shared globally like every other category here, not
+    Containersanity-exclusive; heirloom added M4.14.1 Task 3, the real
+    Quality=7 subset of item_template). A pooled filler
+    item's category is EITHER its filler_reward_items row's own `category`
+    tag OR its filler_reward_effects row's own `effect` field, mapped 1:1 to
+    one of these 19 keys by items.py's create_filler_item_pool. Default
+    selects every value -- Filler is on by default, matching every other
+    pooled optional family in this apworld.
 
     A "recipe" category existed here through M4.9.3.1 but was removed
     after a whole-branch review found a real location-check-collision
@@ -1157,7 +1160,7 @@ class FillerCategoryPools(OptionSet):
         "random_buff", "gold_reward", "xp_reward", "title", "portable_service",
         "badge_currency", "consumable", "bag", "gear_enhancement",
         "equipment", "openable", "toy", "seasonal", "mount", "pet", "tabard", "reagent",
-        "container_loot",
+        "container_loot", "heirloom",
     ]
     default = valid_keys
 
