@@ -571,7 +571,20 @@ def create_filler_locations(world, region) -> list:
     # this term the moment Task 5 lands, every pooled Progressive copy would
     # be an item with no location to absorb it, breaking the exact parity
     # this function exists to guarantee.
-    needed = (
+    needed = compute_filler_needed_count(world)
+    return [
+        WoWLocation(world.player, name, location_id, region)
+        for name, location_id in list(filler_content_data.LOCATIONS.items())[:needed]
+    ]
+
+
+def compute_filler_needed_count(world) -> int:
+    """The exact number of filler.yaml rows this seed places as real AP
+    locations -- single source of truth shared by create_filler_locations
+    (above) and slot_data.py's _add_filler_needed_count (M4.11.6), so the
+    C++ side's per-seed send can never independently drift from what this
+    seed's own multidata actually contains."""
+    return (
         count_enabled_gates_items(world)
         + count_enabled_trap_items(world)
         + count_enabled_holidaysanity_items(world)
@@ -579,10 +592,6 @@ def create_filler_locations(world, region) -> list:
         + count_gathering_skill_progression_items(world)
         + count_enabled_raidlogger_items(world)
     )
-    return [
-        WoWLocation(world.player, name, location_id, region)
-        for name, location_id in list(filler_content_data.LOCATIONS.items())[:needed]
-    ]
 
 
 def create_rares_locations(world, region) -> list:

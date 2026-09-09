@@ -280,6 +280,17 @@ class TestAddVendorCheckRepeatBehavior(unittest.TestCase):
         self.assertEqual(data["vendor_check_repeat_behavior"], "gold_conversion")
 
 
+class TestAddFillerNeededCount(unittest.TestCase):
+    def test_adds_filler_needed_count_from_the_shared_helper(self) -> None:
+        from unittest.mock import patch
+        world = SimpleNamespace()
+        data: dict = {}
+        with patch.object(slot_data_module.locations_module, "compute_filler_needed_count", return_value=42) as mock_compute:
+            slot_data_module._add_filler_needed_count(world, data)
+        mock_compute.assert_called_once_with(world)
+        self.assertEqual(data["filler_needed_count"], 42)
+
+
 class TestAddLootSlotCheckRepeatBehavior(unittest.TestCase):
     def test_adds_loot_slot_check_repeat_behavior_current_key(self) -> None:
         world = SimpleNamespace(options=SimpleNamespace(loot_slot_check_repeat_behavior=SimpleNamespace(current_key="vanilla_item")))
