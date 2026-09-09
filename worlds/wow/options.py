@@ -19,7 +19,14 @@ class GameMode(Choice):
     every include_* toggle. A true one-click maximum, not a
     default-but-overridable convenience. zone_leveler (M4.11.1): a short,
     vertical leveling slice inside one locked zone -- BarrensBeater is its one
-    curated instance (zone_leveler_starting_zone=barrens)."""
+    curated instance (zone_leveler_starting_zone=barrens). raidlogger
+    (M4.11.7): starts at level 60 with zero grinding and chains through the
+    real raids in order via a new instant_level_set jump item --
+    classic_to_tbc clears Molten Core then jumps to 70 for Sunwell Plateau;
+    classic_to_wotlk continues through Sunwell to jump to 80 for Icecrown
+    Citadel. Single-tier "start at 70/80, clear one raid" goals already
+    exist as option_burning_crusade/option_wrath -- this mode is only for
+    the chained progression, not a duplicate of those."""
     display_name = "Game Mode"
     option_sprint = 0
     option_key_hunt = 1
@@ -34,6 +41,7 @@ class GameMode(Choice):
     option_fishing_quest = 11
     option_hundred_percent = 12
     option_zone_leveler = 13
+    option_raidlogger = 14
     default = 0
 
 
@@ -72,6 +80,32 @@ class CompletionistExpansion(Choice):
     option_tbc = 1
     option_wotlk = 2
     default = 0
+
+
+class RaidloggerExpansions(Choice):
+    """Which chained raid-tier progression this Raidlogger seed covers
+    (game_mode 'raidlogger', GameMode.option_raidlogger=14). Both values
+    start at level 60 -- Raidlogger's single-tier goals (start at 70/80,
+    clear one raid only) already exist as GameMode.option_burning_crusade/
+    option_wrath and are not rebuilt here. classic_to_tbc: clear Molten
+    Core, receive an instant_level_set item that jumps you to 70 once
+    Molten Core's clear is confirmed server-side, goal is clearing Sunwell
+    Plateau. classic_to_wotlk: the same, then continues -- clear Sunwell
+    Plateau, jump to 80 once that clear is confirmed, goal is clearing
+    Icecrown Citadel."""
+    display_name = "Raidlogger Expansions"
+    option_classic_to_tbc = 0
+    option_classic_to_wotlk = 1
+    default = 1
+
+
+# Both raidlogger_expansions values start at the same level (60) -- unlike
+# a per-tier dict, there is nothing to vary here. Duplicated (not imported)
+# by tools/setup_raidlogger_realm.py's SQL-migration-authoring comment
+# (M4.11.7 Task 6), matching this project's existing precedent of small
+# intentional constant duplication across files that don't otherwise share
+# an import.
+RAIDLOGGER_STARTING_LEVEL = 60
 
 
 class KeyHuntKeysRequired(Range):
@@ -1192,6 +1226,7 @@ class WoWOptions(PerGameCommonOptions):
     starting_choice: StartingChoice
     instance_clear_mode: InstanceClearMode
     completionist_expansion: CompletionistExpansion
+    raidlogger_expansions: RaidloggerExpansions
     key_hunt_keys_required: KeyHuntKeysRequired
     key_hunt_instances_required: KeyHuntInstancesRequired
     key_hunt_zone_pools: KeyHuntZonePools
