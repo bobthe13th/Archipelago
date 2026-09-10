@@ -3,7 +3,10 @@ from .items import WoWItem, create_core_loop_item_pool, create_gates_item_pool, 
 from .regions import create_regions
 from .rules import set_rules
 from . import goals
+from . import mutation_output
+from . import mutation_pipeline
 from . import slot_data
+from .world_seed import derive_world_seed
 from . import achievements_content_data
 from . import collections_content_data
 from . import containersanity_content_data
@@ -159,4 +162,14 @@ class WoWWorld(World):
 
     def fill_slot_data(self):
         return slot_data.build_slot_data(self)
+
+    def pre_output(self) -> None:
+        world_seed = derive_world_seed(str(self.multiworld.seed_name), self.player_name)
+        self._pipeline_b_world_seed = world_seed
+        self._pipeline_b_result = mutation_pipeline.run_all_categories(self, world_seed)
+
+    def generate_output(self, output_directory: str) -> None:
+        mutation_output.write_mutation_file(
+            self, output_directory, self._pipeline_b_world_seed, self._pipeline_b_result
+        )
 

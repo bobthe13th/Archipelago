@@ -97,6 +97,7 @@ def build_slot_data(world) -> dict:
     _add_holidaysanity_stacking(world, data)
     _add_zone_leveler_data(world, data)
     _add_filler_needed_count(world, data)
+    _add_world_seed(world, data)
     return data
 
 
@@ -243,3 +244,11 @@ def _add_zone_leveler_data(world, data: dict) -> None:
     # so this narrows a list the C++ side already effectively treats as its
     # own ceiling -- no interface change on either side of the wire.
     data["zone_leveler_instance_keys"] = list(zone_leveler_content_data.curated_instance_keys(zone_data))
+
+
+def _add_world_seed(world, data: dict) -> None:
+    # M5.0 Sec6/Sec9: a small provenance value only -- the live cross-check
+    # at first AP connect compares this against APWorldState's own applied
+    # marker (Sec9). The mutation table itself never travels through
+    # slot_data; see mutation_output.py for the real transport.
+    data["world_seed"] = getattr(world, "_pipeline_b_world_seed", None)

@@ -405,3 +405,17 @@ class TestFillerNeededCountRealGeneration(WoWTestBase):
         )
         self.assertEqual(data["filler_needed_count"], placed_filler_count)
         self.assertGreater(data["filler_needed_count"], 0)
+
+
+class TestAddWorldSeed(unittest.TestCase):
+    def test_adds_world_seed_from_pipeline_b_attribute(self):
+        world = SimpleNamespace(_pipeline_b_world_seed="abc123")
+        data = {}
+        slot_data_module._add_world_seed(world, data)
+        self.assertEqual(data["world_seed"], "abc123")
+
+    def test_none_when_pipeline_b_has_not_run_yet(self):
+        world = SimpleNamespace()
+        data = {}
+        slot_data_module._add_world_seed(world, data)
+        self.assertIsNone(data["world_seed"])
