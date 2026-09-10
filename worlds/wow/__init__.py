@@ -3,6 +3,7 @@ from .items import WoWItem, create_core_loop_item_pool, create_gates_item_pool, 
 from .regions import create_regions
 from .rules import set_rules
 from . import goals
+from . import mobs_level
 from . import mutation_output
 from . import mutation_pipeline
 from . import slot_data
