@@ -84,6 +84,18 @@ class TestMutateShuffleGroups(unittest.TestCase):
         # never reassign it away (no other real candidate exists).
         self.assertEqual(result, [])
 
+    def test_no_control_keys_leak_into_returned_payload(self):
+        rows = [
+            ("creature", 100, {"id": 1, "_shuffle_mode": "shuffle_groups", "_home_map": 0}),
+            ("creature", 101, {"id": 2, "_shuffle_mode": "shuffle_groups", "_home_map": 0}),
+        ]
+        rng = random.Random("fixed-seed")
+        with patch.object(mobs_spawns.mobs_snapshot_content_data, "CREATURE_TEMPLATES", _FAKE_TEMPLATES):
+            result = mobs_spawns.mutate(rows, rng)
+        for _table, _guid, payload in result:
+            self.assertNotIn("_shuffle_mode", payload)
+            self.assertNotIn("_home_map", payload)
+
 
 class TestMutateShuffleAll(unittest.TestCase):
     def test_scripted_template_never_becomes_a_candidate_off_its_home_map(self):
@@ -139,3 +151,16 @@ class TestSpawnGroupInvariantRule(unittest.TestCase):
     def test_no_op_for_empty_candidates(self):
         rule = mobs_spawns.SpawnGroupInvariantRule()
         rule.check([], [])  # must not raise
+
+    def test_no_crash_on_orphan_spawn_missing_from_templates(self):
+        rule = mobs_spawns.SpawnGroupInvariantRule()
+        # guid 999 points at template entry 9999, which does not exist in
+        # CREATURE_TEMPLATES -- must be skipped gracefully, never a bare
+        # KeyError (which mutation_pipeline.run_category's own
+        # `except InvariantViolation` would NOT catch, aborting generation
+        # outright instead of retrying).
+        candidates = [("creature", 999, {"id": 9999, "_shuffle_mode": "shuffle_groups", "_home_map": 0})]
+        after = [("creature", 999, {"id": 9999})]
+        with patch.object(mobs_spawns.mobs_snapshot_content_data, "CREATURE_TEMPLATES", _FAKE_TEMPLATES), \
+             patch.object(mobs_spawns.mobs_snapshot_content_data, "CREATURE_SPAWNS", {999: {"template_entry": 9999, "map": 0}}):
+            rule.check(candidates, after)  # must not raise KeyError (or anything else)

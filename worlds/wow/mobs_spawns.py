@@ -99,12 +99,15 @@ def mutate(rows: Sequence, rng: random.Random) -> list:
     return []
 
 
-def _group_key_for_spawn_row(row) -> tuple[int, int, str]:
+def _group_key_for_spawn_row(row) -> tuple[int, int, str] | None:
     _table_name, guid, payload = row
-    map_id = mobs_snapshot_content_data.CREATURE_SPAWNS[guid]["map"]
-    template_entry = payload["id"]
-    template_data = mobs_snapshot_content_data.CREATURE_TEMPLATES[template_entry]
-    return (map_id, _level_band(template_data["minlevel"]), _classification_for_rank(template_data["rank"]))
+    spawn = mobs_snapshot_content_data.CREATURE_SPAWNS.get(guid)
+    if spawn is None:
+        return None
+    template_data = mobs_snapshot_content_data.CREATURE_TEMPLATES.get(payload["id"])
+    if template_data is None:
+        return None
+    return (spawn["map"], _level_band(template_data["minlevel"]), _classification_for_rank(template_data["rank"]))
 
 
 class SpawnGroupInvariantRule(InvariantRule):
@@ -125,8 +128,8 @@ class SpawnGroupInvariantRule(InvariantRule):
         mode = candidate_rows[0][2].get("_shuffle_mode")
         if mode != "shuffle_groups":
             return
-        before = {_group_key_for_spawn_row(row) for row in candidate_rows}
-        after = {_group_key_for_spawn_row(row) for row in mutation_rows}
+        before = {key for row in candidate_rows if (key := _group_key_for_spawn_row(row)) is not None}
+        after = {key for row in mutation_rows if (key := _group_key_for_spawn_row(row)) is not None}
         lost = before - after
         if lost:
             raise InvariantViolation(
