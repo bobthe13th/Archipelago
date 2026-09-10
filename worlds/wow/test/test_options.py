@@ -176,5 +176,34 @@ class TestVendorStockUtilityPools(unittest.TestCase):
         })
 
 
+class TestMobRandomizerOptions(unittest.TestCase):
+    def test_level_mode_defaults_to_vanilla(self):
+        from ..options import MobRandomizerLevelMode
+        self.assertEqual(MobRandomizerLevelMode.default, MobRandomizerLevelMode.option_vanilla)
+
+    def test_level_mode_has_three_values(self):
+        from ..options import MobRandomizerLevelMode
+        self.assertEqual(
+            {"vanilla", "zone_scaled", "individual_spawn"},
+            set(MobRandomizerLevelMode.name_lookup.values()),
+        )
+
+    def test_spawn_mode_defaults_to_vanilla(self):
+        from ..options import MobRandomizerSpawnMode
+        self.assertEqual(MobRandomizerSpawnMode.default, MobRandomizerSpawnMode.option_vanilla)
+
+    def test_spawn_mode_has_three_values(self):
+        from ..options import MobRandomizerSpawnMode
+        self.assertEqual(
+            {"vanilla", "shuffle_groups", "shuffle_all"},
+            set(MobRandomizerSpawnMode.name_lookup.values()),
+        )
+
+    def test_both_registered_on_wow_options(self):
+        from ..options import WoWOptions
+        self.assertIn("mob_randomizer_level_mode", WoWOptions.type_hints)
+        self.assertIn("mob_randomizer_spawn_mode", WoWOptions.type_hints)
+
+
 if __name__ == "__main__":
     unittest.main()

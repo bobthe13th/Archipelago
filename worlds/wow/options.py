@@ -1229,6 +1229,35 @@ class LootSlotCheckRepeatBehavior(Choice):
     default = 0
 
 
+class MobRandomizerLevelMode(Choice):
+    """M5.1.0: randomizes creature_template.minlevel/maxlevel. zone_scaled
+    rolls one shared level shift per zone, applied to every creature
+    template that spawns there. individual_spawn rolls each template's own
+    independent shift instead of sharing one per-zone curve. Both preserve
+    each template's own maxlevel-minlevel spread and clamp to [1, 80].
+    Default: vanilla (off)."""
+    display_name = "Mob Randomizer: Level Mode"
+    option_vanilla = 0
+    option_zone_scaled = 1
+    option_individual_spawn = 2
+    default = 0
+
+
+class MobRandomizerSpawnMode(Choice):
+    """M5.1.0: randomizes which creature template occupies a given spawn
+    point (creature.id). shuffle_groups reassigns within Level Band (±5,
+    approximated as 5-level buckets) + Classification (Normal/Elite/Boss)
+    groups, regardless of map. shuffle_all drops that constraint but limits
+    scripted creatures (non-empty AIName or ScriptName) to their own home
+    map; only creatures with both fields empty are eligible for any map.
+    Default: vanilla (off)."""
+    display_name = "Mob Randomizer: Spawn Mode"
+    option_vanilla = 0
+    option_shuffle_groups = 1
+    option_shuffle_all = 2
+    default = 0
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -1299,4 +1328,6 @@ class WoWOptions(PerGameCommonOptions):
     filler_category_pools: FillerCategoryPools
     filler_effect_distribution_mode: FillerEffectDistributionMode
     loot_slot_check_repeat_behavior: LootSlotCheckRepeatBehavior
+    mob_randomizer_level_mode: MobRandomizerLevelMode
+    mob_randomizer_spawn_mode: MobRandomizerSpawnMode
 
