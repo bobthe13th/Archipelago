@@ -4,6 +4,7 @@ from .regions import create_regions
 from .rules import set_rules
 from . import goals
 from . import mobs_level
+from . import mobs_spawns
 from . import mutation_output
 from . import mutation_pipeline
 from . import slot_data
