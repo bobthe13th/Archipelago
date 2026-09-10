@@ -26,9 +26,9 @@ def _claimed_row_for_trigger(trigger: dict) -> ClaimedRow | None:
     if kind == "vendor_purchase":
         return ("npc_vendor", (trigger["npc_entry"], trigger.get("item_slot")))
     if kind == "skinning_loot":
-        return ("skinning_loot_template", (trigger["loot_id"], trigger["wow_item_entry"]))
+        return ("skinning_loot_template", (trigger["loot_id"], trigger["item_entry"]))
     if kind == "disenchant_loot":
-        return ("disenchant_loot_template", (trigger["loot_id"], trigger["wow_item_entry"]))
+        return ("disenchant_loot_template", (trigger["loot_id"], trigger["item_entry"]))
     return None
 
 

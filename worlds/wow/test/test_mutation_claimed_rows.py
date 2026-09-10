@@ -31,6 +31,17 @@ class _FakeZonePoolFamily:
     }
 
 
+class _FakeGathersanityFamily:
+    # Field name is `item_entry` -- verified against the REAL generated
+    # data (Archipelago/worlds/wow/gathersanity_content_data.py:67303,
+    # e.g. `{'kind': 'skinning_loot', 'loot_id': 193, 'item_entry': 4304}`)
+    # -- NOT `wow_item_entry`.
+    TRIGGERS = {
+        "Gathersanity: Fake Hide (skinning #1/2)": {"kind": "skinning_loot", "loot_id": 1, "item_entry": 2},
+        "Gathersanity: Fake Scale (disenchant #3/4)": {"kind": "disenchant_loot", "loot_id": 3, "item_entry": 4},
+    }
+
+
 class TestClaimedRows(unittest.TestCase):
     def setUp(self):
         self._original_categories = locations_module._OPTIONAL_CATEGORIES
@@ -38,6 +49,7 @@ class TestClaimedRows(unittest.TestCase):
             SimpleNamespace(key="quest_rewards", locations_module=_FakeQuestFamily),
             SimpleNamespace(key="vendor_stock", locations_module=_FakeVendorFamily),
             SimpleNamespace(key="containersanity", locations_module=_FakeZonePoolFamily),
+            SimpleNamespace(key="gathersanity", locations_module=_FakeGathersanityFamily),
         ]
 
     def tearDown(self):
@@ -89,3 +101,25 @@ class TestClaimedRows(unittest.TestCase):
             multiworld=SimpleNamespace(get_locations=lambda player: []),
         )
         self.assertEqual(mutation_claimed_rows.claimed_rows(world), set())
+
+    def test_skinning_loot_location_claims_skinning_loot_template_row(self):
+        world = SimpleNamespace(
+            player=1,
+            multiworld=SimpleNamespace(
+                get_locations=lambda player: [_FakeLocation("Gathersanity: Fake Hide (skinning #1/2)")]
+            ),
+        )
+        self.assertEqual(
+            mutation_claimed_rows.claimed_rows(world), {("skinning_loot_template", (1, 2))}
+        )
+
+    def test_disenchant_loot_location_claims_disenchant_loot_template_row(self):
+        world = SimpleNamespace(
+            player=1,
+            multiworld=SimpleNamespace(
+                get_locations=lambda player: [_FakeLocation("Gathersanity: Fake Scale (disenchant #3/4)")]
+            ),
+        )
+        self.assertEqual(
+            mutation_claimed_rows.claimed_rows(world), {("disenchant_loot_template", (3, 4))}
+        )
