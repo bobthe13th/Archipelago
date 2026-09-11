@@ -339,56 +339,10 @@ def create_optional_category_locations(world, region) -> list:
     created = []
     profile = game_mode_profile.get_profile(world.options.game_mode.value)
     force_all = profile.force_all_categories
-    if force_all and not hasattr(world, "optional_category_sampled_names"):
-        world.optional_category_sampled_names = set()
     check_density = game_mode_profile.effective_check_density(world)
 
     for category in _OPTIONAL_CATEGORIES:
         all_rows = list(category.locations_module.LOCATIONS.items())
-        item_rows = list(category.items_module.ITEMS.items()) if category.items_module is not None else None
-        row_index_by_location_name = (
-            {name: i for i, (name, _) in enumerate(all_rows)} if item_rows is not None else None
-        )
-        # M4.11.7-fix: trainer_spells' progressive-item redesign (M4.11.6)
-        # broke row_index_by_location_name's bijection assumption for any
-        # category with chain items (a "Progressive X" item covers MULTIPLE
-        # locations) -- same root cause, same CHAIN_SPELL_IDS_BY_ITEM_NAME
-        # fix as create_optional_category_item_pool (items.py). Empty for
-        # every other category, so this is a no-op there.
-        chain_spell_ids_by_item_name = (
-            getattr(category.items_module, "CHAIN_SPELL_IDS_BY_ITEM_NAME", {})
-            if category.items_module is not None else {}
-        )
-        if chain_spell_ids_by_item_name:
-            triggers = category.locations_module.TRIGGERS
-            spell_id_to_chain_item_name = {
-                spell_id: item_name
-                for item_name, spell_ids in chain_spell_ids_by_item_name.items()
-                for spell_id in spell_ids
-            }
-            chain_item_names = set(chain_spell_ids_by_item_name)
-            plain_item_names = [name for name, _ in item_rows if name not in chain_item_names]
-            plain_location_names = [
-                name for name, _ in all_rows
-                if triggers[name].get("spell_id") not in spell_id_to_chain_item_name
-            ]
-            item_name_by_plain_location_name = dict(zip(plain_location_names, plain_item_names))
-        else:
-            spell_id_to_chain_item_name = {}
-            item_name_by_plain_location_name = None
-
-        def _stash(name: str) -> None:
-            # 100%'s stash needs ITEM names, not location names -- see the
-            # prior version of this comment (unchanged reasoning, M4.6/M4.7).
-            if not (force_all and item_rows is not None):
-                return
-            if spell_id_to_chain_item_name:
-                spell_id = triggers[name].get("spell_id")
-                chain_item_name = spell_id_to_chain_item_name.get(spell_id)
-                item_name = chain_item_name if chain_item_name is not None else item_name_by_plain_location_name[name]
-            else:
-                item_name = item_rows[row_index_by_location_name[name]][0]
-            world.optional_category_sampled_names.add(item_name)
 
         # always_present locations (M4.8's exemption mechanism, spec §2a):
         # bypass BOTH the tag-filter stage AND the density/weight sample
@@ -417,7 +371,6 @@ def create_optional_category_locations(world, region) -> list:
             ):
                 continue
             created.append(WoWLocation(world.player, name, location_id, region))
-            _stash(name)
 
         if not game_mode_profile.is_category_eligible(world, category):
             continue
@@ -449,7 +402,6 @@ def create_optional_category_locations(world, region) -> list:
             sampled = density.sample_category(check_density, category_weight, candidates, world.random)
         for name, location_id in sampled:
             created.append(WoWLocation(world.player, name, location_id, region))
-            _stash(name)
     return created
 
 

@@ -354,8 +354,15 @@ class TestAlwaysPresentBypassesTagsAndWeight(WoWTestBase):
             locations_module._OPTIONAL_CATEGORIES = original
 
 
-class TestHundredPercentModeStashesSampledNames(WoWTestBase):
-    def test_hundred_percent_mode_stashes_sampled_names_on_world(self) -> None:
+class TestHundredPercentModeDoesNotStashSampledNames(WoWTestBase):
+    """M5.2 perf fix: hundred_percent's goal no longer needs to know which
+    optional-category items were sampled (goals.py now delegates to
+    Completionist's small instance-unlock rule instead of has_all over the
+    entire sampled pool), so create_optional_category_locations no longer
+    stashes anything on world -- while force_all still makes every
+    tag-matched row a real location regardless of density, exactly as
+    before."""
+    def test_hundred_percent_mode_creates_locations_without_stashing_names(self) -> None:
         from .. import locations as locations_module
 
         class _FakeLocationsModuleSmall:
@@ -376,12 +383,11 @@ class TestHundredPercentModeStashesSampledNames(WoWTestBase):
             world = self.world
             world.options.game_mode.value = 12  # hundred_percent
             region = self.multiworld.get_region("Northshire", world.player)
-            create_optional_category_locations(world, region)
-            self.assertEqual(world.optional_category_sampled_names, {"Fake Item A", "Fake Item B"})
+            created = create_optional_category_locations(world, region)
+            self.assertEqual({loc.name for loc in created}, {"Fake Loc A", "Fake Loc B"})
+            self.assertFalse(hasattr(world, "optional_category_sampled_names"))
         finally:
             locations_module._OPTIONAL_CATEGORIES = original_categories
-            if hasattr(world, "optional_category_sampled_names"):
-                del world.optional_category_sampled_names
 
 
 class TestOptionalCategoryRegionsWiring(WoWTestBase):

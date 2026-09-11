@@ -377,12 +377,24 @@ def _set_completion_rule_collector(world) -> None:
     )
 
 
-# M4.6 Task 7 (100% mode, M4.6 design spec Sec3): completing the goal requires
-# collecting literally everything -- all 10 Progressive Level Cap copies,
-# every Instance Unlock item, and every optional-category item this seed
-# actually sampled. Only meaningful when at least one OptionalCategory is
-# registered (locations.py's _OPTIONAL_CATEGORIES) -- with zero registered,
-# "100%" would be indistinguishable from Sprint's own completion condition.
+# M5.2 perf fix: 100% mode used to require collecting literally everything
+# -- all pooled Progressive Level Cap copies, every Instance Unlock item,
+# AND every optional-category item this seed sampled (tens of thousands of
+# names at this checkout's real max-density scale). That forced every one
+# of those items to ItemClassification.progression just to keep the game
+# beatable by AP's own accessibility rules, which routed nearly the entire
+# item pool through Fill.py's expensive fill_restrictive path instead of
+# fast_fill -- inflating generation from ~74s to multiple hours for a seed
+# only ~20% larger in location count. hundred_percent's real point (per its
+# GameMode docstring) is maximum map DENSITY -- game_mode_profile.py's
+# force_all_categories/force_max_density already deliver that regardless of
+# what the goal requires. The goal itself now delegates to Completionist's
+# own rule/validator below (_set_completion_rule_completionist/
+# _validate_completionist) via the dispatch tables, same as any other
+# full-game mode: hundred_percent still only requires clearing whichever
+# completionist_expansion tier the player picked -- a handful of items --
+# while every optional category is still generated at full density for
+# players to loot.
 def _validate_hundred_percent(world) -> None:
     if not _OPTIONAL_CATEGORIES:
         raise OptionError(
@@ -390,28 +402,7 @@ def _validate_hundred_percent(world) -> None:
             "category to be registered in this build -- none are (see "
             "locations.OptionalCategory registrations)."
         )
-
-
-def _set_completion_rule_hundred_percent(world) -> None:
-    # Finding 10 (final whole-branch review, 2026-09-01): reads the
-    # per-track LEVEL_CAP_TOTAL_BY_TRACK lookup instead of a direct
-    # core_loop_content_data.ITEMS["Progressive Level Cap"][1] literal --
-    # numerically a no-op today (hundred_percent is always the standard
-    # track, never zone_leveler), but keeps this in lockstep with
-    # items.py's create_core_loop_item_pool/core_loop_item_surplus, which
-    # now resolve the SAME per-track total, so this can't silently desync
-    # from what was actually pooled if a future milestone ever lets
-    # hundred_percent combine with a non-standard track.
-    level_cap_copies = core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK["standard"]
-    instance_unlock_names = {
-        f"Instance Unlock: {name}" for name in _INSTANCE_KEY_DISPLAY_NAMES.values()
-    }
-    sampled_names = getattr(world, "optional_category_sampled_names", set())
-    remaining_names = instance_unlock_names | sampled_names
-    world.set_completion_rule(
-        lambda state: state.has("Progressive Level Cap", world.player, level_cap_copies)
-        and state.has_all(remaining_names, world.player)
-    )
+    _validate_completionist(world)
 
 
 # M4.9 Sec4 (Achievement Hunt, built for real): three curated tiers, all
@@ -694,7 +685,7 @@ _COMPLETION_RULES = {
     8: _set_completion_rule_achievement_hunt,
     10: _set_completion_rule_explorer,
     11: _set_completion_rule_fishing_quest,
-    12: _set_completion_rule_hundred_percent,  # option_hundred_percent
+    12: _set_completion_rule_completionist,  # option_hundred_percent (M5.2: delegates to Completionist's goal)
     13: _set_completion_rule_zone_leveler,  # option_zone_leveler (M4.11.1 Task 11)
     14: _set_completion_rule_raidlogger,  # option_raidlogger (M4.11.7)
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},

@@ -14,10 +14,16 @@ class GameMode(Choice):
     naming which task builds it, rather than silently falling back to
     Sprint's behavior. Selecting one of these before its task lands is a
     configuration mistake the world should catch loudly, not paper over.
-    hundred_percent: one-click theoretical maximum -- forces every optional
-    category on at effective check_density 100, ignoring check_density and
-    every include_* toggle. A true one-click maximum, not a
-    default-but-overridable convenience. zone_leveler (M4.11.1): a short,
+    hundred_percent: one-click theoretical maximum MAP DENSITY -- forces
+    every optional category on at effective check_density 100, ignoring
+    check_density and every include_* toggle. A true one-click maximum, not
+    a default-but-overridable convenience. Its completion GOAL, however
+    (M5.2), is exactly Completionist's own rule (completionist_expansion,
+    default vanilla) -- clearing that expansion's instance roster, not
+    collecting every optional-category item this seed sampled. Every
+    optional category is still generated at full density regardless; the
+    goal is just decoupled from that density, same as any other full-game
+    mode. zone_leveler (M4.11.1): a short,
     vertical leveling slice inside one locked zone -- BarrensBeater is its one
     curated instance (zone_leveler_starting_zone=barrens). raidlogger
     (M4.11.7): starts at level 60 with zero grinding and chains through the
@@ -65,8 +71,10 @@ class InstanceClearMode(Choice):
 
 
 class CompletionistExpansion(Choice):
-    """Only relevant when game_mode is completionist (Task 24). Which
-    expansion's instance-clear locations Completionist requires -- vanilla
+    """Relevant when game_mode is completionist (Task 24) OR hundred_percent
+    (M5.2 -- hundred_percent's completion rule delegates to Completionist's
+    own rule, see GameMode's docstring). Which expansion's instance-clear
+    locations are required -- vanilla
     (Ragefire Chasm, Deadmines, Molten Core, Wailing Caverns, Razorfen
     Kraul, Razorfen Downs -- the last 3 added M4.11.1 for BarrensBeater),
     tbc (Sunwell Plateau), or wotlk (Icecrown Citadel), per
