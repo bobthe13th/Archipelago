@@ -26,6 +26,8 @@ from __future__ import annotations
 import random
 from typing import Sequence
 
+from Options import OptionError
+
 from . import mobs_snapshot_content_data
 from . import mutation_pipeline
 from .mutation_invariants import InvariantRule, InvariantViolation
@@ -51,8 +53,16 @@ def candidate_rows(world) -> list:
         return []
 
     templates = mobs_snapshot_content_data.CREATURE_TEMPLATES
+    spawns = mobs_snapshot_content_data.CREATURE_SPAWNS
+    if spawns and "shuffle_excluded" not in next(iter(spawns.values())):
+        raise OptionError(
+            "mobs_snapshot_content_data.py is stale (missing 'shuffle_excluded') -- "
+            "regenerate it with tools/extract_mobs_snapshot.py before generating a seed "
+            "with mob_randomizer_spawn_mode enabled."
+        )
+
     rows = []
-    for guid, spawn in mobs_snapshot_content_data.CREATURE_SPAWNS.items():
+    for guid, spawn in spawns.items():
         if spawn.get("shuffle_excluded"):
             continue
         template = templates.get(spawn["template_entry"])

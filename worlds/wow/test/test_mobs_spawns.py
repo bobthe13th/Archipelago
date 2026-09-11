@@ -3,6 +3,8 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from Options import OptionError
+
 from .. import mobs_spawns
 from ..mutation_invariants import InvariantViolation
 
@@ -19,6 +21,7 @@ _FAKE_TEMPLATES = {
     3: {"minlevel": 10, "rank": 3, "type": 1, "ai_name": "", "script_name": "boss_ragnaros", "home_maps": [409], "shuffle_excluded": False},
     4: {"minlevel": 50, "rank": 0, "type": 1, "ai_name": "SmartAI", "script_name": "", "home_maps": [0], "shuffle_excluded": False},
     5: {"minlevel": 10, "rank": 0, "type": 11, "ai_name": "", "script_name": "npc_pet_pri_lightwell", "home_maps": [0], "shuffle_excluded": True},
+    6: {"minlevel": 10, "rank": 0, "type": 8, "ai_name": "", "script_name": "", "home_maps": [0], "shuffle_excluded": True},
 }
 _FAKE_SPAWNS = {
     100: {"template_entry": 1, "map": 0, "shuffle_excluded": False},
@@ -26,6 +29,7 @@ _FAKE_SPAWNS = {
     102: {"template_entry": 3, "map": 409, "shuffle_excluded": False},
     103: {"template_entry": 1, "map": 0, "shuffle_excluded": True},
     104: {"template_entry": 5, "map": 0, "shuffle_excluded": False},
+    105: {"template_entry": 6, "map": 0, "shuffle_excluded": False},
 }
 
 
@@ -84,6 +88,32 @@ class TestCandidateRows(unittest.TestCase):
         # Spawn 104 currently hosts entry 5 (shuffle_excluded=True) -- must
         # never be reassigned away from it either (two-sided exclusion).
         self.assertNotIn(104, {guid for _table, guid, _payload in rows})
+
+    def test_raises_when_mobs_snapshot_is_stale_missing_shuffle_excluded(self):
+        # mobs_snapshot_content_data must include shuffle_excluded on every
+        # spawn entry (computed at extraction time). If it's missing, the data
+        # is stale/incompatible, and generation should fail loudly rather than
+        # silently evaporating all exclusion protection and crashing the server.
+        world = _fake_world("shuffle_groups")
+        stale_spawns = {
+            100: {"template_entry": 1, "map": 0},  # missing shuffle_excluded key
+        }
+        with patch.object(mobs_spawns.mobs_snapshot_content_data, "CREATURE_SPAWNS", stale_spawns), \
+             patch.object(mobs_spawns.mobs_snapshot_content_data, "CREATURE_TEMPLATES", _FAKE_TEMPLATES):
+            with self.assertRaises(OptionError) as ctx:
+                mobs_spawns.candidate_rows(world)
+            self.assertIn("stale", str(ctx.exception).lower())
+            self.assertIn("shuffle_excluded", str(ctx.exception))
+
+    def test_works_normally_when_shuffle_excluded_is_present(self):
+        # Regression: when shuffle_excluded IS present and properly formed,
+        # candidate_rows should work as expected (not raise).
+        world = _fake_world("shuffle_groups")
+        with patch.object(mobs_spawns.mobs_snapshot_content_data, "CREATURE_SPAWNS", _FAKE_SPAWNS), \
+             patch.object(mobs_spawns.mobs_snapshot_content_data, "CREATURE_TEMPLATES", _FAKE_TEMPLATES):
+            rows = mobs_spawns.candidate_rows(world)
+        # Should get 3 rows (100, 101, 102) without raising.
+        self.assertEqual(len(rows), 3)
 
 
 class TestMutateShuffleGroups(unittest.TestCase):
@@ -170,6 +200,19 @@ class TestMutateShuffleAll(unittest.TestCase):
                 result = mobs_spawns.mutate(rows, rng)
                 if result:
                     self.assertNotEqual(result[0][2]["id"], 4)
+
+    def test_clean_excluded_entry_never_becomes_a_candidate(self):
+        # Entry 6 (shuffle_excluded=True, ai_name="", script_name="") is
+        # excluded and clean -- it must never be chosen even though it's not
+        # caught by the scripted-template filtering. This exercises the
+        # clean_templates list comprehension's own exclusion filter.
+        rows = [("creature", 100, {"id": 1, "_shuffle_mode": "shuffle_all", "_home_map": 0})]
+        rng = random.Random("fixed-seed")
+        with patch.object(mobs_spawns.mobs_snapshot_content_data, "CREATURE_TEMPLATES", _FAKE_TEMPLATES):
+            for _ in range(50):
+                result = mobs_spawns.mutate(rows, rng)
+                if result:
+                    self.assertNotEqual(result[0][2]["id"], 6)
 
 
 class TestSpawnGroupInvariantRule(unittest.TestCase):
