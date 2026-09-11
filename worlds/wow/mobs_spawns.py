@@ -8,7 +8,19 @@ but 10 and 18 are not) and so can't be a valid partition key -- only a
 similarity GRAPH, which CountingInvariantRule's group_key mechanism has no
 way to express. A fixed-width bucket is the closest simple approximation
 that stays a real partition; width 5 keeps the maximum spread within one
-bucket to 4 levels, safely under the stated ±5."""
+bucket to 4 levels, safely under the stated ±5.
+
+M5.1.1 (design spec docs/superpowers/specs/2026-09-11-archipelago-wow-m5.1.1-mob-randomizer-exclusions-design.md):
+`shuffle_excluded` on every CREATURE_TEMPLATES/CREATURE_SPAWNS row (computed
+once at extraction time from real DB queries -- extract_mobs_snapshot.py's
+own docstring has the full category list) is checked TWO-SIDED here: a
+spawn whose own guid or current template is excluded never gets a
+candidate row at all (never touched, source or destination -- see
+candidate_rows), and an excluded entry is never added to any replacement
+pool (never chosen as a new value -- see mutate). This replaces the
+crash-3-hotfix's narrower `_UNSPAWNABLE_CREATURE_TYPES` local constant,
+whose type values are now folded into extraction's own SQL-level
+exclusion (type 8/Critter included this time, which that hotfix missed)."""
 from __future__ import annotations
 
 import random
@@ -38,8 +50,14 @@ def candidate_rows(world) -> list:
     if mode == "vanilla":
         return []
 
+    templates = mobs_snapshot_content_data.CREATURE_TEMPLATES
     rows = []
     for guid, spawn in mobs_snapshot_content_data.CREATURE_SPAWNS.items():
+        if spawn.get("shuffle_excluded"):
+            continue
+        template = templates.get(spawn["template_entry"])
+        if template is None or template.get("shuffle_excluded"):
+            continue
         rows.append((
             "creature", guid,
             {"id": spawn["template_entry"], "_shuffle_mode": mode, "_home_map": spawn["map"]},
@@ -56,6 +74,8 @@ def mutate(rows: Sequence, rng: random.Random) -> list:
     if mode == "shuffle_groups":
         pools: dict[tuple[int, str], list[int]] = {}
         for entry, data in templates.items():
+            if data.get("shuffle_excluded"):
+                continue
             group = (_level_band(data["minlevel"]), _classification_for_rank(data["rank"]))
             pools.setdefault(group, []).append(entry)
 
@@ -78,9 +98,12 @@ def mutate(rows: Sequence, rng: random.Random) -> list:
         clean_templates = [
             entry for entry, data in templates.items()
             if not data["ai_name"] and not data["script_name"]
+            and not data.get("shuffle_excluded")
         ]
         scripted_by_map: dict[int, list[int]] = {}
         for entry, data in templates.items():
+            if data.get("shuffle_excluded"):
+                continue
             if data["ai_name"] or data["script_name"]:
                 for map_id in data["home_maps"]:
                     scripted_by_map.setdefault(map_id, []).append(entry)
