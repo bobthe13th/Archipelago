@@ -764,7 +764,25 @@ def create_optional_category_item_pool(world) -> list:
     # 'count_enabled_gates_items' from partially initialized module" when
     # this import is hoisted to the top of the file). Deferring it to call
     # time avoids the cycle since both modules are fully loaded by then.
+    from . import game_mode_profile
     from .locations import _OPTIONAL_CATEGORIES
+
+    # M5.1.2 fix: hundred_percent's completion rule (goals.py
+    # _set_completion_rule_hundred_percent) requires state.has_all() on
+    # EVERY optional-category item this seed sampled (via
+    # world.optional_category_sampled_names). BaseClasses.can_beat_game/
+    # sweep_for_advancements only ever force-collects items whose
+    # LOCATION is flagged `advancement` -- which is only ever true for
+    # ItemClassification.progression items. Leaving these items at their
+    # normal filler/useful classification meant the accessibility sweep
+    # never picked them up no matter how reachable their locations were,
+    # so hundred_percent was UNCONDITIONALLY "unbeatable" by AP's own
+    # logic (confirmed empirically: identical Fill.FillError with every
+    # gating option disabled). force_all_categories is hundred_percent's
+    # own signal (game_mode_profile._PROFILES[12]) for "every sampled
+    # item here is goal-required," so it is the correct switch to force
+    # progression on, rather than a new option or a game_mode literal.
+    force_progression = game_mode_profile.get_profile(world.options.game_mode.value).force_all_categories
 
     pool = []
     for category in _OPTIONAL_CATEGORIES:
@@ -841,7 +859,9 @@ def create_optional_category_item_pool(world) -> list:
                 # index-aligned with item_rows[i] exactly like sampled_indices
                 # itself already relies on.
                 classification = (
-                    ItemClassification.filler
+                    ItemClassification.progression
+                    if force_progression
+                    else ItemClassification.filler
                     if triggers[location_names[i]].get("is_filler_reward", False)
                     else ItemClassification.useful
                 )
@@ -905,7 +925,9 @@ def create_optional_category_item_pool(world) -> list:
             else:
                 item_name, (item_id, count) = plain_item_rows[plain_index_by_location_name[loc.name]]
             classification = (
-                ItemClassification.filler
+                ItemClassification.progression
+                if force_progression
+                else ItemClassification.filler
                 if triggers[loc.name].get("is_filler_reward", False)
                 else ItemClassification.useful
             )
