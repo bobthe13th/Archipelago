@@ -102,3 +102,44 @@ class TestMutate(unittest.TestCase):
     def test_empty_rows_returns_empty(self):
         rng = random.Random("fixed-seed")
         self.assertEqual(environment_model_scale_name.mutate([], rng), [])
+
+    def test_scale_shuffle_stays_within_0_5_and_2_0(self):
+        # Fix 4 (M5.6.2's own final review): DisplayScale isn't purely
+        # cosmetic -- it proportionally scales combat reach and collision
+        # radius (Creature::SetObjectScale), so the [0.5, 2.0] clamp is a
+        # real mechanical bound, not just visual variety. Exercise many
+        # rerolls with a real random.Random instance to cover the actual
+        # range rather than a single sample.
+        rows = [("creature_template_model", 10, {"DisplayScale": 1.0, "_scale_mode": "shuffle"})]
+        rng = random.Random("fixed-seed")
+        for _ in range(200):
+            result = environment_model_scale_name.mutate(rows, rng)
+            if result:
+                _table, _cid, payload = result[0]
+                if "DisplayScale" in payload:
+                    self.assertGreaterEqual(payload["DisplayScale"], 0.5)
+                    self.assertLessEqual(payload["DisplayScale"], 2.0)
+
+
+class TestComposedPipeline(unittest.TestCase):
+    def test_claimed_row_excluded_and_survives_json_round_trip(self):
+        from .. import mutation_pipeline, mutation_output
+        import json
+
+        category = mutation_pipeline.MutationCategory(
+            key="environment_model_scale_name",
+            candidate_rows=environment_model_scale_name.candidate_rows,
+            mutate=environment_model_scale_name.mutate,
+            invariant_rules=[],
+        )
+        world = _fake_world(name_mode="shuffle")
+        with patch.object(environment_model_scale_name, "creature_appearance_content_data",
+                           SimpleNamespace(CREATURE_NAMES=_FAKE_NAMES, CREATURE_MODELS=_FAKE_MODELS)):
+            result = mutation_pipeline.run_category(category, world, "some-seed", claimed={("creature_template", 1)})
+
+        # entry 1 was claimed by Pipeline A -- must never appear in the result.
+        result_entries = {key for _table, key, _payload in result}
+        self.assertNotIn(1, result_entries)
+
+        contents = mutation_output.build_mutation_file_contents("some-seed", {"environment_model_scale_name": result})
+        json.dumps(contents)  # proves int keys + no control keys survive serialization

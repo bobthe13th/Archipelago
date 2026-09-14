@@ -4,10 +4,18 @@ independently toggleable. See design spec Sec4 and this plan's Global
 Constraints for the composite-PK restriction on the model/scale pool.
 
 mutate() is option-agnostic by design: candidate_rows() (which DOES receive
-`world`) resolves each field's active mode into control keys on the row's
-payload, and mutate() just applies them -- it never reads world.options
-directly, since MutationCategory.mutate's fixed signature has no `world`
-parameter.
+`world`) resolves each field's active mode into control keys
+(_name_mode/_model_mode/_scale_mode) on the row's payload -- but mutate()
+currently branches purely on which real columns are present in a given
+payload dict, it never actually reads those control keys' string values.
+That's harmless today since every mode is binary (vanilla/shuffle --
+absence of the column already means "don't touch this field", making the
+control key redundant), but if a third mode is ever added to any of these
+fields, mutate() will need to be updated to actually inspect the relevant
+control key, or it will silently keep applying shuffle-only behavior
+regardless of which mode string was requested. mutate() never reads
+world.options directly either way, since MutationCategory.mutate's fixed
+signature has no `world` parameter.
 
 CRITICAL: when both model and scale are enabled, candidate_rows() emits
 ONE row per creature_template_model candidate with BOTH fields in its

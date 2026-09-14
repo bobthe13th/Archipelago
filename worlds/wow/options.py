@@ -1327,7 +1327,12 @@ class EnvironmentRandomizerModelMode(Choice):
 class EnvironmentRandomizerScaleMode(Choice):
     """M5.6.2: shuffles creature_template_model.DisplayScale among the
     same single-model-row creature pool as EnvironmentRandomizerModelMode
-    (independently toggleable from it). Default: vanilla (off)."""
+    (independently toggleable from it). DisplayScale is not purely visual --
+    Creature::SetObjectScale scales UNIT_FIELD_BOUNDINGRADIUS and
+    UNIT_FIELD_COMBATREACH proportionally with it, so a rolled scale also
+    proportionally changes that creature's melee reach and collision
+    radius; the rolled range is clamped to [0.5, 2.0] partly to keep this
+    mechanical side effect small. Default: vanilla (off)."""
     display_name = "Environment Randomizer: Scale Mode"
     option_vanilla = 0
     option_shuffle = 1

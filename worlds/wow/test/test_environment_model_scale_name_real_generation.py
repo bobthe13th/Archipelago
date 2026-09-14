@@ -1,5 +1,4 @@
 import random
-import unittest
 
 from .. import environment_model_scale_name, creature_appearance_content_data
 from .. import world_seed
