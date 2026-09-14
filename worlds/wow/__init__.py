@@ -3,6 +3,7 @@ from .items import WoWItem, create_core_loop_item_pool, create_gates_item_pool, 
 from .regions import create_regions
 from .rules import set_rules
 from . import day_night
+from . import environment_model_scale_name
 from . import environment_weather
 from . import goals
 from . import mobs_level
