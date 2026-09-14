@@ -33,3 +33,15 @@ class TestWriteMutationFile(unittest.TestCase):
                 contents = json.load(f)
             self.assertEqual(contents["world_seed"], "abc123")
             self.assertEqual(contents["categories"]["mobs"], [["creature_template", 1, {"level": 30}]])
+
+
+class TestDayNightKey(unittest.TestCase):
+    def test_day_night_omitted_when_none(self):
+        contents = mutation_output.build_mutation_file_contents("seed123", {}, day_night=None)
+        self.assertNotIn("day_night", contents)
+
+    def test_day_night_included_when_provided(self):
+        contents = mutation_output.build_mutation_file_contents(
+            "seed123", {}, day_night={"mode": "perma_day", "speed_percent": 100.0}
+        )
+        self.assertEqual(contents["day_night"], {"mode": "perma_day", "speed_percent": 100.0})

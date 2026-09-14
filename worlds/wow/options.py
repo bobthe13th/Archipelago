@@ -1284,6 +1284,33 @@ class EnvironmentRandomizerWeatherMode(Choice):
     default = 0
 
 
+class EnvironmentRandomizerDayNightMode(Choice):
+    """M5.6.1: overrides the client's day/night clock. speed_multiplier
+    scales the stock game-speed constant by environment_randomizer_
+    day_night_speed_percent/100 (100 = vanilla speed, unchanged). perma_day
+    and perma_night freeze the clock (speed 0) at a fixed noon/midnight
+    hour, ignoring the speed-percent option. Applied at login AND at every
+    teleport/map-change completion -- see design spec Sec4. Default:
+    vanilla (off)."""
+    display_name = "Environment Randomizer: Day/Night Mode"
+    option_vanilla = 0
+    option_speed_multiplier = 1
+    option_perma_day = 2
+    option_perma_night = 3
+    default = 0
+
+
+class EnvironmentRandomizerDayNightSpeedPercent(Range):
+    """Only consulted when environment_randomizer_day_night_mode is
+    speed_multiplier: the day/night clock's speed as a percentage of
+    vanilla (100 = unchanged, 400 = 4x speed, 10 = near-frozen). Ignored by
+    every other mode."""
+    display_name = "Environment Randomizer: Day/Night Speed Percent"
+    range_start = 10
+    range_end = 400
+    default = 100
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -1357,4 +1384,6 @@ class WoWOptions(PerGameCommonOptions):
     mob_randomizer_level_mode: MobRandomizerLevelMode
     mob_randomizer_spawn_mode: MobRandomizerSpawnMode
     environment_randomizer_weather_mode: EnvironmentRandomizerWeatherMode
+    environment_randomizer_day_night_mode: EnvironmentRandomizerDayNightMode
+    environment_randomizer_day_night_speed_percent: EnvironmentRandomizerDayNightSpeedPercent
 

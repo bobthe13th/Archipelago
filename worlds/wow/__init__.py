@@ -2,6 +2,7 @@ from worlds.AutoWorld import World
 from .items import WoWItem, create_core_loop_item_pool, create_gates_item_pool, create_holidaysanity_item_pool, create_raidlogger_item_pool, create_trap_item_pool, create_key_hunt_item_pool, create_golden_boar_statues_item_pool, create_fish_item_pool, create_professions_item_pool, create_collections_item_pool, create_optional_category_item_pool, create_achievements_item_pool, create_explorer_item_pool, create_gathering_skill_progression_item_pool, GATHERING_SKILL_PROGRESSION_ITEMS
 from .regions import create_regions
 from .rules import set_rules
+from . import day_night
 from . import environment_weather
 from . import goals
 from . import mobs_level
@@ -170,9 +171,11 @@ class WoWWorld(World):
         world_seed = derive_world_seed(str(self.multiworld.seed_name), self.player_name)
         self._pipeline_b_world_seed = world_seed
         self._pipeline_b_result = mutation_pipeline.run_all_categories(self, world_seed)
+        self._pipeline_b_day_night = day_night.resolve_day_night(self)
 
     def generate_output(self, output_directory: str) -> None:
         mutation_output.write_mutation_file(
-            self, output_directory, self._pipeline_b_world_seed, self._pipeline_b_result
+            self, output_directory, self._pipeline_b_world_seed, self._pipeline_b_result,
+            day_night=self._pipeline_b_day_night,
         )
 
