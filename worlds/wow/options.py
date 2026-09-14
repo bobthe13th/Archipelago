@@ -1269,8 +1269,11 @@ class MobRandomizerSpawnMode(Choice):
 class EnvironmentRandomizerWeatherMode(Choice):
     """M5.6.0: randomizes game_weather's per-zone seasonal precipitation-
     chance columns. perma_clear zeroes every chance column (the zone never
-    precipitates). perma_storm maxes every chance column (always at peak
-    storm chance). random_per_zone independently rerolls each of the 12
+    precipitates). perma_storm zeroes every rain/snow chance column and
+    maxes every storm chance column to 100 (the 12 columns are cumulative
+    thresholds in the real server roll, not independent probabilities, so
+    zeroing rain/snow is required to make every roll land on storm rather
+    than rain). random_per_zone independently rerolls each of the 12
     columns 0-100, seeded from world_seed. Cosmetic -- no invariant checks,
     exempt from generation-time re-roll. Default: vanilla (off)."""
     display_name = "Environment Randomizer: Weather Mode"

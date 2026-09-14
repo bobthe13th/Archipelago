@@ -52,12 +52,20 @@ class TestMutate(unittest.TestCase):
         _table, _zone, payload = result[0]
         self.assertTrue(all(v == 0 for v in payload.values()))
 
-    def test_perma_storm_maxes_every_column(self):
+    def test_perma_storm_zeroes_rain_and_snow_maxes_storm(self):
+        # game_weather's chance columns are cumulative thresholds in the real
+        # server roll (chance1=rain, chance2=chance1+snow, chance3=chance2+storm),
+        # so perma_storm must zero rain/snow and max only storm -- maxing every
+        # column would make every roll resolve to rain (see Weather.cpp).
         rows = [("game_weather", 1, dict(_FAKE_ZONES[1], _mode="perma_storm"))]
         rng = random.Random("fixed-seed")
         result = environment_weather.mutate(rows, rng)
         _table, _zone, payload = result[0]
-        self.assertTrue(all(v == 100 for v in payload.values()))
+        for column, value in payload.items():
+            if column.endswith("_storm_chance"):
+                self.assertEqual(value, 100, column)
+            else:
+                self.assertEqual(value, 0, column)
 
     def test_random_per_zone_stays_within_0_and_100(self):
         rows = [("game_weather", 1, dict(_FAKE_ZONES[1], _mode="random_per_zone"))]

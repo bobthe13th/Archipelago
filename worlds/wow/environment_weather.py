@@ -1,5 +1,5 @@
 """M5.6.0: Weather mutation -- randomizes game_weather's 12 per-zone seasonal
-precipitation-chance columns. See design spec Sec3. Cosmetic (design spec
+precipitation-chance columns. See design spec Sec2. Cosmetic (design spec
 Sec2/Sec6.7) -- invariant_rules=[], no reachability implication.
 
 mutate() is option-agnostic by design: candidate_rows() (which DOES receive
@@ -29,7 +29,10 @@ def candidate_rows(world) -> list:
         return []
 
     rows = []
-    for zone, data in weather_snapshot_content_data.WEATHER_ZONES.items():
+    # Sorted explicitly: RNG-determinism reproducibility depends on a stable
+    # iteration order, and the generated data module's dict insertion order
+    # happens to be sorted but that shouldn't be an implicit load-bearing fact.
+    for zone, data in sorted(weather_snapshot_content_data.WEATHER_ZONES.items()):
         payload = {column: data[column] for column in _CHANCE_COLUMNS}
         payload["_mode"] = mode
         rows.append(("game_weather", zone, payload))
@@ -43,7 +46,17 @@ def mutate(rows: Sequence, rng: random.Random) -> list:
         if mode == "perma_clear":
             new_values = {column: 0 for column in _CHANCE_COLUMNS}
         elif mode == "perma_storm":
-            new_values = {column: 100 for column in _CHANCE_COLUMNS}
+            # game_weather's 12 chance columns are CUMULATIVE thresholds in the
+            # real server roll (Weather.cpp): chance1=rain, chance2=chance1+snow,
+            # chance3=chance2+storm, rnd<=chance1 -> rain, rnd<=chance2 -> snow,
+            # rnd<=chance3 -> storm, else fine. Setting every column to 100
+            # would make chance1 (rain) alone always win the roll -- perma-rain,
+            # not perma-storm. Zeroing rain/snow and maxing only storm makes
+            # chance1=chance2=0, chance3=100, so every roll lands on storm.
+            new_values = {
+                column: (100 if column.endswith("_storm_chance") else 0)
+                for column in _CHANCE_COLUMNS
+            }
         else:  # random_per_zone
             new_values = {column: rng.randint(0, 100) for column in _CHANCE_COLUMNS}
         old_values = {column: payload[column] for column in _CHANCE_COLUMNS}
