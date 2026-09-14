@@ -204,6 +204,21 @@ class TestMobRandomizerOptions(unittest.TestCase):
         self.assertIn("mob_randomizer_level_mode", WoWOptions.type_hints)
         self.assertIn("mob_randomizer_spawn_mode", WoWOptions.type_hints)
 
+    def test_weather_mode_defaults_to_vanilla(self):
+        from ..options import EnvironmentRandomizerWeatherMode
+        self.assertEqual(EnvironmentRandomizerWeatherMode.default, EnvironmentRandomizerWeatherMode.option_vanilla)
+
+    def test_weather_mode_has_four_values(self):
+        from ..options import EnvironmentRandomizerWeatherMode
+        self.assertEqual(
+            {"vanilla", "perma_clear", "perma_storm", "random_per_zone"},
+            set(EnvironmentRandomizerWeatherMode.name_lookup.values()),
+        )
+
+    def test_weather_mode_registered_on_wow_options(self):
+        from ..options import WoWOptions
+        self.assertIn("environment_randomizer_weather_mode", WoWOptions.type_hints)
+
 
 if __name__ == "__main__":
     unittest.main()

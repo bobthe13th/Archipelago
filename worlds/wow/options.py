@@ -1266,6 +1266,21 @@ class MobRandomizerSpawnMode(Choice):
     default = 0
 
 
+class EnvironmentRandomizerWeatherMode(Choice):
+    """M5.6.0: randomizes game_weather's per-zone seasonal precipitation-
+    chance columns. perma_clear zeroes every chance column (the zone never
+    precipitates). perma_storm maxes every chance column (always at peak
+    storm chance). random_per_zone independently rerolls each of the 12
+    columns 0-100, seeded from world_seed. Cosmetic -- no invariant checks,
+    exempt from generation-time re-roll. Default: vanilla (off)."""
+    display_name = "Environment Randomizer: Weather Mode"
+    option_vanilla = 0
+    option_perma_clear = 1
+    option_perma_storm = 2
+    option_random_per_zone = 3
+    default = 0
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -1338,4 +1353,5 @@ class WoWOptions(PerGameCommonOptions):
     loot_slot_check_repeat_behavior: LootSlotCheckRepeatBehavior
     mob_randomizer_level_mode: MobRandomizerLevelMode
     mob_randomizer_spawn_mode: MobRandomizerSpawnMode
+    environment_randomizer_weather_mode: EnvironmentRandomizerWeatherMode
 
