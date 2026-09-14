@@ -1311,6 +1311,42 @@ class EnvironmentRandomizerDayNightSpeedPercent(Range):
     default = 100
 
 
+class EnvironmentRandomizerModelMode(Choice):
+    """M5.6.2 (moved from the retired M5.1.4): shuffles
+    creature_template_model.CreatureDisplayID among creatures that have
+    exactly one model row (see this milestone's own plan for why
+    multi-model creatures are excluded). Every eligible row is a
+    candidate -- no curated exclusion, following M5.1.3's precedent.
+    Default: vanilla (off)."""
+    display_name = "Environment Randomizer: Model Mode"
+    option_vanilla = 0
+    option_shuffle = 1
+    default = 0
+
+
+class EnvironmentRandomizerScaleMode(Choice):
+    """M5.6.2: shuffles creature_template_model.DisplayScale among the
+    same single-model-row creature pool as EnvironmentRandomizerModelMode
+    (independently toggleable from it). Default: vanilla (off)."""
+    display_name = "Environment Randomizer: Scale Mode"
+    option_vanilla = 0
+    option_shuffle = 1
+    default = 0
+
+
+class EnvironmentRandomizerNameMode(Choice):
+    """M5.6.2: shuffles creature_template.name/subname among every real
+    creature_template row -- no trainer/flight-master exclusion (dropped
+    during this milestone's brainstorming; a renamed service NPC is a
+    cosmetic-only mismatch, since quest tracking and service lookups are
+    both by entity ID/npcflag, never by display name). Default: vanilla
+    (off)."""
+    display_name = "Environment Randomizer: Name Mode"
+    option_vanilla = 0
+    option_shuffle = 1
+    default = 0
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -1386,4 +1422,7 @@ class WoWOptions(PerGameCommonOptions):
     environment_randomizer_weather_mode: EnvironmentRandomizerWeatherMode
     environment_randomizer_day_night_mode: EnvironmentRandomizerDayNightMode
     environment_randomizer_day_night_speed_percent: EnvironmentRandomizerDayNightSpeedPercent
+    environment_randomizer_model_mode: EnvironmentRandomizerModelMode
+    environment_randomizer_scale_mode: EnvironmentRandomizerScaleMode
+    environment_randomizer_name_mode: EnvironmentRandomizerNameMode
 

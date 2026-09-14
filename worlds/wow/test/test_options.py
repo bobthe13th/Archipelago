@@ -246,5 +246,27 @@ class TestEnvironmentRandomizerDayNightOptions(unittest.TestCase):
         self.assertIn("environment_randomizer_day_night_speed_percent", WoWOptions.type_hints)
 
 
+class TestEnvironmentAppearanceOptions(unittest.TestCase):
+    def test_model_mode_default_vanilla_with_shuffle(self):
+        from .. import options
+        self.assertEqual(options.EnvironmentRandomizerModelMode.default, options.EnvironmentRandomizerModelMode.option_vanilla)
+        self.assertEqual(set(options.EnvironmentRandomizerModelMode.name_lookup.values()), {"vanilla", "shuffle"})
+
+    def test_scale_mode_default_vanilla_with_shuffle(self):
+        from .. import options
+        self.assertEqual(options.EnvironmentRandomizerScaleMode.default, options.EnvironmentRandomizerScaleMode.option_vanilla)
+        self.assertEqual(set(options.EnvironmentRandomizerScaleMode.name_lookup.values()), {"vanilla", "shuffle"})
+
+    def test_name_mode_default_vanilla_with_shuffle(self):
+        from .. import options
+        self.assertEqual(options.EnvironmentRandomizerNameMode.default, options.EnvironmentRandomizerNameMode.option_vanilla)
+        self.assertEqual(set(options.EnvironmentRandomizerNameMode.name_lookup.values()), {"vanilla", "shuffle"})
+
+    def test_all_three_registered_on_wow_options(self):
+        from .. import options
+        for field in ("environment_randomizer_model_mode", "environment_randomizer_scale_mode", "environment_randomizer_name_mode"):
+            self.assertIn(field, options.WoWOptions.type_hints)
+
+
 if __name__ == "__main__":
     unittest.main()
