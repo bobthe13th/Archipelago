@@ -287,5 +287,30 @@ class TestEnvironmentRandomizerModelScaleNameOptions(unittest.TestCase):
         self.assertIn("environment_randomizer_name_mode", WoWOptions.type_hints)
 
 
+class TestEnvironmentRandomizerCreatureFlavorOptions(unittest.TestCase):
+    def test_equipment_enabled_defaults_to_false(self):
+        from ..options import EnvironmentRandomizerEquipmentEnabled
+        self.assertEqual(EnvironmentRandomizerEquipmentEnabled.default, False)
+
+    def test_posture_enabled_defaults_to_false(self):
+        from ..options import EnvironmentRandomizerPostureEnabled
+        self.assertEqual(EnvironmentRandomizerPostureEnabled.default, False)
+
+    def test_mount_enabled_defaults_to_false(self):
+        from ..options import EnvironmentRandomizerMountEnabled
+        self.assertEqual(EnvironmentRandomizerMountEnabled.default, False)
+
+    def test_aura_enabled_defaults_to_false(self):
+        from ..options import EnvironmentRandomizerAuraEnabled
+        self.assertEqual(EnvironmentRandomizerAuraEnabled.default, False)
+
+    def test_all_four_registered_on_wow_options(self):
+        from ..options import WoWOptions
+        self.assertIn("environment_randomizer_equipment_enabled", WoWOptions.type_hints)
+        self.assertIn("environment_randomizer_posture_enabled", WoWOptions.type_hints)
+        self.assertIn("environment_randomizer_mount_enabled", WoWOptions.type_hints)
+        self.assertIn("environment_randomizer_aura_enabled", WoWOptions.type_hints)
+
+
 if __name__ == "__main__":
     unittest.main()

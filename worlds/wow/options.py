@@ -1352,6 +1352,43 @@ class EnvironmentRandomizerNameMode(Choice):
     default = 0
 
 
+class EnvironmentRandomizerEquipmentEnabled(Toggle):
+    """M5.6.3: shuffles creature.equipment_id among spawns sharing the same
+    creature template (id1) -- never globally, since equipment_id only
+    resolves to a real creature_equip_template row relative to its own
+    template. Default: off."""
+    display_name = "Environment Randomizer: Equipment Shuffle"
+    default = False
+
+
+class EnvironmentRandomizerPostureEnabled(Toggle):
+    """M5.6.3: shuffles creature_template_addon's stand-state byte
+    (bytes1 byte 0), sheath-state byte (bytes2 byte 0), and ambient emote,
+    each independently, among templates that already have an addon row.
+    Only byte 0 of bytes1/bytes2 is touched -- the remaining packed bytes
+    are preserved unchanged. Default: off."""
+    display_name = "Environment Randomizer: Posture/Sheath/Emote Shuffle"
+    default = False
+
+
+class EnvironmentRandomizerMountEnabled(Toggle):
+    """M5.6.3: shuffles creature_template_addon.mount among templates that
+    already have an addon row. Default: off."""
+    display_name = "Environment Randomizer: NPC Mount Shuffle"
+    default = False
+
+
+class EnvironmentRandomizerAuraEnabled(Toggle):
+    """M5.6.3: assigns creature_template_addon.auras from a curated,
+    hand-verified non-mechanical (visual-only) spell whitelist -- never
+    from an unfiltered spell range. A safe no-op (no aura ever assigned)
+    until that whitelist is populated by a human; see design spec Sec5
+    and docs/testing/m5.6.3-manual-verification-checklist.md. Default:
+    off."""
+    display_name = "Environment Randomizer: Cosmetic Aura Shuffle"
+    default = False
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -1430,4 +1467,8 @@ class WoWOptions(PerGameCommonOptions):
     environment_randomizer_model_mode: EnvironmentRandomizerModelMode
     environment_randomizer_scale_mode: EnvironmentRandomizerScaleMode
     environment_randomizer_name_mode: EnvironmentRandomizerNameMode
+    environment_randomizer_equipment_enabled: EnvironmentRandomizerEquipmentEnabled
+    environment_randomizer_posture_enabled: EnvironmentRandomizerPostureEnabled
+    environment_randomizer_mount_enabled: EnvironmentRandomizerMountEnabled
+    environment_randomizer_aura_enabled: EnvironmentRandomizerAuraEnabled
 
