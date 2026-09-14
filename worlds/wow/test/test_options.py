@@ -222,5 +222,29 @@ class TestEnvironmentRandomizerWeatherMode(unittest.TestCase):
         self.assertIn("environment_randomizer_weather_mode", WoWOptions.type_hints)
 
 
+class TestEnvironmentRandomizerDayNightOptions(unittest.TestCase):
+    def test_default_is_vanilla(self):
+        from ..options import EnvironmentRandomizerDayNightMode
+        self.assertEqual(EnvironmentRandomizerDayNightMode.default, EnvironmentRandomizerDayNightMode.option_vanilla)
+
+    def test_has_all_four_modes(self):
+        from ..options import EnvironmentRandomizerDayNightMode
+        self.assertEqual(
+            {"vanilla", "speed_multiplier", "perma_day", "perma_night"},
+            set(EnvironmentRandomizerDayNightMode.name_lookup.values()),
+        )
+
+    def test_speed_percent_range(self):
+        from ..options import EnvironmentRandomizerDayNightSpeedPercent
+        self.assertEqual(EnvironmentRandomizerDayNightSpeedPercent.range_start, 10)
+        self.assertEqual(EnvironmentRandomizerDayNightSpeedPercent.range_end, 400)
+        self.assertEqual(EnvironmentRandomizerDayNightSpeedPercent.default, 100)
+
+    def test_registered_on_wow_options(self):
+        from ..options import WoWOptions
+        self.assertIn("environment_randomizer_day_night_mode", WoWOptions.type_hints)
+        self.assertIn("environment_randomizer_day_night_speed_percent", WoWOptions.type_hints)
+
+
 if __name__ == "__main__":
     unittest.main()
