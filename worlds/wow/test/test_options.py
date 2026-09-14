@@ -246,26 +246,45 @@ class TestEnvironmentRandomizerDayNightOptions(unittest.TestCase):
         self.assertIn("environment_randomizer_day_night_speed_percent", WoWOptions.type_hints)
 
 
-class TestEnvironmentAppearanceOptions(unittest.TestCase):
-    def test_model_mode_default_vanilla_with_shuffle(self):
-        from .. import options
-        self.assertEqual(options.EnvironmentRandomizerModelMode.default, options.EnvironmentRandomizerModelMode.option_vanilla)
-        self.assertEqual(set(options.EnvironmentRandomizerModelMode.name_lookup.values()), {"vanilla", "shuffle"})
+class TestEnvironmentRandomizerModelScaleNameOptions(unittest.TestCase):
+    def test_model_mode_defaults_to_vanilla(self):
+        from ..options import EnvironmentRandomizerModelMode
+        self.assertEqual(EnvironmentRandomizerModelMode.default, EnvironmentRandomizerModelMode.option_vanilla)
 
-    def test_scale_mode_default_vanilla_with_shuffle(self):
-        from .. import options
-        self.assertEqual(options.EnvironmentRandomizerScaleMode.default, options.EnvironmentRandomizerScaleMode.option_vanilla)
-        self.assertEqual(set(options.EnvironmentRandomizerScaleMode.name_lookup.values()), {"vanilla", "shuffle"})
+    def test_model_mode_has_two_modes(self):
+        from ..options import EnvironmentRandomizerModelMode
+        self.assertEqual(
+            {"vanilla", "shuffle"},
+            set(EnvironmentRandomizerModelMode.name_lookup.values()),
+        )
 
-    def test_name_mode_default_vanilla_with_shuffle(self):
-        from .. import options
-        self.assertEqual(options.EnvironmentRandomizerNameMode.default, options.EnvironmentRandomizerNameMode.option_vanilla)
-        self.assertEqual(set(options.EnvironmentRandomizerNameMode.name_lookup.values()), {"vanilla", "shuffle"})
+    def test_scale_mode_defaults_to_vanilla(self):
+        from ..options import EnvironmentRandomizerScaleMode
+        self.assertEqual(EnvironmentRandomizerScaleMode.default, EnvironmentRandomizerScaleMode.option_vanilla)
+
+    def test_scale_mode_has_two_modes(self):
+        from ..options import EnvironmentRandomizerScaleMode
+        self.assertEqual(
+            {"vanilla", "shuffle"},
+            set(EnvironmentRandomizerScaleMode.name_lookup.values()),
+        )
+
+    def test_name_mode_defaults_to_vanilla(self):
+        from ..options import EnvironmentRandomizerNameMode
+        self.assertEqual(EnvironmentRandomizerNameMode.default, EnvironmentRandomizerNameMode.option_vanilla)
+
+    def test_name_mode_has_two_modes(self):
+        from ..options import EnvironmentRandomizerNameMode
+        self.assertEqual(
+            {"vanilla", "shuffle"},
+            set(EnvironmentRandomizerNameMode.name_lookup.values()),
+        )
 
     def test_all_three_registered_on_wow_options(self):
-        from .. import options
-        for field in ("environment_randomizer_model_mode", "environment_randomizer_scale_mode", "environment_randomizer_name_mode"):
-            self.assertIn(field, options.WoWOptions.type_hints)
+        from ..options import WoWOptions
+        self.assertIn("environment_randomizer_model_mode", WoWOptions.type_hints)
+        self.assertIn("environment_randomizer_scale_mode", WoWOptions.type_hints)
+        self.assertIn("environment_randomizer_name_mode", WoWOptions.type_hints)
 
 
 if __name__ == "__main__":
