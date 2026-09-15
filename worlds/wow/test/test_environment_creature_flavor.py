@@ -155,6 +155,34 @@ class TestMutatePostureByte0Only(unittest.TestCase):
         self.assertEqual(result_by_entry[200]["bytes1"] & 0xFFFFFF00, 0x11223300)
 
 
+class TestMutateMount(unittest.TestCase):
+    def test_mount_only_enabled_never_touches_posture_fields(self):
+        world = _fake_world(mount=True)
+        with _patched_content():
+            rows = environment_creature_flavor.candidate_rows(world)
+        self.assertTrue(rows)
+        for _table, _entry, payload in rows:
+            self.assertIn("mount", payload)
+            self.assertNotIn("bytes1", payload)
+            self.assertNotIn("bytes2", payload)
+            self.assertNotIn("emote", payload)
+
+    def test_mutated_mount_values_only_drawn_from_existing_pool(self):
+        known_mounts = {data["mount"] for data in _FAKE_ADDONS.values()}
+        world = _fake_world(mount=True)
+        with _patched_content():
+            rows = environment_creature_flavor.candidate_rows(world)
+        saw_a_mutation = False
+        for seed in range(20):
+            rng = random.Random(f"mount-seed-{seed}")
+            result = environment_creature_flavor.mutate(rows, rng)
+            for _t, _e, payload in result:
+                if "mount" in payload:
+                    saw_a_mutation = True
+                    self.assertIn(payload["mount"], known_mounts)
+        self.assertTrue(saw_a_mutation, "no seed in the sweep produced a mutation -- test would prove nothing")
+
+
 class TestMutateAuraWhitelist(unittest.TestCase):
     def test_empty_whitelist_never_assigns_aura(self):
         rows = [("creature_template_addon", 100, {"auras": "", "_aura_mode": "shuffle"})]
