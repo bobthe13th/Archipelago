@@ -153,7 +153,7 @@ class TestMutateAuraWhitelist(unittest.TestCase):
                 result = environment_creature_flavor.mutate(rows, rng)
                 for _t, _e, payload in result:
                     if "auras" in payload:
-                        assigned_ids = {int(x) for x in payload["auras"].split(",") if x}
+                        assigned_ids = {int(x) for x in payload["auras"].split() if x}
                         self.assertTrue(assigned_ids.issubset({111, 222, 333}))
 
 

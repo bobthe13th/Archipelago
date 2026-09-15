@@ -5,7 +5,18 @@ creature_equip_template's composite-keyed rows); why posture/sheath touch
 only byte 0 of bytes1/bytes2; why aura draws from a curated whitelist,
 never an unfiltered spell range; and why posture/mount/aura merge into one
 combined payload per creature_template_addon row when more than one is
-enabled together."""
+enabled together.
+
+Note on creature_template_addon.auras' format: the real column is a
+SPACE-separated list of spell IDs, not comma-separated -- confirmed against
+the real AzerothCore parser (ObjectMgr.cpp's CreatureAddon load, which
+tokenizes this field with `Acore::Tokenize(fields[7].Get<std::string_view>(),
+' ', false)`). Any code that reads or writes this field's raw string value
+(including future whitelist-curation work) must split/join on a single
+space, never a comma -- a comma-joined value would fail to parse as
+multiple aura IDs at boot and would silently be treated as unparseable by
+AzerothCore's tokenizer.
+"""
 from __future__ import annotations
 
 import random
