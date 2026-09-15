@@ -48,6 +48,12 @@ _FAKE_EQUIPMENT = {
     1: {"id1": 100, "equipment_id": 1},
     2: {"id1": 100, "equipment_id": 2},
     3: {"id1": 200, "equipment_id": 0},
+    # 4 and 5 keep the id1=100 group at 3 live members even after
+    # TestComposedPipeline claims guid 1 -- with only guid 1/2 in that
+    # group, claiming guid 1 would leave a singleton (guid 2), which can
+    # never produce a non-identity shuffle (see Fix 1's own note on this).
+    4: {"id1": 100, "equipment_id": 3},
+    5: {"id1": 100, "equipment_id": 4},
 }
 _FAKE_ADDONS = {
     100: {"mount": 0, "bytes1": 0x00000001, "bytes2": 0x00000000, "emote": 0, "auras": ""},
@@ -72,7 +78,7 @@ class TestCandidateRows(unittest.TestCase):
         world = _fake_world(equipment=True)
         with _patched_content():
             rows = environment_creature_flavor.candidate_rows(world)
-        self.assertEqual(len(rows), 3)
+        self.assertEqual(len(rows), 5)
         self.assertTrue(all(row[0] == "creature" for row in rows))
 
     def test_posture_and_mount_together_produce_one_merged_row_per_entry(self):
@@ -165,3 +171,27 @@ class TestMutateGeneral(unittest.TestCase):
     def test_empty_rows_returns_empty(self):
         rng = random.Random("fixed-seed")
         self.assertEqual(environment_creature_flavor.mutate([], rng), [])
+
+
+class TestComposedPipeline(unittest.TestCase):
+    def test_claimed_row_excluded_and_survives_json_round_trip(self):
+        from .. import mutation_pipeline, mutation_output
+        import json
+
+        category = mutation_pipeline.MutationCategory(
+            key="environment_creature_flavor",
+            candidate_rows=environment_creature_flavor.candidate_rows,
+            mutate=environment_creature_flavor.mutate,
+            invariant_rules=[],
+        )
+        world = _fake_world(equipment=True)
+        with _patched_content():
+            result = mutation_pipeline.run_category(category, world, "some-seed", claimed={("creature", 1)})
+
+        self.assertTrue(result, "fixture pool produced no mutations -- test would prove nothing")
+
+        result_keys = {key for _table, key, _payload in result}
+        self.assertNotIn(1, result_keys)
+
+        contents = mutation_output.build_mutation_file_contents("some-seed", {"environment_creature_flavor": result})
+        json.dumps(contents)  # proves int keys + no control keys survive serialization
