@@ -312,5 +312,40 @@ class TestEnvironmentRandomizerCreatureFlavorOptions(unittest.TestCase):
         self.assertIn("environment_randomizer_aura_enabled", WoWOptions.type_hints)
 
 
+class TestEnvironmentRandomizerGameObjectVisualsOptions(unittest.TestCase):
+    def test_display_mode_defaults_to_vanilla(self):
+        from ..options import EnvironmentRandomizerGameObjectDisplayMode
+        self.assertEqual(
+            EnvironmentRandomizerGameObjectDisplayMode.default,
+            EnvironmentRandomizerGameObjectDisplayMode.option_vanilla,
+        )
+
+    def test_display_mode_has_two_modes(self):
+        from ..options import EnvironmentRandomizerGameObjectDisplayMode
+        self.assertEqual(
+            {"vanilla", "shuffle"},
+            set(EnvironmentRandomizerGameObjectDisplayMode.name_lookup.values()),
+        )
+
+    def test_scale_mode_defaults_to_vanilla(self):
+        from ..options import EnvironmentRandomizerGameObjectScaleMode
+        self.assertEqual(
+            EnvironmentRandomizerGameObjectScaleMode.default,
+            EnvironmentRandomizerGameObjectScaleMode.option_vanilla,
+        )
+
+    def test_scale_mode_has_two_modes(self):
+        from ..options import EnvironmentRandomizerGameObjectScaleMode
+        self.assertEqual(
+            {"vanilla", "shuffle"},
+            set(EnvironmentRandomizerGameObjectScaleMode.name_lookup.values()),
+        )
+
+    def test_both_registered_on_wow_options(self):
+        from ..options import WoWOptions
+        self.assertIn("environment_randomizer_gameobject_display_mode", WoWOptions.type_hints)
+        self.assertIn("environment_randomizer_gameobject_scale_mode", WoWOptions.type_hints)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1392,6 +1392,29 @@ class EnvironmentRandomizerAuraEnabled(Toggle):
     default = False
 
 
+class EnvironmentRandomizerGameObjectDisplayMode(Choice):
+    """M5.6.4: shuffles gameobject_template.displayId among a hand-verified
+    safe subset -- GAMEOBJECT_TYPE_GENERIC only, no quest linkage, no
+    scripted behavior (empty AIName/ScriptName). Every doors/buttons/
+    questgivers/chests/traps/transports and every quest-linked or scripted
+    GameObject is excluded by construction; never a candidate regardless
+    of mode. Default: vanilla (off)."""
+    display_name = "Environment Randomizer: GameObject Display Mode"
+    option_vanilla = 0
+    option_shuffle = 1
+    default = 0
+
+
+class EnvironmentRandomizerGameObjectScaleMode(Choice):
+    """M5.6.4: shuffles gameobject_template.size among the same safe
+    subset as EnvironmentRandomizerGameObjectDisplayMode (independently
+    toggleable from it). Default: vanilla (off)."""
+    display_name = "Environment Randomizer: GameObject Scale Mode"
+    option_vanilla = 0
+    option_shuffle = 1
+    default = 0
+
+
 @dataclass
 class WoWOptions(PerGameCommonOptions):
     game_mode: GameMode
@@ -1474,4 +1497,6 @@ class WoWOptions(PerGameCommonOptions):
     environment_randomizer_posture_enabled: EnvironmentRandomizerPostureEnabled
     environment_randomizer_mount_enabled: EnvironmentRandomizerMountEnabled
     environment_randomizer_aura_enabled: EnvironmentRandomizerAuraEnabled
+    environment_randomizer_gameobject_display_mode: EnvironmentRandomizerGameObjectDisplayMode
+    environment_randomizer_gameobject_scale_mode: EnvironmentRandomizerGameObjectScaleMode
 
