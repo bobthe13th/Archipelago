@@ -1395,10 +1395,14 @@ class EnvironmentRandomizerAuraEnabled(Toggle):
 class EnvironmentRandomizerGameObjectDisplayMode(Choice):
     """M5.6.4: shuffles gameobject_template.displayId among a hand-verified
     safe subset -- GAMEOBJECT_TYPE_GENERIC only, no quest linkage, no
-    scripted behavior (empty AIName/ScriptName). Every doors/buttons/
-    questgivers/chests/traps/transports and every quest-linked or scripted
-    GameObject is excluded by construction; never a candidate regardless
-    of mode. Default: vanilla (off)."""
+    scripted behavior (empty AIName/ScriptName). Every door, button,
+    questgiver, chest, trap and transport, and every quest-linked or
+    scripted GameObject, is excluded by construction; never a candidate
+    regardless of mode. displayId is not purely visual -- the server's
+    collision model (GameObjectModel) is looked up by displayId, so a
+    rolled displayId can change the object's real collision geometry
+    (its movement-blocking bounding box and line-of-sight). Default:
+    vanilla (off)."""
     display_name = "Environment Randomizer: GameObject Display Mode"
     option_vanilla = 0
     option_shuffle = 1
@@ -1406,9 +1410,16 @@ class EnvironmentRandomizerGameObjectDisplayMode(Choice):
 
 
 class EnvironmentRandomizerGameObjectScaleMode(Choice):
-    """M5.6.4: shuffles gameobject_template.size among the same safe
-    subset as EnvironmentRandomizerGameObjectDisplayMode (independently
-    toggleable from it). Default: vanilla (off)."""
+    """M5.6.4: candidate rows are the same hand-verified safe subset as
+    EnvironmentRandomizerGameObjectDisplayMode (independently toggleable
+    from it). Unlike the display mode, size is not shuffled among existing
+    values -- each candidate's gameobject_template.size is instead
+    rerolled uniformly within [0.5, 2.0] (a continuous reroll, not a
+    pool-shuffle). size is not purely visual -- GameObject::SetObjectScale
+    scales the object's real collision bounding box proportionally with
+    it, so a rolled size also proportionally changes that object's
+    movement-blocking footprint and line-of-sight. Default: vanilla
+    (off)."""
     display_name = "Environment Randomizer: GameObject Scale Mode"
     option_vanilla = 0
     option_shuffle = 1
