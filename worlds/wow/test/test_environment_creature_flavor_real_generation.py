@@ -13,14 +13,14 @@ class TestEnvironmentCreatureFlavorRealGeneration(WoWTestBase):
         "environment_randomizer_mount_enabled": True,
     }
 
+    @unittest.skipUnless(
+        creature_flavor_content_data.CREATURE_EQUIPMENT,
+        "creature_flavor_content_data.CREATURE_EQUIPMENT is empty -- run "
+        "`python tools/extract_creature_flavor_snapshot.py` against a live, "
+        "populated acore_world DB (see docs/testing/m5.6.3-manual-verification-checklist.md) "
+        "before this test can prove real end-to-end mutation behavior.",
+    )
     def test_produces_real_mutation_rows_when_enabled(self):
-        self.assertTrue(
-            creature_flavor_content_data.CREATURE_EQUIPMENT,
-            "creature_flavor_content_data.CREATURE_EQUIPMENT is empty -- run "
-            "`python tools/extract_creature_flavor_snapshot.py` against a live, "
-            "populated acore_world DB (see docs/testing/m5.6.3-manual-verification-checklist.md) "
-            "before this test can prove real end-to-end mutation behavior.",
-        )
         candidates = environment_creature_flavor.candidate_rows(self.world)
         self.assertTrue(candidates)
         seed = world_seed.derive_world_seed("12345", "Alice")

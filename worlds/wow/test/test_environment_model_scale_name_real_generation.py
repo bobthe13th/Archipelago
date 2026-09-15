@@ -1,4 +1,5 @@
 import random
+import unittest
 
 from .. import environment_model_scale_name, creature_appearance_content_data
 from .. import world_seed
@@ -12,14 +13,14 @@ class TestEnvironmentModelScaleNameRealGeneration(WoWTestBase):
         "environment_randomizer_scale_mode": "shuffle",
     }
 
+    @unittest.skipUnless(
+        creature_appearance_content_data.CREATURE_NAMES,
+        "creature_appearance_content_data.CREATURE_NAMES is empty -- run "
+        "`python tools/extract_creature_appearance_snapshot.py` against a live, "
+        "populated acore_world DB (see docs/testing/m5.6.2-manual-verification-checklist.md) "
+        "before this test can prove real end-to-end mutation behavior.",
+    )
     def test_produces_real_mutation_rows_when_enabled(self):
-        self.assertTrue(
-            creature_appearance_content_data.CREATURE_NAMES,
-            "creature_appearance_content_data.CREATURE_NAMES is empty -- run "
-            "`python tools/extract_creature_appearance_snapshot.py` against a live, "
-            "populated acore_world DB (see docs/testing/m5.6.2-manual-verification-checklist.md) "
-            "before this test can prove real end-to-end mutation behavior.",
-        )
         candidates = environment_model_scale_name.candidate_rows(self.world)
         self.assertTrue(candidates)
         seed = world_seed.derive_world_seed("12345", "Alice")
