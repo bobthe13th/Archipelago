@@ -4,6 +4,7 @@ from .regions import create_regions
 from .rules import set_rules
 from . import day_night
 from . import environment_creature_flavor
+from . import environment_gameobject_visuals
 from . import environment_model_scale_name
 from . import environment_weather
 from . import goals
