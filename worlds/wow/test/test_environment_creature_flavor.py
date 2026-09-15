@@ -102,13 +102,18 @@ class TestMutateEquipment(unittest.TestCase):
             ("creature", 2, {"id1": 100, "equipment_id": 2, "_field": "equipment"}),
             ("creature", 3, {"id1": 200, "equipment_id": 0, "_field": "equipment"}),
         ]
-        rng = random.Random("fixed-seed")
+        rng = random.Random("seed-4")
         result = environment_creature_flavor.mutate(rows, rng)
-        # guid 3 is the only member of its group (id1=200) -- must never
-        # receive an equipment_id from the id1=100 group.
+        self.assertTrue(result, "fixture seed produced an identity permutation -- test would prove nothing")
+        # guid 3 is the only member of its group (id1=200) -- a singleton
+        # group can never produce a changed equipment_id for itself (there is
+        # only one possible permutation of a 1-element list), so the only way
+        # guid 3 could ever show up here is cross-group contamination (e.g. a
+        # regression that shuffles all equipment_ids in one flat pool instead
+        # of grouping by id1) -- verified by direct execution: a flat-shuffle
+        # regression with this same seed reassigns guid 3 to equipment_id 1.
         result_by_guid = {guid: payload for _t, guid, payload in result}
-        if 3 in result_by_guid:
-            self.assertEqual(result_by_guid[3]["equipment_id"], 0)
+        self.assertNotIn(3, result_by_guid, "guid 3 (singleton group) must never be mutated")
 
 
 class TestMutatePostureByte0Only(unittest.TestCase):
@@ -117,13 +122,12 @@ class TestMutatePostureByte0Only(unittest.TestCase):
             ("creature_template_addon", 100, {"bytes1": 0xAABBCC01, "_posture_mode": "shuffle"}),
             ("creature_template_addon", 200, {"bytes1": 0x11223302, "_posture_mode": "shuffle"}),
         ]
-        rng = random.Random("fixed-seed")
+        rng = random.Random("seed-4")
         result = environment_creature_flavor.mutate(rows, rng)
+        self.assertTrue(result, "fixture seed produced an identity permutation -- test would prove nothing")
         result_by_entry = {entry: payload for _t, entry, payload in result}
-        if 100 in result_by_entry and "bytes1" in result_by_entry[100]:
-            self.assertEqual(result_by_entry[100]["bytes1"] & 0xFFFFFF00, 0xAABBCC00)
-        if 200 in result_by_entry and "bytes1" in result_by_entry[200]:
-            self.assertEqual(result_by_entry[200]["bytes1"] & 0xFFFFFF00, 0x11223300)
+        self.assertEqual(result_by_entry[100]["bytes1"] & 0xFFFFFF00, 0xAABBCC00)
+        self.assertEqual(result_by_entry[200]["bytes1"] & 0xFFFFFF00, 0x11223300)
 
 
 class TestMutateAuraWhitelist(unittest.TestCase):
