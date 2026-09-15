@@ -75,7 +75,7 @@ def candidate_rows(world) -> list:
     if equipment_on:
         for guid, data in creature_flavor_content_data.CREATURE_EQUIPMENT.items():
             rows.append(("creature", guid, {
-                "id1": data["id1"], "equipment_id": data["equipment_id"], "_field": "equipment",
+                "_id1": data["id1"], "equipment_id": data["equipment_id"], "_field": "equipment",
             }))
 
     if posture_on or mount_on or aura_on:
@@ -109,7 +109,7 @@ def mutate(rows: Sequence, rng: random.Random) -> list:
     if equipment_rows:
         groups: dict[int, list] = {}
         for table, guid, payload in equipment_rows:
-            groups.setdefault(payload["id1"], []).append((table, guid, payload))
+            groups.setdefault(payload["_id1"], []).append((table, guid, payload))
         for group_rows in groups.values():
             original_ids = [p["equipment_id"] for _t, _g, p in group_rows]
             shuffled_ids = list(original_ids)

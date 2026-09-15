@@ -123,9 +123,9 @@ class TestCandidateRows(unittest.TestCase):
 class TestMutateEquipment(unittest.TestCase):
     def test_shuffles_only_within_same_template_group(self):
         rows = [
-            ("creature", 1, {"id1": 100, "equipment_id": 1, "_field": "equipment"}),
-            ("creature", 2, {"id1": 100, "equipment_id": 2, "_field": "equipment"}),
-            ("creature", 3, {"id1": 200, "equipment_id": 0, "_field": "equipment"}),
+            ("creature", 1, {"_id1": 100, "equipment_id": 1, "_field": "equipment"}),
+            ("creature", 2, {"_id1": 100, "equipment_id": 2, "_field": "equipment"}),
+            ("creature", 3, {"_id1": 200, "equipment_id": 0, "_field": "equipment"}),
         ]
         rng = random.Random("seed-4")
         result = environment_creature_flavor.mutate(rows, rng)
