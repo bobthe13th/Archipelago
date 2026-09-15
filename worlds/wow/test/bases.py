@@ -73,8 +73,72 @@ class WoWTestBase(WorldTestBase):
             merged["recipe_profession_pools"] = set()
         if "trainer_spell_class_pools" not in merged:
             merged["trainer_spell_class_pools"] = set()
+        if "filler_category_pools" not in merged:
+            merged["filler_category_pools"] = {"consumable", "bag", "reagent"}
+        # M4.10.1: containersanity shares recipes/trainer_spells' exact
+        # weight_option=None shape (every tag-matched row included
+        # unconditionally). Without this default, every WoWTestBase test
+        # would additionally sample/pool the full ~16,526-row
+        # containersanity family on every single run. (Originally
+        # ~17,594 at extraction time; narrowed by a final whole-branch
+        # review fix excluding 784 permanently-unlootable rows -- see
+        # extract_containersanity.py. Further narrowed to ~16,526 by
+        # M4.10.2 Task 1, which carves 284 real gathering-node rows --
+        # Copper Vein, Silverleaf, etc. -- out to Gathersanity's own
+        # extraction.)
+        if "containersanity_expansion_pools" not in merged:
+            merged["containersanity_expansion_pools"] = set()
+        # M4.10.2: gathersanity shares containersanity/recipes/trainer_spells'
+        # exact weight_option=None shape (every tag-matched row included
+        # unconditionally). Without this default, every WoWTestBase test
+        # would additionally sample/pool the full gathersanity family on
+        # every single run.
+        if "gathersanity_expansion_pools" not in merged:
+            merged["gathersanity_expansion_pools"] = set()
+        if "gathersanity_source_pools" not in merged:
+            merged["gathersanity_source_pools"] = set()
+        # M4.10.3: enemysanity shares the exact same weight_option=None shape
+        # (every tag-matched row included unconditionally). Without this
+        # default, every WoWTestBase test would additionally sample/pool the
+        # full ~17,430-row enemysanity family on every single run.
+        if "enemysanity_type_pools" not in merged:
+            merged["enemysanity_type_pools"] = set()
+        if "enemysanity_expansion_pools" not in merged:
+            merged["enemysanity_expansion_pools"] = set()
+        # M4.10.4: repsanity shares the exact same weight_option=None shape
+        # (every tag-matched row included unconditionally). Without this
+        # default, every WoWTestBase test would additionally sample/pool the
+        # full 339-row repsanity family on every single run.
+        if "repsanity_expansion_pools" not in merged:
+            merged["repsanity_expansion_pools"] = set()
+        if "repsanity_rank_tier_pools" not in merged:
+            merged["repsanity_rank_tier_pools"] = set()
+        # M4.10.5: craftsanity shares the exact same weight_option=None shape
+        # (every tag-matched row included unconditionally). Without this
+        # default, every WoWTestBase test would additionally sample/pool the
+        # full ~1,698-row craftsanity family on every single run. Craftsanity
+        # items have either 'profession' or 'class' tags but not both, so we
+        # default both pools to empty for test speed (the AND across
+        # dimensions means nothing matches with empty pools).
+        if "craftsanity_profession_pools" not in merged:
+            merged["craftsanity_profession_pools"] = set()
+        if "craftsanity_class_pools" not in merged:
+            merged["craftsanity_class_pools"] = set()
+        if "craftsanity_expansion_pools" not in merged:
+            merged["craftsanity_expansion_pools"] = set()
+        # M4.10.6: itemsanity shares the exact same weight_option=None shape
+        # (every tag-matched row included unconditionally). Without this
+        # default, every WoWTestBase test would additionally sample/pool the
+        # full 46,096-row itemsanity family on every single run.
+        if "itemsanity_class_pools" not in merged:
+            merged["itemsanity_class_pools"] = set()
+        if "itemsanity_quality_pools" not in merged:
+            merged["itemsanity_quality_pools"] = set()
+        if "itemsanity_expansion_pools" not in merged:
+            merged["itemsanity_expansion_pools"] = set()
         self.options = merged
         try:
             super().world_setup(seed)
         finally:
             self.options = original_options
+

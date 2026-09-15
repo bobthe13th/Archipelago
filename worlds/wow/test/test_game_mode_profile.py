@@ -57,3 +57,7 @@ class TestGameModeProfile(unittest.TestCase):
             options=SimpleNamespace(game_mode=SimpleNamespace(value=12), check_density=SimpleNamespace(value=0))
         )
         self.assertEqual(effective_check_density(world), 100)
+
+    def test_zone_leveler_has_a_registered_profile(self) -> None:
+        profile = get_profile(13)
+        self.assertIsNot(profile, _DEFAULT_PROFILE)

@@ -18,15 +18,19 @@ class TestQuestRewardsRowAlignment(unittest.TestCase):
     mismatch -- length parity and fill would both still pass even if row 5's
     location paired with row 900's item -- so this test pins the ordering
     invariant directly by cross-checking the shared quest-id suffix "(#N)"
-    both names carry."""
+    both names carry. M4.11.5.0.6: a multi-slot quest's names now carry an
+    additional "[ColumnName]" suffix after "(#N)" -- the quest-id group
+    still anchors on "(#N)" itself, just no longer at the literal end of
+    the string, so the trailing "$" is relaxed to allow an optional
+    " [...]" tail after it."""
 
     def test_locations_and_items_are_row_order_aligned_by_quest_id(self) -> None:
         location_names = list(quest_rewards_content_data.LOCATIONS)
         item_names = list(quest_rewards_content_data.ITEMS)
         self.assertEqual(len(location_names), len(item_names))
         for index, (location_name, item_name) in enumerate(zip(location_names, item_names)):
-            location_quest_id = re.search(r"\(#(\d+)\)$", location_name).group(1)
-            item_quest_id = re.search(r"\(#(\d+)\)$", item_name).group(1)
+            location_quest_id = re.search(r"\(#(\d+)\)(?: \[.+\])?$", location_name).group(1)
+            item_quest_id = re.search(r"\(#(\d+)\)(?: \[.+\])?$", item_name).group(1)
             self.assertEqual(
                 location_quest_id, item_quest_id,
                 f"row {index}: location {location_name!r} (#{location_quest_id}) does not "
@@ -47,15 +51,32 @@ class TestQuestRewardsAlwaysPresentSet(unittest.TestCase):
     regression here fails loudly."""
 
     def test_always_present_has_the_19_dk_reachability_rows(self) -> None:
+        # M4.11.5.0.6: the underlying 19 real DK-reachability QUESTS are
+        # unchanged, but 5 of them (6, 18, 21, 33, 3905) have multiple real
+        # reward slots and so now contribute multiple, individually-suffixed
+        # ALWAYS_PRESENT locations each -- every split location for an
+        # always_present quest still carries always_present: True (this
+        # plan's own extract_quest_rewards.py change applies the flag inside
+        # the per-slot loop, not once per quest), so the real set is now 28
+        # names, not 19.
         self.assertEqual(
             quest_rewards_content_data.ALWAYS_PRESENT,
             frozenset({
-                "Quest: Bounty on Garrick Padfoot Reward (#6)",
+                "Quest: Bounty on Garrick Padfoot Reward (#6) [RewardChoiceItemID1]",
+                "Quest: Bounty on Garrick Padfoot Reward (#6) [RewardChoiceItemID2]",
+                "Quest: Bounty on Garrick Padfoot Reward (#6) [RewardChoiceItemID3]",
                 "Quest: Kobold Camp Cleanup Reward (#7)",
                 "Quest: Investigate Echo Ridge Reward (#15)",
-                "Quest: Brotherhood of Thieves Reward (#18)",
-                "Quest: Skirmish at Echo Ridge Reward (#21)",
-                "Quest: Wolves Across the Border Reward (#33)",
+                "Quest: Brotherhood of Thieves Reward (#18) [RewardChoiceItemID1]",
+                "Quest: Brotherhood of Thieves Reward (#18) [RewardChoiceItemID2]",
+                "Quest: Brotherhood of Thieves Reward (#18) [RewardChoiceItemID3]",
+                "Quest: Brotherhood of Thieves Reward (#18) [RewardChoiceItemID4]",
+                "Quest: Brotherhood of Thieves Reward (#18) [RewardChoiceItemID5]",
+                "Quest: Skirmish at Echo Ridge Reward (#21) [RewardChoiceItemID1]",
+                "Quest: Skirmish at Echo Ridge Reward (#21) [RewardChoiceItemID2]",
+                "Quest: Skirmish at Echo Ridge Reward (#21) [RewardChoiceItemID3]",
+                "Quest: Wolves Across the Border Reward (#33) [RewardChoiceItemID1]",
+                "Quest: Wolves Across the Border Reward (#33) [RewardChoiceItemID2]",
                 "Quest: Report to Goldshire Reward (#54)",
                 "Quest: A Threat Within Reward (#783)",
                 "Quest: Simple Letter Reward (#3100)",
@@ -66,7 +87,8 @@ class TestQuestRewardsAlwaysPresentSet(unittest.TestCase):
                 "Quest: Tainted Letter Reward (#3105)",
                 "Quest: Milly Osworth Reward (#3903)",
                 "Quest: Milly's Harvest Reward (#3904)",
-                "Quest: Grape Manifest Reward (#3905)",
+                "Quest: Grape Manifest Reward (#3905) [RewardChoiceItemID1]",
+                "Quest: Grape Manifest Reward (#3905) [RewardChoiceItemID2]",
                 "Quest: Eagan Peltskinner Reward (#5261)",
                 "Quest: In Favor of the Light Reward (#5623)",
             }),
@@ -102,13 +124,18 @@ class TestQuestRewardsRules(WoWTestBase):
     # correctness requirement.
     options = {"game_mode": "sprint", "check_density": 100, "quest_reward_weight": 100, "vendor_stock_weight": 0}
 
-    # "Quest: Morbent Fel Reward (#55)" has trigger.min_level == 20 in the
-    # real DB-extracted content/quest_rewards.yaml (quest_id 55). With
-    # core_loop's STARTING_LEVEL_CAP=10 and LEVEL_CAP_STEP=5, that requires
-    # ceil((20-10)/5) == 2 Progressive Level Cap copies -- picked because
-    # it's a real, moderate (not 0, not extreme) min_level, not a
-    # hand-picked edge case.
-    _GATED_LOCATION = "Quest: Morbent Fel Reward (#55)"
+    # "Quest: Morbent Fel Reward (#55) [RewardItem1]" has trigger.min_level
+    # == 20 in the real DB-extracted content/quest_rewards.yaml (quest_id
+    # 55, min_level is a per-QUEST value shared by every one of its split
+    # slots). With core_loop's standard-track
+    # STARTING_LEVEL_CAP_BY_TRACK["standard"]=10 and LEVEL_CAP_STEP=1
+    # (M4.11.1, was 5), that requires ceil((20-10)/1) == 10 Progressive
+    # Level Cap copies -- picked because it's a real, moderate (not 0, not
+    # extreme) min_level, not a hand-picked edge case. M4.11.5.0.6: quest 55
+    # has 4 real reward slots (RewardItem1 + 3 choices) -- this test names
+    # the RewardItem1 slot explicitly, rather than picking one arbitrarily,
+    # since the bare unsuffixed name no longer exists.
+    _GATED_LOCATION = "Quest: Morbent Fel Reward (#55) [RewardItem1]"
 
     def test_min_level_rule_blocks_until_level_cap_items_held(self) -> None:
         # Any quest_reward location with min_level > 0 must require enough
@@ -130,16 +157,17 @@ class TestQuestRewardsRules(WoWTestBase):
         # Behavioral check, the actual RED/GREEN evidence: unreachable with
         # too few Progressive Level Cap copies, reachable with enough.
         progressive_caps = self.get_items_by_name("Progressive Level Cap")
-        self.collect(progressive_caps[:1])
+        self.collect(progressive_caps[:9])
         self.assertFalse(self.can_reach_location(self._GATED_LOCATION))
-        self.collect(progressive_caps[1:2])
+        self.collect(progressive_caps[9:10])
         self.assertTrue(self.can_reach_location(self._GATED_LOCATION))
 
     def test_at_least_one_location_is_min_level_gated(self) -> None:
         # Sanity check on the family as a whole (not just the one hand-picked
-        # location above): with every one of the 3,735 real rows sampled in,
-        # at least one quest_reward location must end up with a non-default
-        # access rule.
+        # location above): with every one of the ~13,104 real rows sampled in
+        # (M4.11.5.0.6's multi-choice/multi-fixed-reward split, up from
+        # ~3,735), at least one quest_reward location must end up with a
+        # non-default access rule.
         gated = [
             loc for loc in self.multiworld.get_locations(self.player)
             if loc.name.startswith("Quest:")
@@ -156,9 +184,9 @@ class TestQuestRewardsAvailableOutsideSprint(WoWTestBase):
     Every other test in this file only ever exercises Sprint, so
     nothing prior to this class actually ran the family, its rule (whose
     total_caps clamp assumes core_loop's Progressive Level Cap item pool is
-    always 10 regardless of mode -- true because create_core_loop_item_pool
-    is called unconditionally in create_items, but never checked from the
-    Quest Rewards side), or its registry's interaction with an existing
+    always 70 (M4.11.1, was 14) regardless of mode -- true because
+    create_core_loop_item_pool is called unconditionally in create_items,
+    but never checked from the Quest Rewards side), or its registry's interaction with an existing
     mode-owned sampler, under any other mode. Key Hunt is the sharpest case:
     it's the one other mode whose own create_rares_locations also samples
     through density and sets world.key_hunt_sampled_rare_count as a side

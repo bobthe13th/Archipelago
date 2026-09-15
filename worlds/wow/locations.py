@@ -3,19 +3,35 @@ from dataclasses import dataclass
 from typing import Optional
 
 from BaseClasses import Location
+from . import achievements_content_data
 from . import collections_content_data
+from . import containersanity_content_data
 from . import core_loop_content_data
+from . import craftsanity_content_data
 from . import density
+from . import enemysanity_content_data
 from . import filler_content_data
 from . import fish_content_data
 from . import game_mode_profile
+from . import gathersanity_content_data
+from . import golden_boar_statues_content_data
+from . import itemsanity_content_data
 from . import professions_content_data
 from . import quest_rewards_content_data
 from . import rares_content_data
 from . import recipes_content_data
+from . import repsanity_content_data
 from . import trainer_spells_content_data
 from . import vendor_stock_content_data
-from .items import count_enabled_gates_items, count_enabled_trap_items
+from . import zone_leveler_content_data
+from .items import (
+    core_loop_item_surplus,
+    count_enabled_gates_items,
+    count_enabled_holidaysanity_items,
+    count_enabled_raidlogger_items,
+    count_enabled_trap_items,
+    count_gathering_skill_progression_items,
+)
 
 
 class WoWLocation(Location):
@@ -50,7 +66,7 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
 
 _OPTIONAL_CATEGORIES.append(OptionalCategory(
     key="vendor_stock",
-    tag_options={"expansion": "vendor_stock_expansion_pools"},
+    tag_options={"expansion": "vendor_stock_expansion_pools", "vendor_type": "vendor_stock_utility_pools"},
     weight_option="vendor_stock_weight",
     locations_module=vendor_stock_content_data,
     items_module=vendor_stock_content_data,
@@ -70,6 +86,52 @@ _OPTIONAL_CATEGORIES.append(OptionalCategory(
     items_module=trainer_spells_content_data,
 ))
 
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="containersanity",
+    tag_options={"expansion": "containersanity_expansion_pools"},
+    locations_module=containersanity_content_data,
+    items_module=None,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="gathersanity",
+    tag_options={"expansion": "gathersanity_expansion_pools", "source": "gathersanity_source_pools"},
+    locations_module=gathersanity_content_data,
+    items_module=gathersanity_content_data,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="enemysanity",
+    tag_options={"type": "enemysanity_type_pools", "expansion": "enemysanity_expansion_pools"},
+    locations_module=enemysanity_content_data,
+    items_module=None,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="repsanity",
+    tag_options={"expansion": "repsanity_expansion_pools", "rank_tier": "repsanity_rank_tier_pools"},
+    locations_module=repsanity_content_data,
+    items_module=None,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="craftsanity",
+    tag_options={"profession": "craftsanity_profession_pools", "class": "craftsanity_class_pools", "expansion": "craftsanity_expansion_pools"},
+    locations_module=craftsanity_content_data,
+    items_module=craftsanity_content_data,
+))
+
+_OPTIONAL_CATEGORIES.append(OptionalCategory(
+    key="itemsanity",
+    tag_options={
+        "class": "itemsanity_class_pools",
+        "quality": "itemsanity_quality_pools",
+        "expansion": "itemsanity_expansion_pools",
+    },
+    locations_module=itemsanity_content_data,
+    items_module=itemsanity_content_data,
+))
+
 
 def _location_matches_pools(world, category: OptionalCategory, name: str) -> bool:
     """AND across dimensions, OR within a dimension's own selected values
@@ -77,36 +139,210 @@ def _location_matches_pools(world, category: OptionalCategory, name: str) -> boo
     M4.8.0, but the loop below degrades correctly to "always matches" if
     one ever does) still requires locations_module.TAGS[name] to resolve --
     every export_tags family unconditionally emits a TAGS entry per
-    location (Task 1), so this never KeyErrors for a real family."""
+    location (Task 1), so this never KeyErrors for a real family.
+    M4.10.5: craftsanity has items with either 'profession' or 'class' tags
+    but not both -- if a location's tags dict lacks a dimension entirely,
+    that dimension doesn't apply to this location, so it's skipped (treated
+    as an automatic pass), not defaulted to an empty set (which would
+    always fail regardless of player selection)."""
     tags = category.locations_module.TAGS[name]
     for dimension, option_name in category.tag_options.items():
+        if dimension not in tags:
+            continue
         selected = getattr(world.options, option_name).value
         if not (tags[dimension] & selected):
             return False
     return True
 
 
+def _min_level_for_row(category: OptionalCategory, name: str) -> int | None:
+    """The real, DB-sourced level requirement for one row, if this family
+    tracks one at all (M4.11.1 Task 12; renamed from
+    _zone_leveler_possession_family_min_level by M4.11.3.3's collapse of
+    the zone_leveler filter stack -- see _zone_leveler_row_matches). Read
+    from TRIGGERS[name]["min_level"], NOT TAGS -- TAGS is exported as
+    dict[str, frozenset[str]] (generate_content.py's export_tags emission,
+    string-only, meant for OR-within-dimension pool selection), which can't
+    hold a numeric value; TRIGGERS keeps the raw `trigger` sub-dict verbatim
+    (repr()'d as-is), the same real placement extract_quest_rewards.py's own
+    min_level/zone_id keys already established and locations.py has read
+    from since M4.7.1.3/M4.11.1 Task 2.
+
+    M4.11.3.3: only called by _zone_leveler_row_matches for a row whose own
+    TAGS lack an "area" key at all -- Trainer Spells left this bucket (it
+    now has real area tags, M4.11.3.1 Task 4/_zone_leveler_row_matches's own
+    unconditional zone check), so only Itemsanity and Recipes actually reach
+    this function with real, usable data now:
+      - itemsanity: item_template.RequiredLevel (extract_itemsanity.py).
+      - recipes: item_template.RequiredLevel of the recipe ITEM that teaches
+        the spell (extract_recipes.py) -- distinct from RequiredSkillRank,
+        which drives this family's own expansion tag instead.
+      - craftsanity: NOT tractable with real data -- crafting requirements
+        are skill-tier-gated (skill_line_ability-style), and no official,
+        real 1:1 skill-tier-to-player-level mapping exists in this game's
+        actual data. Fabricating an approximate mapping would violate this
+        project's "real DB column, cited, not guessed" discipline.
+    Craftsanity's own TRIGGERS dict simply never gains a "min_level" key, so
+    this returns None for it like any other row missing the key -- see
+    _zone_leveler_row_matches for how that naturally excludes it under
+    whole_game_scaled."""
+    return category.locations_module.TRIGGERS[name].get("min_level")
+
+
+def _zone_leveler_repsanity_matches(world, name: str) -> bool:
+    """M4.11.2: Repsanity has no real per-row player-level requirement
+    (M4.11.1 Task 12's own confirmed finding -- reputation ranks aren't
+    level-gated by design) and no physical location either (reputation
+    gain isn't tied to a place, unlike a quest-giver/trainer/chest) -- so
+    it's exempt from the ZONE axis entirely (same as core_loop's level
+    milestones), but it DOES get a LEVEL-axis proxy: Barrens' whole 10-30
+    band is squarely vanilla-era content, so a tbc/wotlk reputation
+    faction (Argent Crusade, Netherwing, ...) isn't realistically
+    farmable by a Barrens-locked, Azeroth-only character regardless of any
+    literal rank-based gate. Reuses Repsanity's own real, already-shipped
+    `expansion` tag (M4.10.4) as this proxy -- no new DB extraction
+    needed. Applies unconditionally under zone_leveler (both
+    zone_only/whole_game_scaled) -- this is NOT the possession-triggered
+    min_level mechanism (Repsanity was never in
+    _POSSESSION_TRIGGERED_CATEGORY_KEYS and doesn't join it here either),
+    it's a separate, always-on restriction specific to this one family."""
+    expansion_tags = repsanity_content_data.TAGS[name].get("expansion", frozenset())
+    return "vanilla" in expansion_tags
+
+
+def _containersanity_zone_cap_matches(world, name: str) -> bool:
+    """M4.11.4: Containersanity's own abstract zone-pool locations carry a
+    real ordinal (1-based position within their zone's own capped
+    sequence, baked at generation time up to _MAX_CHESTS_PER_ZONE --
+    extract_containersanity.py) in TRIGGERS[name]["ordinal"]. Only an
+    ordinal within the player's own configured
+    containersanity_chests_per_zone survives into the candidate pool --
+    everything past it is excluded here, the same way every other
+    optional-category filter in this module excludes rather than
+    resamples down to a smaller set."""
+    ordinal = containersanity_content_data.TRIGGERS[name]["ordinal"]
+    return ordinal <= world.options.containersanity_chests_per_zone.value
+
+
+def _itemsanity_debug_category_matches(world, name: str) -> bool:
+    """M4.11.5.1: Itemsanity's own debug/unobtainable-tier inclusion gate.
+    A row's debug_category tag is present only for the two special tiers
+    (extract_itemsanity.py tags it ["debug"] or ["unobtainable"], and
+    omits the key entirely for the default "normal" case) -- an absent
+    key always matches, regardless of the player's own option value,
+    exactly like every other tag dimension in this project (a row with no
+    real tag in a given dimension is never gated by that dimension's own
+    pool option). Deliberately a bespoke function, not a
+    _location_matches_pools tag_options entry: that generic mechanism
+    ANDs a Set-valued option against a row's own tag set, but this
+    dimension's real player-facing option is an ORDERED Choice
+    (exclude_all/include_unobtainable/include_all), not an independent
+    per-value Set -- the same "small per-family special filter alongside
+    the generic one" pattern _containersanity_zone_cap_matches already
+    established for a Range-valued check."""
+    debug_category = itemsanity_content_data.TAGS[name].get("debug_category", frozenset())
+    if not debug_category:
+        return True
+    inclusion = world.options.itemsanity_debug_item_inclusion
+    if inclusion == "include_all":
+        return True
+    if inclusion == "include_unobtainable":
+        return "unobtainable" in debug_category
+    return False
+
+
+_NO_PHYSICAL_LOCATION_CATEGORY_KEYS = frozenset({"itemsanity", "recipes", "craftsanity"})
+
+
+def _zone_leveler_row_matches(world, category: OptionalCategory, name: str) -> bool:
+    """M4.11.3.3: one generic zone_leveler filter for every optional
+    category, replacing the M4.11.1/M4.11.2-era per-family special-case
+    stack (_POSSESSION_TRIGGERED_CATEGORY_KEYS,
+    _zone_leveler_possession_family_min_level,
+    _zone_leveler_quest_reward_zone_matches,
+    _zone_leveler_trainer_spell_zone_matches, _zone_leveler_scope_matches)
+    now that every family shares one TAGS['area'] shape (M4.11.3.1/
+    M4.11.3.2). A category outside _NO_PHYSICAL_LOCATION_CATEGORY_KEYS is a
+    physically-located family (Quest Rewards, Trainer Spells, Vendor Stock,
+    Containersanity, Gathersanity, Enemysanity) -- its zone check is
+    UNCONDITIONAL, regardless of zone_leveler_content_scope, since "is this
+    physically in my zone" is always a meaningful question for real-world
+    data, not one gated by a widen-by-level toggle. Itemsanity/Recipes/
+    Craftsanity (mailable/pickup families -- no row of theirs EVER carries
+    an area tag, 0-of-N coverage, confirmed via direct TAGS inspection)
+    have no physical location at all and keep the old possession-triggered
+    behavior: fully excluded under zone_only, widened by real level
+    requirement under whole_game_scaled. Repsanity is handled separately,
+    first, since it has its own always-on vanilla-expansion proxy unrelated
+    to either axis here.
+
+    Real, deliberate behavior change from M4.11.2: Trainer Spells now has
+    a genuine area tag (M4.11.3.1's own migration turned its previously
+    bespoke trainer_zone_ids mechanism into the same TAGS['area'] shape
+    every other physically-located family already has), so it moves from
+    the "no physical location" bucket into the "unconditional zone check"
+    bucket -- it is now includable under zone_only (the default), not
+    only whole_game_scaled as before.
+
+    Deliberate deviation from a naive "row_area_tags truthy ->
+    unconditional check, else -> level-widening fallback" test (confirmed,
+    via an actual failing-test run, to be a real regression, not a stale
+    assumption): Quest Rewards/Vendor Stock/Containersanity/Gathersanity/
+    Enemysanity each have a real, substantial share of rows whose own
+    QuestSortID/position never resolved to any real zone at all (2,210 of
+    9,208 quest_rewards rows; similarly-shaped real gaps in the other 4
+    families, confirmed via direct TAGS inspection -- only Trainer Spells
+    happens to have 100% real coverage). For these physically-located
+    families, an EMPTY row_area_tags means "unresolvable, real zone
+    unknown" (this project's own established "unknown zone means excluded,
+    not included" default for a physically zone-locked game mode -- see
+    the pre-M4.11.3.3 _zone_leveler_quest_reward_zone_matches's own
+    docstring), NOT "no physical location, widen by level" -- those are two
+    different real facts a row-level-only truthy check on row_area_tags
+    cannot tell apart. Branching on category.key's own fixed, real
+    _NO_PHYSICAL_LOCATION_CATEGORY_KEYS membership instead (rather than the
+    row's own area-tag truthiness) keeps these two real facts distinct: an
+    itemsanity/recipes/craftsanity row's absence of an area key means "this
+    family has no physical location, ever" (0-of-N coverage, unambiguous);
+    a quest_rewards/vendor_stock/containersanity/gathersanity/enemysanity
+    row's absence of one means "this SPECIFIC row's real position never
+    resolved" and stays excluded, not level-widened.
+
+    M4.11.3.3 also drops the old zone_leveler_allow_hub_zone widening
+    (formerly ORed into the in-bounds zone-id set by
+    _zone_leveler_quest_reward_zone_matches/
+    _zone_leveler_trainer_spell_zone_matches): Task 1's flattened
+    ZoneLevelerZoneData no longer carries any hub-zone data at all
+    (allowed_hub_zone_ids was removed, not renamed), and area_tags is a
+    fixed, real per-zone constant (e.g. Barrens = frozenset({"barrens"})),
+    not something this function can widen at request time. A row's own
+    real area tags are the only thing consulted now."""
+    zone_key = world.options.zone_leveler_starting_zone.current_key
+    zone_data = zone_leveler_content_data.ZONES[zone_key]
+
+    if category.key == "repsanity":
+        return _zone_leveler_repsanity_matches(world, name)
+
+    row_area_tags = category.locations_module.TAGS[name].get("area", frozenset())
+    if category.key not in _NO_PHYSICAL_LOCATION_CATEGORY_KEYS:
+        return bool(row_area_tags & zone_data.area_tags)
+
+    if world.options.zone_leveler_content_scope == "zone_only":
+        return False
+    min_level = _min_level_for_row(category, name)
+    if min_level is None:
+        return False
+    return zone_data.min_level <= min_level <= zone_data.max_level
+
+
 def create_optional_category_locations(world, region) -> list:
     created = []
     profile = game_mode_profile.get_profile(world.options.game_mode.value)
     force_all = profile.force_all_categories
-    if force_all and not hasattr(world, "optional_category_sampled_names"):
-        world.optional_category_sampled_names = set()
     check_density = game_mode_profile.effective_check_density(world)
 
     for category in _OPTIONAL_CATEGORIES:
         all_rows = list(category.locations_module.LOCATIONS.items())
-        item_rows = list(category.items_module.ITEMS.items()) if category.items_module is not None else None
-        row_index_by_location_name = (
-            {name: i for i, (name, _) in enumerate(all_rows)} if item_rows is not None else None
-        )
-
-        def _stash(name: str) -> None:
-            # 100%'s stash needs ITEM names, not location names -- see the
-            # prior version of this comment (unchanged reasoning, M4.6/M4.7).
-            if force_all and item_rows is not None:
-                item_name = item_rows[row_index_by_location_name[name]][0]
-                world.optional_category_sampled_names.add(item_name)
 
         # always_present locations (M4.8's exemption mechanism, spec §2a):
         # bypass BOTH the tag-filter stage AND the density/weight sample
@@ -116,16 +352,45 @@ def create_optional_category_locations(world, region) -> list:
         # a player selects for this category.
         always_present_names = getattr(category.locations_module, "ALWAYS_PRESENT", frozenset())
         for name, location_id in all_rows:
-            if name in always_present_names:
-                created.append(WoWLocation(world.player, name, location_id, region))
-                _stash(name)
+            if name not in always_present_names:
+                continue
+            # M4.11.2: Quest Rewards' 19 ALWAYS_PRESENT starting-quest rows
+            # (Northshire/Goldshire, M4.8.0) previously bypassed EVERY filter this
+            # category has (tag pools, content_scope) -- confirmed and explicitly
+            # flagged as a known gap by M4.11.1 Task 12's own hotfix report. For
+            # zone_leveler specifically, apply the same real zone-tag restriction
+            # every other row already gets, via the same generic
+            # _zone_leveler_row_matches function every other call site uses --
+            # M4.11.3.3 dropped the old `category.key == "quest_rewards"`
+            # special-case here (Quest Rewards is no longer singled out; ANY
+            # category's ALWAYS_PRESENT rows now get the same real zone check as
+            # its own non-ALWAYS_PRESENT rows, uniformly).
+            if (
+                world.options.game_mode == "zone_leveler"
+                and not _zone_leveler_row_matches(world, category, name)
+            ):
+                continue
+            created.append(WoWLocation(world.player, name, location_id, region))
 
         if not game_mode_profile.is_category_eligible(world, category):
             continue
 
         candidates = [
             (name, location_id) for name, location_id in all_rows
-            if name not in always_present_names and (force_all or _location_matches_pools(world, category, name))
+            if name not in always_present_names
+            and (force_all or _location_matches_pools(world, category, name))
+            # M4.11.4: Containersanity's own per-zone abstract-chest-count
+            # cap, ANDed in alongside tag-pool matching -- see
+            # _containersanity_zone_cap_matches's own docstring.
+            and (category.key != "containersanity" or _containersanity_zone_cap_matches(world, name))
+            and (category.key != "itemsanity" or _itemsanity_debug_category_matches(world, name))
+            # M4.11.1 Task 12: zone_leveler's own zone_only/whole_game_scaled
+            # content-scope filter, ANDed in alongside tag-pool matching
+            # (not bypassed by force_all -- zone_leveler's own
+            # GameModeProfile never sets force_all_categories, see
+            # game_mode_profile.py, so this never actually interacts with a
+            # force_all slot in practice).
+            and (world.options.game_mode != "zone_leveler" or _zone_leveler_row_matches(world, category, name))
         ]
         if category.weight_option is None:
             # M4.9: no check_density/weight sampling stage at all for this
@@ -137,36 +402,80 @@ def create_optional_category_locations(world, region) -> list:
             sampled = density.sample_category(check_density, category_weight, candidates, world.random)
         for name, location_id in sampled:
             created.append(WoWLocation(world.player, name, location_id, region))
-            _stash(name)
     return created
 
 
 def create_core_loop_locations(world, region) -> list:
-    # KNOWN ACCEPTED LIMITATION (M2.1): Death Knight characters on this
-    # server start at level 55 via Player::Create, a path that does not
-    # dispatch the C++ level-up hook (Player::GiveLevel) which drives these
-    # location checks. That means the 11 "Reach Level N" checks for N in
-    # 5..55 can never fire for a Death Knight -- only "Reach Level 60" is
-    # reachable for that class (DK does level up normally, via GiveLevel,
-    # from 55 to 60). This is a real in-game reachability gap, but it is
-    # NOT visible to Archipelago's logic layer: rules.py attaches no access
-    # rule to these locations (or any WoW location), Sprint mode has no
-    # notion of character class as state, and there is no per-class option
-    # in M2.1's options.py, so every location here is modeled as
-    # unconditionally reachable and generation will not fail or warn about
-    # it. The Sprint win condition itself only requires collecting all 10
-    # "Progressive Level Cap" copies (see rules.py), not checking any
-    # specific location, so the goal remains reachable for every class in
-    # the logic model. The residual risk is purely experiential: if a
-    # Progressive Level Cap copy is filled into one of the 11 DK-unreachable
-    # milestone locations, a real Death Knight player could not obtain that
-    # copy in actual gameplay. Modeling player class as generation-time
-    # state (e.g. an option that excludes low-level milestones for DK
-    # slots) is out of scope here -- it's deferred alongside the other
-    # per-class/per-mode work called out in options.py's GameMode docstring.
+    # M4.9: every-level granularity (was every 5th level) with a real
+    # per-class track split, replacing the M2.1 "KNOWN ACCEPTED
+    # LIMITATION" this function used to document here. Death Knight
+    # characters on this server still start at level 55 via Player::Create,
+    # a path that does not dispatch the C++ level-up hook
+    # (Player::GiveLevel) the sub-55 "Reach Level N" locations depend on --
+    # but going to every-level granularity would have grown that gap
+    # roughly 5x (11 unreachable locations -> ~54) if the content stayed a
+    # single universal track. Instead, core_loop.yaml now defines TWO
+    # tracks (LEVEL_LOCATIONS_BY_TRACK in core_loop_content_data.py,
+    # mirroring INSTANCES_BY_EXPANSION's grouping precedent): "standard"
+    # (every class except Death Knight, levels 1-80) and "death_knight"
+    # (Death Knight only, levels 55-80, matching the class's real starting
+    # level). death_knight_slot (options.py) is this world's own
+    # generation-time signal for which track to instantiate -- a
+    # DK-flagged slot gets ONLY the death_knight track's locations, so
+    # there is no longer any DK-unreachable "Reach Level N" location in the
+    # pool at all for that slot. This is a trust model, not a runtime
+    # guarantee: nothing enforces that a death_knight_slot=True player
+    # actually plays a Death Knight in-game (or vice versa) -- see
+    # death_knight_slot's own options.py docstring for why that's an
+    # accepted, documented limitation identical in shape to
+    # starting_choice/combo_unlocks_scope's existing "honor your own
+    # option" trust model, not a new kind of gap.
+    # M4.11.1 (Task 9): zone_leveler is a third, distinct track family --
+    # unlike standard/death_knight (which both draw from the SAME
+    # INSTANCE_CLEAR_LOCATIONS, every one of core_loop's 8 instances), a
+    # zone_leveler slot only ever creates the SELECTED zone's own curated
+    # instance-clear locations (Barrens' own 3, not all 8), per
+    # zone_leveler_content_data.ZONES[zone_key].instance_keys. This mirrors
+    # the standard/death_knight split's own "one exclusive content set per
+    # slot" shape, just gated on game_mode instead of death_knight_slot.
+    # Finding 10 (final whole-branch review, 2026-09-01): track/zone_key
+    # resolution used to be duplicated independently here, items.py, and
+    # rules.py -- now shared via resolve_core_loop_track
+    # (zone_leveler_content_data.py).
+    track, zone_key = zone_leveler_content_data.resolve_core_loop_track(world)
+    if zone_key is not None:
+        locations = []
+        for level, location_id in core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track].items():
+            name = core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK[track][level]
+            locations.append(WoWLocation(world.player, name, location_id, region))
+        zone_data = zone_leveler_content_data.ZONES[zone_key]
+        # M4.11.3.3: zone_data.instance_keys is now computed from real,
+        # independently-verified instance-entrance reachability data
+        # (zone_leveler_content_data._instance_keys_reachable_from,
+        # M4.11.3.2's instance_entrance_data) rather than the old
+        # hand-curated tuple -- for Barrens this is a real, WIDER set than
+        # core_loop.yaml's own curated 8-instance
+        # INSTANCE_CLEAR_LOCATIONS/INSTANCE_CLEAR_LOCATION_NAMES roster
+        # (dire_maul/maraudon/onyxia_s_lair are real, physically-reachable
+        # instances from Barrens' own territory, but neither has ever had a
+        # core_loop.yaml "Clear X" AP location or "Instance Unlock" item
+        # curated for it at all -- that's a separate, pre-existing content
+        # gap this task doesn't fabricate a fix for). curated_instance_keys
+        # narrows WHICH of the real, correct instance_keys actually
+        # contribute an AP location here, without narrowing
+        # zone_data.instance_keys itself (which stays the real, full
+        # reachability set other consumers, e.g. goals.py's instance_clears
+        # goal, read directly via the same shared helper).
+        for instance_key in zone_leveler_content_data.curated_instance_keys(zone_data):
+            location_id = core_loop_content_data.INSTANCE_CLEAR_LOCATIONS[instance_key]
+            name = core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES[instance_key]
+            locations.append(WoWLocation(world.player, name, location_id, region))
+        return locations
+
     locations = []
-    for level, location_id in core_loop_content_data.LEVEL_LOCATIONS.items():
-        locations.append(WoWLocation(world.player, f"Reach Level {level}", location_id, region))
+    for level, location_id in core_loop_content_data.LEVEL_LOCATIONS_BY_TRACK[track].items():
+        name = core_loop_content_data.LEVEL_LOCATION_NAMES_BY_TRACK[track][level]
+        locations.append(WoWLocation(world.player, name, location_id, region))
     for instance_key, location_id in core_loop_content_data.INSTANCE_CLEAR_LOCATIONS.items():
         name = core_loop_content_data.INSTANCE_CLEAR_LOCATION_NAMES[instance_key]
         locations.append(WoWLocation(world.player, name, location_id, region))
@@ -174,27 +483,89 @@ def create_core_loop_locations(world, region) -> list:
 
 
 def create_filler_locations(world, region) -> list:
-    # Sink locations restoring item=location parity after Group 1's gate
-    # items (Task 11) and Group 3's trap items (Task 17): neither family has
-    # an AP location of its own, so exactly one filler location is needed
-    # per gate-or-trap item copy pooled for this generation's options. Must
-    # match items.py's create_gates_item_pool + create_trap_item_pool count
-    # exactly, not a fixed worst-case number -- AP's generation pipeline has
-    # no generic step that pads a short itempool to match location count, so
-    # every option combination needs true 1:1 parity, not just locations >=
-    # items (confirmed empirically: distribute_items_restrictive raises
-    # "Unable to fill all locations" when locations exceed items, the same
-    # as it raises when items exceed locations). This runs during
-    # create_regions, before create_items runs create_gates_item_pool/
-    # create_trap_item_pool (see gen_steps ordering) -- all sides derive
-    # their counts from the same options each pool function reads, which is
-    # what keeps them from drifting apart despite running at different
-    # pipeline stages.
-    needed = count_enabled_gates_items(world) + count_enabled_trap_items(world)
+    # Sink locations restoring item=location parity for every family/surplus
+    # term compute_filler_needed_count sums (see that function's own,
+    # per-term history) -- exactly one filler location is needed per such
+    # item copy pooled for this generation's options, not a fixed worst-case
+    # number. AP's generation pipeline has no generic step that pads a short
+    # itempool to match location count, so every option combination needs
+    # true 1:1 parity, not just locations >= items (confirmed empirically:
+    # distribute_items_restrictive raises "Unable to fill all locations"
+    # when locations exceed items, the same as it raises when items exceed
+    # locations). This runs during create_regions, before create_items runs
+    # each pool function counted below (see gen_steps ordering) -- all sides
+    # derive their counts from the same options each pool function reads,
+    # which is what keeps them from drifting apart despite running at
+    # different pipeline stages. `[:needed]` naturally clamps if `needed`
+    # ever exceeds this family's 161 compiled rows (see
+    # compute_filler_needed_count's own clamp for why the two agree).
+    needed = compute_filler_needed_count(world)
     return [
         WoWLocation(world.player, name, location_id, region)
         for name, location_id in list(filler_content_data.LOCATIONS.items())[:needed]
     ]
+
+
+def compute_filler_needed_count(world) -> int:
+    """The exact number of filler.yaml rows this seed places as real AP
+    locations -- single source of truth shared by create_filler_locations
+    (above) and slot_data.py's _add_filler_needed_count (M4.11.6), so the
+    C++ side's per-seed send can never independently drift from what this
+    seed's own multidata actually contains.
+
+    Sink locations restoring item=location parity after Group 1's gate
+    items (Task 11), Group 3's trap items (Task 17), and M4.10.7's
+    Holidaysanity items: none of these three families has an AP location of
+    its own, so exactly one filler location is needed per gate-, trap-, or
+    holidaysanity-item copy pooled for this generation's options.
+
+    M4.11.1 (Task 3): core_loop_item_surplus adds a 4th term -- a
+    death_knight_slot generation's own core-loop item count (80, flat and
+    track-independent since LEVEL_CAP_STEP dropped to 1) now exceeds its
+    own 34-location core-loop floor by 46, a real surplus with no family of
+    its own to live in (the standard track's own 88-location floor still
+    absorbs its 80 items with room to spare, so this term is always 0
+    there). Same "no AP location of its own" sink-location role as the
+    three terms above, just for an item surplus rather than a whole
+    optional family. (M4.11.1 Task 4, BarrensBeater, grew both the item
+    count and both tracks' core-loop floors by 3 in lockstep -- 77->80
+    items, 31->34 death_knight floor, 85->88 standard floor -- so the
+    surplus itself is unchanged at 46/0.)
+
+    M4.11.4.2 (Task 4 fix round 1): Progressive Mining/Herbalism add a 5th
+    term -- same "no AP location of its own" shape as the three optional-
+    family terms above (up to 12 item copies total, one per real skill tier
+    with at least one real gathering_node location for that profession).
+
+    M4.11.7: Raidlogger's instant_level_set items add a 6th term, same
+    shape again.
+
+    M4.14.1 final review fix (C3): gates grew from 37 to 47 items (10 new
+    "Useful Items" gates: 4 Progressive Bag Slot tiers, 2 Talent Point
+    Access tranches, Random Flight Path Unlock, Portable Mailbox,
+    Progressive EXP Boost, Progressive Move Speed Boost), so
+    count_enabled_gates_items' own worst case (the first term above) grew by
+    10 too -- filler.yaml's own compiled row count was resized 151 -> 161 to
+    match (see its header comment).
+
+    Clamped to this family's real compiled row count (161) as defense in
+    depth: create_filler_locations' own `[:needed]` slice already tolerates
+    an oversized `needed` silently, but an unclamped value would let
+    slot_data's filler_needed_count (M4.11.6) advertise a count larger than
+    any location that actually exists -- the exact over-report class of bug
+    this milestone fixes, just from the opposite direction. A `needed` this
+    large should already fail generation on item/location parity before
+    this clamp would ever matter in practice (test_basic.py's own
+    worst-case-coverage test exists to catch that drift)."""
+    raw_needed = (
+        count_enabled_gates_items(world)
+        + count_enabled_trap_items(world)
+        + count_enabled_holidaysanity_items(world)
+        + core_loop_item_surplus(world)
+        + count_gathering_skill_progression_items(world)
+        + count_enabled_raidlogger_items(world)
+    )
+    return min(raw_needed, len(filler_content_data.LOCATIONS))
 
 
 def create_rares_locations(world, region) -> list:
@@ -221,11 +592,60 @@ def create_rares_locations(world, region) -> list:
     if world.options.game_mode != "key_hunt":
         return []
 
-    all_rows = list(rares_content_data.LOCATIONS.items())
+    # M4.11.1 Task 5: key_hunt_zone_pools ANDs against density sampling (M4.8
+    # §2 tag-dimension convention) -- a row is a candidate only if its own
+    # `area` tag intersects the player's selection; the unrestricted default
+    # (every area tag this checkout's 40 curated rares span) makes this
+    # identical to Key Hunt's pre-M4.11.1 unfiltered behavior. (M4.11.3.1:
+    # reads the family's unified `area` tag -- Task 1-3's fixed
+    # resolve_area_tags_for_positions, possibly more than one area per row --
+    # instead of the retired single-winner `zone` tag; the option itself is
+    # still named key_hunt_zone_pools, unchanged.)
+    selected_zones = world.options.key_hunt_zone_pools.value
+    all_rows = [
+        (name, location_id) for name, location_id in rares_content_data.LOCATIONS.items()
+        if rares_content_data.TAGS[name].get("area", frozenset()) & selected_zones
+    ]
     sampled = density.sample_category(
         game_mode_profile.effective_check_density(world), category_weight=100, all_rows=all_rows, rng=world.random,
     )
     world.key_hunt_sampled_rare_count = len(sampled)
+    return [
+        WoWLocation(world.player, name, location_id, region)
+        for name, location_id in sampled
+    ]
+
+
+def create_golden_boar_statues_locations(world, region) -> list:
+    # M4.11.1 Task 10 (Zone Leveler's Barrens flagship, golden_boar_statues
+    # goal): structurally identical to create_rares_locations above --
+    # game_mode-gated (zone_leveler here, key_hunt there) AND, unlike rares,
+    # ALSO gated on whether golden_boar_statues is one of the selected
+    # zone_leveler_goals (a slot can play Zone Leveler with this specific
+    # goal deselected, in which case the family contributes zero locations/
+    # items, same "N goals ANDed together" shape ZoneLevelerGoals'
+    # docstring describes). Density-sampled the same way (density.sample_category,
+    # weight 100) -- no zone-tag filter needed here, unlike Key Hunt's
+    # key_hunt_zone_pools, since every one of this family's 20 rows is
+    # already Barrens-only by curation (golden_boar_statues.yaml has no
+    # `tags:` block at all).
+    #
+    # The sampled COUNT (not the specific rows) is stashed on `world` so
+    # items.py's create_golden_boar_statues_item_pool, which runs later
+    # during create_items, pools EXACTLY this many "Golden Boar Statue"
+    # copies -- same world.<family>_sampled_count convention
+    # world.key_hunt_sampled_rare_count established above.
+    world.golden_boar_statues_sampled_count = 0
+    if world.options.game_mode != "zone_leveler":
+        return []
+    if "golden_boar_statues" not in world.options.zone_leveler_goals.value:
+        return []
+
+    all_rows = list(golden_boar_statues_content_data.LOCATIONS.items())
+    sampled = density.sample_category(
+        game_mode_profile.effective_check_density(world), category_weight=100, all_rows=all_rows, rng=world.random,
+    )
+    world.golden_boar_statues_sampled_count = len(sampled)
     return [
         WoWLocation(world.player, name, location_id, region)
         for name, location_id in sampled
@@ -277,3 +697,33 @@ def create_collections_locations(world, region) -> list:
         WoWLocation(world.player, name, location_id, region)
         for name, location_id in collections_content_data.LOCATIONS.items()
     ]
+
+
+def create_achievement_locations(world, region) -> list:
+    # Achievement Hunt (M4.9 Sec4): every achievement in the compiled
+    # 1,162-row pool always exists as a location whenever game_mode is
+    # achievement_hunt, regardless of achievement_hunt_tier/subset -- NOT
+    # filtered at generation time. Only the completion RULE (goals.py's
+    # _achievement_hunt_target_item_names) differs by chosen tier/subset,
+    # mirroring Collector's own "every location exists, only the threshold
+    # differs" shape. Not density-sampled either, same "gated on game_mode
+    # itself" family as professions/collections/fish.
+    if world.options.game_mode != "achievement_hunt":
+        return []
+    return [
+        WoWLocation(world.player, name, location_id, region)
+        for name, location_id in achievements_content_data.LOCATIONS.items()
+    ]
+
+
+def create_explorer_locations(world, region) -> list:
+    # Explorer (M4.9 Sec4): a single location, the real World Explorer
+    # achievement (id 46) -- reuses the SAME compiled achievements.yaml
+    # table Achievement Hunt draws from (both key off the shared
+    # OnPlayerAchievementComplete hook per the spec), gated to just this
+    # one row rather than the full pool.
+    if world.options.game_mode != "explorer":
+        return []
+    name = achievements_content_data.WORLD_EXPLORER_LOCATION_NAME
+    location_id = achievements_content_data.LOCATIONS[name]
+    return [WoWLocation(world.player, name, location_id, region)]

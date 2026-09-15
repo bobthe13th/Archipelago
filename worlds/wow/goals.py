@@ -4,15 +4,22 @@ completion rules. Every mode beyond Sprint is added here as content lands
 for it -- see docs/m4-plan.md Group 6 for which modes are Tier 1/2/3."""
 from __future__ import annotations
 
+import math
+import typing
+
 from Options import OptionError
 
+from . import achievements_content_data
 from . import collections_content_data
 from . import core_loop_content_data
 from . import density
 from . import fish_content_data
 from . import game_mode_profile
+from . import golden_boar_statues_content_data
 from . import professions_content_data
+from . import quest_rewards_content_data
 from . import rares_content_data
+from . import zone_leveler_content_data
 from .locations import _OPTIONAL_CATEGORIES
 
 
@@ -22,7 +29,33 @@ def validate(world) -> None:
     loudly here (spec Sec5.3: "fail generation with a clear message"), not
     surface later as a confusing KeyError/FillError once regions or items
     already exist."""
+    _validate_filler_category_pools_nonempty(world)
     _VALIDATORS[world.options.game_mode.value](world)
+
+
+def _validate_filler_category_pools_nonempty(world) -> None:
+    """Mode-independent check, run before the per-mode _VALIDATORS dispatch
+    below: core_loop's every-level item pool has a real, unconditional
+    dependency on Filler to close its own item/location deficit in every
+    game_mode, not just Sprint (create_core_loop_item_pool pads the pool
+    with create_filler_item_pool(world, deficit) whenever core_loop.yaml's
+    milestone granularity leaves the standard/death_knight tracks short --
+    64 items on the standard track, 10 on death_knight, per items.py's own
+    create_filler_item_pool docstring). An empty FillerCategoryPools
+    selection has zero eligible items to draw from, so that deficit can
+    never be closed -- left unchecked, this surfaces later as a raw,
+    confusing Fill.FillError deep in generation instead of a clear,
+    actionable message here."""
+    if not world.options.filler_category_pools.value:
+        raise OptionError(
+            "WoW: filler_category_pools is empty -- core_loop's item pool "
+            "has an unconditional dependency on Filler to close its own "
+            "item/location deficit (up to 64 items on the standard track, "
+            "10 on the death_knight track, per create_filler_item_pool's "
+            "docstring), and an empty category selection has no eligible "
+            "items to draw from. Select at least one FillerCategoryPools "
+            "category."
+        )
 
 
 def set_completion_rule_for_mode(world) -> None:
@@ -41,13 +74,28 @@ def _validate_sprint(world) -> None:
 
 
 def _set_completion_rule_sprint(world) -> None:
-    # Sprint: reach level 60, which (per this milestone's fixed content
-    # table) requires having received all 10 Progressive Level Cap copies --
-    # starting cap 10, +5 each, 10 copies reaches exactly 60. Moved here
-    # unchanged from rules.py's original set_completion_rule (Task 22).
+    # Sprint: reach level 60. M4.9: Progressive Level Cap's total pooled
+    # copy count grew from 10 to 14 (core_loop.yaml, to support the
+    # every-level milestone track's own level-80 ceiling: starting cap 10 +
+    # 14 * step 5 = 80) -- Sprint's own goal is still level 60, not 80, so
+    # this rule can no longer use "hold ALL copies" (that used to be
+    # coincidentally correct only because the old total was tuned to stop
+    # exactly at 60). Derive the real level-60 threshold from the same
+    # constants the cap-raise math itself uses, instead of hardcoding 10 or
+    # reading the total ITEMS count. M4.11.1 (Task 3): STARTING_LEVEL_CAP is
+    # now per-track (STARTING_LEVEL_CAP_BY_TRACK) since Zone Leveler's own
+    # track needs a different starting cap -- Sprint is only ever offered
+    # against the shared standard/death_knight item pool, so it reads the
+    # standard track's own value explicitly ((60 - 10) / 1 = 50 copies,
+    # unchanged threshold in level terms, just a bigger raw copy count than
+    # the old step-5 math).
+    copies_for_sprint_goal = math.ceil(
+        (core_loop_content_data.SPRINT_GOAL_LEVEL - core_loop_content_data.STARTING_LEVEL_CAP_BY_TRACK["standard"])
+        / core_loop_content_data.LEVEL_CAP_STEP
+    )
     world.set_completion_rule(
         lambda state: state.has(
-            "Progressive Level Cap", world.player, core_loop_content_data.ITEMS["Progressive Level Cap"][1]
+            "Progressive Level Cap", world.player, copies_for_sprint_goal
         )
     )
 
@@ -88,8 +136,18 @@ _INSTANCE_KEY_DISPLAY_NAMES = {
     "ragefire_chasm": "Ragefire Chasm",
     "deadmines": "Deadmines",
     "molten_core": "Molten Core",
-    "sunwell_plateau": "Sunwell Plateau",
+    "sunwell": "Sunwell Plateau",
     "icecrown_citadel": "Icecrown Citadel",
+    # M4.11.1 (Task 4, BarrensBeater): without these 3, Key Hunt's own
+    # completion rule (_set_completion_rule_key_hunt below, which builds its
+    # instance-name set FROM this dict) would silently never count these 3
+    # instances even though the real generated INSTANCE_CLEAR_LOCATIONS map
+    # (which Key Hunt's C++ side, ArchipelagoGoals.cpp's IsKeyHuntComplete,
+    # iterates directly) does include them -- a real Python/C++
+    # completion-semantics split if this dict is left stale.
+    "wailing_caverns": "Wailing Caverns",
+    "razorfen_kraul": "Razorfen Kraul",
+    "razorfen_downs": "Razorfen Downs",
 }
 
 # Task 23 (Tier 1): Classic/Burning Crusade/Wrath each gate on exactly one
@@ -101,7 +159,7 @@ _INSTANCE_KEY_DISPLAY_NAMES = {
 # instance_key/display name to check.
 _TIER1_RAID_INSTANCE_KEYS = {
     2: "molten_core",  # classic
-    3: "sunwell_plateau",  # burning_crusade
+    3: "sunwell",  # burning_crusade
     4: "icecrown_citadel",  # wrath
 }
 
@@ -130,12 +188,52 @@ def _set_completion_rule_raid_instance_clear(instance_key: str):
     return _set_rule
 
 
+# Raidlogger (M4.11.7, GameMode.option_raidlogger=14): goal is "clear this
+# chain's final tier's one raid" -- reuses the exact same completion-rule
+# shape as Tier-1's single-raid modes above (_validate_raid_instance_clear/
+# _set_completion_rule_raid_instance_clear), just resolving which
+# instance_key applies from raidlogger_expansions at call time instead of a
+# fixed per-mode value (GameMode 14 covers two different final raids
+# depending on that sub-option), the same per-option dynamic-resolution
+# style _validate_completionist/_set_completion_rule_completionist below
+# already use for completionist_expansion.
+RAIDLOGGER_FINAL_TIER_INSTANCE_KEY: dict[str, str] = {
+    "classic_to_tbc": "sunwell",
+    "classic_to_wotlk": "icecrown_citadel",
+}
+
+
+def _get_raidlogger_final_instance_key(world) -> str:
+    return RAIDLOGGER_FINAL_TIER_INSTANCE_KEY[world.options.raidlogger_expansions.current_key]
+
+
+def _validate_raidlogger(world) -> None:
+    instance_key = _get_raidlogger_final_instance_key(world)
+    if instance_key not in core_loop_content_data.INSTANCE_CLEAR_LOCATIONS:
+        raise OptionError(
+            f"WoW: game_mode 'raidlogger' with raidlogger_expansions "
+            f"'{world.options.raidlogger_expansions.current_key}' requires "
+            f"the '{instance_key}' instance-clear location, but it is "
+            f"missing from core_loop.yaml."
+        )
+
+
+def _set_completion_rule_raidlogger(world) -> None:
+    instance_key = _get_raidlogger_final_instance_key(world)
+    display_name = _INSTANCE_KEY_DISPLAY_NAMES[instance_key]
+    world.set_completion_rule(
+        lambda state: state.has(f"Instance Unlock: {display_name}", world.player)
+    )
+
+
 # Task 24 (Completionist mode, design spec Sec5.4): requires clearing every
 # instance_clear location tagged with the chosen expansion
 # (completionist_expansion option -- vanilla/tbc/wotlk). Unlike Tier-1's
 # single-raid modes, this can require more than one Instance Unlock item at
-# once (vanilla currently has three: Ragefire Chasm, Deadmines, Molten
-# Core), so it uses state.has_all rather than a single state.has.
+# once (vanilla currently has six: Ragefire Chasm, Deadmines, Molten Core,
+# Wailing Caverns, Razorfen Kraul, Razorfen Downs -- the last 3 added
+# M4.11.1 Task 4 for BarrensBeater; was three), so it uses state.has_all
+# rather than a single state.has.
 def _validate_completionist(world) -> None:
     expansion = world.options.completionist_expansion.current_key
     instance_keys = core_loop_content_data.INSTANCES_BY_EXPANSION.get(expansion, [])
@@ -167,18 +265,32 @@ def _validate_key_hunt(world) -> None:
     # have actually sampled rares.yaml's rows -- generate_early (where this
     # runs) happens BEFORE create_regions in AP's generation lifecycle, so
     # the real sampled count doesn't exist yet at this point.
+    #
+    # M4.11.1 Task 5: eligible_row_count is the zone-pool-filtered subset
+    # (matching locations.py's create_rares_locations own filter exactly),
+    # not the full 40 -- an unrestricted key_hunt_zone_pools default makes
+    # this identical to the pre-M4.11.1 row_count=len(LOCATIONS) check.
+    # (M4.11.3.1: reads the family's unified `area` tag -- Task 1-3's fixed
+    # resolve_area_tags_for_positions -- instead of the retired
+    # single-winner `zone` tag, matching locations.py's own rename.)
+    selected_zones = world.options.key_hunt_zone_pools.value
+    eligible_row_count = sum(
+        1 for name in rares_content_data.LOCATIONS
+        if rares_content_data.TAGS[name].get("area", frozenset()) & selected_zones
+    )
     predicted = density.predict_sample_size(
-        game_mode_profile.effective_check_density(world), category_weight=100, row_count=len(rares_content_data.LOCATIONS)
+        game_mode_profile.effective_check_density(world), category_weight=100, row_count=eligible_row_count
     )
     keys_required = world.options.key_hunt_keys_required.value
     if predicted < keys_required:
         raise OptionError(
             f"WoW: game_mode 'key_hunt' with key_hunt_keys_required={keys_required} "
             f"needs at least that many rares sampled into the pool, but "
-            f"check_density={world.options.check_density.value} "
-            f"would only sample {predicted} of the {len(rares_content_data.LOCATIONS)} "
-            f"curated rares -- raise check_density or lower "
-            f"key_hunt_keys_required."
+            f"check_density={world.options.check_density.value} and "
+            f"key_hunt_zone_pools={sorted(selected_zones)} would only sample "
+            f"{predicted} of the {eligible_row_count} zone-eligible curated rares "
+            f"({len(rares_content_data.LOCATIONS)} total) -- raise check_density, "
+            f"broaden key_hunt_zone_pools, or lower key_hunt_keys_required."
         )
 
 
@@ -265,12 +377,24 @@ def _set_completion_rule_collector(world) -> None:
     )
 
 
-# M4.6 Task 7 (100% mode, M4.6 design spec Sec3): completing the goal requires
-# collecting literally everything -- all 10 Progressive Level Cap copies,
-# every Instance Unlock item, and every optional-category item this seed
-# actually sampled. Only meaningful when at least one OptionalCategory is
-# registered (locations.py's _OPTIONAL_CATEGORIES) -- with zero registered,
-# "100%" would be indistinguishable from Sprint's own completion condition.
+# M5.2 perf fix: 100% mode used to require collecting literally everything
+# -- all pooled Progressive Level Cap copies, every Instance Unlock item,
+# AND every optional-category item this seed sampled (tens of thousands of
+# names at this checkout's real max-density scale). That forced every one
+# of those items to ItemClassification.progression just to keep the game
+# beatable by AP's own accessibility rules, which routed nearly the entire
+# item pool through Fill.py's expensive fill_restrictive path instead of
+# fast_fill -- inflating generation from ~74s to multiple hours for a seed
+# only ~20% larger in location count. hundred_percent's real point (per its
+# GameMode docstring) is maximum map DENSITY -- game_mode_profile.py's
+# force_all_categories/force_max_density already deliver that regardless of
+# what the goal requires. The goal itself now delegates to Completionist's
+# own rule/validator below (_set_completion_rule_completionist/
+# _validate_completionist) via the dispatch tables, same as any other
+# full-game mode: hundred_percent still only requires clearing whichever
+# completionist_expansion tier the player picked -- a handful of items --
+# while every optional category is still generated at full density for
+# players to loot.
 def _validate_hundred_percent(world) -> None:
     if not _OPTIONAL_CATEGORIES:
         raise OptionError(
@@ -278,19 +402,240 @@ def _validate_hundred_percent(world) -> None:
             "category to be registered in this build -- none are (see "
             "locations.OptionalCategory registrations)."
         )
+    _validate_completionist(world)
 
 
-def _set_completion_rule_hundred_percent(world) -> None:
-    level_cap_copies = core_loop_content_data.ITEMS["Progressive Level Cap"][1]
-    instance_unlock_names = {
-        f"Instance Unlock: {name}" for name in _INSTANCE_KEY_DISPLAY_NAMES.values()
-    }
-    sampled_names = getattr(world, "optional_category_sampled_names", set())
-    remaining_names = instance_unlock_names | sampled_names
+# M4.9 Sec4 (Achievement Hunt, built for real): three curated tiers, all
+# drawn from the SAME compiled achievements_content_data table --
+# hundred_percent is every location that table exposes, ninety_nine_percent
+# excludes the hand-curated EXTREMELY_HARD_ITEM_NAMES set, named_subset
+# requires exactly one of ACHIEVEMENTS_BY_SUBSET's six real, category-
+# derived groups. Every achievement location/item ALWAYS exists in the pool
+# regardless of which tier is chosen (create_achievement_locations below) --
+# only this target set (what the completion RULE requires) differs, the
+# same "every location exists, only the threshold differs" shape Collector's
+# collector_items_required already established.
+def _achievement_hunt_target_item_names(world) -> frozenset[str]:
+    tier = world.options.achievement_hunt_tier.current_key
+    if tier == "named_subset":
+        subset = world.options.achievement_hunt_subset.current_key
+        return achievements_content_data.ACHIEVEMENTS_BY_SUBSET.get(subset, frozenset())
+    all_names = frozenset(achievements_content_data.ITEMS.keys())
+    if tier == "ninety_nine_percent":
+        return all_names - achievements_content_data.EXTREMELY_HARD_ITEM_NAMES
+    return all_names  # hundred_percent
+
+
+def _validate_achievement_hunt(world) -> None:
+    if not achievements_content_data.LOCATIONS:
+        raise OptionError(
+            "WoW: game_mode 'achievement_hunt' has no achievement locations in achievements.yaml."
+        )
+    target = _achievement_hunt_target_item_names(world)
+    if not target:
+        tier = world.options.achievement_hunt_tier.current_key
+        detail = f"achievement_hunt_tier='{tier}'"
+        if tier == "named_subset":
+            detail += f" and achievement_hunt_subset='{world.options.achievement_hunt_subset.current_key}'"
+        raise OptionError(
+            f"WoW: game_mode 'achievement_hunt' with {detail} resolves to an empty target "
+            f"set -- nothing to complete."
+        )
+
+
+def _set_completion_rule_achievement_hunt(world) -> None:
+    target = _achievement_hunt_target_item_names(world)
+    world.set_completion_rule(lambda state: state.has_all(target, world.player))
+
+
+# M4.9 Sec4 (Explorer, rebuilt for real): a single location/item pair, the
+# real "World Explorer" achievement (id 46, drawn from the exact same
+# compiled achievements_content_data table Achievement Hunt uses -- both
+# key off the same shared OnPlayerAchievementComplete hook, per the spec),
+# replacing the previous custom subzone-visit-tracker design entirely.
+def _validate_explorer(world) -> None:
+    if achievements_content_data.WORLD_EXPLORER_LOCATION_NAME not in achievements_content_data.LOCATIONS:
+        raise OptionError(
+            "WoW: game_mode 'explorer' requires the World Explorer achievement location, "
+            "but it is missing from achievements.yaml."
+        )
+
+
+def _set_completion_rule_explorer(world) -> None:
     world.set_completion_rule(
-        lambda state: state.has("Progressive Level Cap", world.player, level_cap_copies)
-        and state.has_all(remaining_names, world.player)
+        lambda state: state.has(achievements_content_data.WORLD_EXPLORER_ITEM_NAME, world.player)
     )
+
+
+# M4.11.1 (Task 11, BarrensBeater): Zone Leveler's real, full validator/
+# completion rule -- replaces Task 9's own deliberately-partial placeholder
+# (which covered ONLY reach_zone_level_cap, just enough for a zone_leveler
+# slot to complete real generation end-to-end while this task was pending).
+# zone_leveler_goals (options.py's ZoneLevelerGoals OptionSet) selects any
+# non-empty subset of up to four independent goal kinds, ANDed together --
+# same "N goals ANDed" shape this file already uses in a couple of other
+# places (Key Hunt's keys-AND-instances, 100%'s level-cap-AND-remaining),
+# just generalized here to a dynamic, options-driven list of sub-rules
+# instead of a fixed two.
+def _quest_reward_item_names_for_zone(zone_data) -> frozenset[str]:
+    """clear_all_zone_quests' own completion signal is receiving each
+    zone quest's REWARD ITEM, not a bare "Quest: <name>" item -- but
+    quest_rewards_content_data's LOCATIONS ("Quest: <name> Reward (#N)")
+    and ITEMS ("Quest Reward: <name> (#N)") dicts do NOT share a common
+    name/key to string-match against (different name templates). The real
+    pairing mechanism this project already establishes for exactly this
+    LOCATIONS<->ITEMS relationship, for every OptionalCategory, is POSITIONAL:
+    matching insertion-order position within each dict, not name equality --
+    see locations.py's create_optional_category_locations, which builds
+    row_index_by_location_name from `list(category.locations_module.LOCATIONS.items())`
+    and then reads `item_rows[row_index_by_location_name[name]][0]` from
+    `list(category.items_module.ITEMS.items())`. Reused verbatim here rather
+    than re-deriving an ad-hoc (and, as a prior draft of this task proved,
+    incorrect) string-matching scheme."""
+    all_rows = list(quest_rewards_content_data.LOCATIONS.items())
+    item_rows = list(quest_rewards_content_data.ITEMS.items())
+    row_index_by_location_name = {name: i for i, (name, _) in enumerate(all_rows)}
+    return frozenset(
+        item_rows[row_index_by_location_name[name]][0]
+        for name in zone_data.quest_reward_location_names
+    )
+
+
+def _validate_zone_leveler(world) -> None:
+    selected_goals = world.options.zone_leveler_goals.value
+    if not selected_goals:
+        raise OptionError(
+            "WoW: game_mode 'zone_leveler' needs at least one zone_leveler_goals "
+            "entry selected -- reach_zone_level_cap, clear_all_zone_quests, "
+            "golden_boar_statues, and/or instance_clears."
+        )
+
+    zone_key = world.options.zone_leveler_starting_zone.current_key
+    zone_data = zone_leveler_content_data.ZONES[zone_key]
+
+    if "clear_all_zone_quests" in selected_goals:
+        if not zone_data.quest_reward_location_names:
+            raise OptionError(
+                f"WoW: game_mode 'zone_leveler' with zone_leveler_goals including "
+                f"'clear_all_zone_quests' needs at least one zone-tagged Quest Rewards "
+                f"location for zone '{zone_key}', but it has none in quest_rewards.yaml."
+            )
+        # clear_all_zone_quests' completion sub-rule (_set_completion_rule_zone_leveler
+        # below) needs ALL of the zone's quest-reward items, unconditionally --
+        # unlike golden_boar_statues, which only needs a predicted-count
+        # THRESHOLD (density.predict_sample_size, checked below). But
+        # quest_rewards locations go through the same check_density x
+        # quest_reward_weight sampling every other quest_rewards location
+        # does (locations.py's OptionalCategory mechanism, M4.8) -- at
+        # anything less than full density AND full weight, only a random
+        # subset of the zone's own quest-reward locations actually lands in
+        # the pool, and a required item whose location was never sampled can
+        # never be obtained, permanently softlocking this goal. The only
+        # sampling settings that GUARANTEE every one of the zone's rows is
+        # included are check_density=100 and quest_reward_weight=100 (the
+        # `wanted == row_count` case in density.sample_category, the only
+        # one where rng.sample is forced to return literally everything) --
+        # so, unlike golden_boar_statues' "predict a partial count is
+        # enough" check, this one just requires those two settings outright.
+        effective_density = game_mode_profile.effective_check_density(world)
+        quest_reward_weight = world.options.quest_reward_weight.value
+        if effective_density != 100 or quest_reward_weight != 100:
+            raise OptionError(
+                f"WoW: game_mode 'zone_leveler' with zone_leveler_goals including "
+                f"'clear_all_zone_quests' needs ALL {len(zone_data.quest_reward_location_names)} "
+                f"of zone '{zone_key}''s zone-tagged Quest Rewards locations sampled into "
+                f"the pool -- quest_rewards locations are density/weight-sampled the same "
+                f"as every other quest_rewards location, so a partial sample would leave "
+                f"this goal permanently unsatisfiable. This requires check_density=100 and "
+                f"quest_reward_weight=100 (currently check_density={effective_density}, "
+                f"quest_reward_weight={quest_reward_weight}) -- raise both, or deselect "
+                f"'clear_all_zone_quests'."
+            )
+
+    if "instance_clears" in selected_goals:
+        required = world.options.zone_leveler_instances_required.value
+        # M4.11.3.3: zone_data.instance_keys is now a real, wider physical-
+        # reachability set (zone_leveler_content_data._instance_keys_reachable_from)
+        # than core_loop.yaml's own curated "Instance Unlock" item roster --
+        # only curated_instance_keys actually have an item this goal's own
+        # completion rule below can require, so "available" must count that
+        # subset, not the full real reachability set.
+        curated = zone_leveler_content_data.curated_instance_keys(zone_data)
+        available = len(curated)
+        if required > available:
+            raise OptionError(
+                f"WoW: game_mode 'zone_leveler' with zone_leveler_instances_required="
+                f"{required} needs at least that many curated instances for zone "
+                f"'{zone_key}', but it only has {available} "
+                f"({', '.join(curated) if curated else 'none'})."
+            )
+
+    if "golden_boar_statues" in selected_goals:
+        predicted = density.predict_sample_size(
+            game_mode_profile.effective_check_density(world),
+            category_weight=100,
+            row_count=len(golden_boar_statues_content_data.LOCATIONS),
+        )
+        required = world.options.zone_leveler_statues_required.value
+        if predicted < required:
+            raise OptionError(
+                f"WoW: game_mode 'zone_leveler' with zone_leveler_statues_required="
+                f"{required} needs at least that many Golden Boar Statue locations "
+                f"sampled, but check_density={world.options.check_density.value} "
+                f"would only sample {predicted} of the "
+                f"{len(golden_boar_statues_content_data.LOCATIONS)} curated statue "
+                f"locations -- raise check_density or lower zone_leveler_statues_required."
+            )
+
+
+def _set_completion_rule_zone_leveler(world) -> None:
+    zone_key = world.options.zone_leveler_starting_zone.current_key
+    zone_data = zone_leveler_content_data.ZONES[zone_key]
+    selected_goals = world.options.zone_leveler_goals.value
+    # Explicit Callable[..., bool] annotation (not a bare `[]`, which mypy
+    # would infer from the FIRST appended lambda's own exact parameter
+    # count/defaults): each goal kind below appends a lambda with a
+    # different number of default-valued capture params (count vs. names vs.
+    # names+count), and without this annotation mypy flags every append
+    # after the first as an incompatible Callable[[Any, Any], Any] vs.
+    # [[Any, Any, Any], Any] mismatch, even though every one of them is only
+    # ever CALLED with a single `state` argument (set_completion_rule below
+    # calls each via `rule(state)`).
+    sub_rules: list[typing.Callable[..., bool]] = []
+
+    if "reach_zone_level_cap" in selected_goals:
+        total_caps = core_loop_content_data.LEVEL_CAP_TOTAL_BY_TRACK[f"zone_leveler_{zone_key}"]
+        sub_rules.append(
+            lambda state, count=total_caps: state.has("Progressive Level Cap", world.player, count)
+        )
+
+    if "clear_all_zone_quests" in selected_goals:
+        quest_item_names = _quest_reward_item_names_for_zone(zone_data)
+        sub_rules.append(lambda state, names=quest_item_names: state.has_all(names, world.player))
+
+    if "golden_boar_statues" in selected_goals:
+        required = world.options.zone_leveler_statues_required.value
+        sub_rules.append(
+            lambda state, count=required: state.has("Golden Boar Statue", world.player, count)
+        )
+
+    if "instance_clears" in selected_goals:
+        required = world.options.zone_leveler_instances_required.value
+        # M4.11.3.3: only zone_data's real curated_instance_keys subset has
+        # an "Instance Unlock: <name>" item at all (_INSTANCE_KEY_DISPLAY_NAMES
+        # is keyed by the same curated 8-instance core_loop.yaml roster) --
+        # see _validate_zone_leveler's own instance_clears branch above for
+        # the matching "available" count fix.
+        instance_item_names = frozenset(
+            f"Instance Unlock: {_INSTANCE_KEY_DISPLAY_NAMES[key]}"
+            for key in zone_leveler_content_data.curated_instance_keys(zone_data)
+        )
+        sub_rules.append(
+            lambda state, names=instance_item_names, count=required:
+                state.has_from_list_unique(names, world.player, count)
+        )
+
+    world.set_completion_rule(lambda state: all(rule(state) for rule in sub_rules))
 
 
 # GameMode.value -> bare option name, for every mode without real content
@@ -300,34 +645,16 @@ def _set_completion_rule_hundred_percent(world) -> None:
 _NOT_YET_IMPLEMENTED_MODE_NAMES = {}
 
 # GameMode.value -> (bare option name, reason) for modes that cannot be
-# built in this checkout at all -- either because the "full roster" cannot
-# be extracted from any real data source (achievement_hunt/explorer's empty
-# DBC-stub tables), or because completion cannot be tracked via any real,
-# verified hook without either an invasive core-engine change (editing
-# Battleground subclass files directly, since BG objectives like flag
-# captures have no generic ScriptMgr hook) or reimplementing untestable
-# internal engine math blind (arena rating -- OnBeforeArenaTeamMemberUpdate
-# fires BEFORE the engine's own ArenaTeam::GetRatingMod computes the actual
-# rating change, so there is no safe way to predict the post-match rating
-# from that hook's own parameters). Resolved 2026-08-20, per explicit user
-# direction on the arena/BG research finding: gladiator gets the same
-# hard-failure treatment as achievement_hunt/explorer, rather than either
-# an invasive core-file diff or unverifiable formula reimplementation.
-_NOT_BUILDABLE_MODES = {
-    8: ("achievement_hunt", "achievement_dbc.sql/achievement_criteria_dbc.sql (which would carry "
-        "Achievement.dbc/Achievement-Criteria.dbc data) are empty stub tables with zero real "
-        "achievement names/definitions, and no binary .dbc client files exist in this repo."),
-    9: ("gladiator", "arena-rating tiers have no safe push hook -- OnBeforeArenaTeamMemberUpdate "
-        "fires before ArenaTeam::GetRatingMod computes the actual rating change, so the post-match "
-        "personal rating cannot be predicted from that hook's own parameters without blindly "
-        "reimplementing untestable internal engine math -- and battleground-objective events "
-        "(e.g. flag captures) are not exposed via any generic ScriptMgr hook at all, only hardcoded "
-        "inside each Battleground subclass (WSG.cpp/AB.cpp/EOTS.cpp), a far more invasive change "
-        "than any other hook in this module."),
-    10: ("explorer", "areatable_dbc.sql (which would carry AreaTable.dbc data) is an empty stub "
-         "table with zero real subzone names/definitions, and no binary .dbc client files exist "
-         "in this repo."),
-}
+# built in this checkout at all. Permanently empty as of M4.9.4: every mode
+# that was ever listed here has since gained real content or been removed
+# entirely -- Gladiator (value 9) was deleted from GameMode's Choice values
+# outright (options.py), while achievement_hunt (8) and explorer (10) gained
+# real completion logic (see _validate_achievement_hunt/_validate_explorer
+# and their matching _set_completion_rule_* functions above). Left in place,
+# still wired into both dispatch tables below, so a future mode that turns
+# out to be unbuildable in some checkout has a ready-made slot to register
+# into rather than needing this whole mechanism reintroduced.
+_NOT_BUILDABLE_MODES = {}
 
 _VALIDATORS = {
     0: _validate_sprint,
@@ -337,8 +664,12 @@ _VALIDATORS = {
     5: _validate_completionist,
     6: _validate_artisan,
     7: _validate_collector,
+    8: _validate_achievement_hunt,
+    10: _validate_explorer,
     11: _validate_fishing_quest,
     12: _validate_hundred_percent,  # option_hundred_percent
+    13: _validate_zone_leveler,  # option_zone_leveler (M4.11.1 Task 11)
+    14: _validate_raidlogger,  # option_raidlogger (M4.11.7)
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
     **{value: _not_buildable(name, reason) for value, (name, reason) in _NOT_BUILDABLE_MODES.items()},
 }
@@ -351,8 +682,12 @@ _COMPLETION_RULES = {
     5: _set_completion_rule_completionist,
     6: _set_completion_rule_artisan,
     7: _set_completion_rule_collector,
+    8: _set_completion_rule_achievement_hunt,
+    10: _set_completion_rule_explorer,
     11: _set_completion_rule_fishing_quest,
-    12: _set_completion_rule_hundred_percent,  # option_hundred_percent
+    12: _set_completion_rule_completionist,  # option_hundred_percent (M5.2: delegates to Completionist's goal)
+    13: _set_completion_rule_zone_leveler,  # option_zone_leveler (M4.11.1 Task 11)
+    14: _set_completion_rule_raidlogger,  # option_raidlogger (M4.11.7)
     **{value: _not_yet_implemented(name) for value, name in _NOT_YET_IMPLEMENTED_MODE_NAMES.items()},
     **{value: _not_buildable(name, reason) for value, (name, reason) in _NOT_BUILDABLE_MODES.items()},
 }
