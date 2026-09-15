@@ -16,6 +16,29 @@ tokenizes this field with `Acore::Tokenize(fields[7].Get<std::string_view>(),
 space, never a comma -- a comma-joined value would fail to parse as
 multiple aura IDs at boot and would silently be treated as unparseable by
 AzerothCore's tokenizer.
+
+Note on aura shuffle's ADD-only semantics: candidate_rows() only ever
+offers the auras/_aura_mode payload keys for a creature_template_addon row
+whose EXISTING auras value is already empty ("") -- mutate() therefore only
+ever ADDS a cosmetic aura, it never overwrites or removes a real,
+possibly-mechanical aura a creature already has (WotLK data uses this
+column for things like permanent stealth, invisibility, detection, or
+feign-death). The curated whitelist guards against ASSIGNING a mechanical
+aura; this constraint guards the symmetric risk of REMOVING one that was
+already safely doing its job. A row with a non-empty existing auras value
+can still be a candidate for the OTHER three fields (equipment/posture/
+mount) -- only the auras field itself is excluded for that row.
+
+Note on interaction with mobs_spawns.py's mob_randomizer_spawn_mode
+(M5.1.0, a separate already-shipped milestone): when spawn shuffle is also
+enabled, a spawn's underlying creature template can change, which
+invalidates the same-id1-grouping safety property this milestone's
+equipment shuffle depends on -- equipment_id was grouped and validated
+against the spawn's ORIGINAL template, but if spawn shuffle also reassigns
+which template occupies that spawn, the equipment_id now resolves against
+a different template than the one it was grouped/validated against at
+generation time. This is an accepted tradeoff between two Cosmetic-
+classified categories interacting, not a bug to fix.
 """
 from __future__ import annotations
 
@@ -66,7 +89,10 @@ def candidate_rows(world) -> list:
             if mount_on:
                 payload["mount"] = data["mount"]
                 payload["_mount_mode"] = "shuffle"
-            if aura_on:
+            if aura_on and data["auras"] == "":
+                # Only ever ADD a cosmetic aura to a row that has none --
+                # never overwrite/remove a real, possibly-mechanical aura
+                # a creature already has (see module docstring).
                 payload["auras"] = data["auras"]
                 payload["_aura_mode"] = "shuffle"
             rows.append(("creature_template_addon", entry, payload))

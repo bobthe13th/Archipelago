@@ -1381,9 +1381,12 @@ class EnvironmentRandomizerMountEnabled(Toggle):
 class EnvironmentRandomizerAuraEnabled(Toggle):
     """M5.6.3: assigns creature_template_addon.auras from a curated,
     hand-verified non-mechanical (visual-only) spell whitelist -- never
-    from an unfiltered spell range. A safe no-op (no aura ever assigned)
-    until that whitelist is populated by a human; see design spec Sec5
-    and docs/testing/m5.6.3-manual-verification-checklist.md. Default:
+    from an unfiltered spell range. Only ever ADDS a cosmetic aura to a
+    row whose auras field is already empty -- never overwrites or removes
+    an existing (possibly mechanical) aura a creature already has. A safe
+    no-op (no aura ever assigned) until that whitelist is populated by a
+    human; see design spec Sec5 and
+    docs/testing/m5.6.3-manual-verification-checklist.md. Default:
     off."""
     display_name = "Environment Randomizer: Cosmetic Aura Shuffle"
     default = False

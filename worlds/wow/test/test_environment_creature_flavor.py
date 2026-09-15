@@ -58,6 +58,11 @@ _FAKE_EQUIPMENT = {
 _FAKE_ADDONS = {
     100: {"mount": 0, "bytes1": 0x00000001, "bytes2": 0x00000000, "emote": 0, "auras": ""},
     200: {"mount": 1234, "bytes1": 0x00000002, "bytes2": 0x00000001, "emote": 5, "auras": ""},
+    # 300 already has a real (non-empty) aura -- must never be offered as an
+    # aura candidate (Fix 4: aura shuffle only ever ADDS to an empty auras
+    # field, never overwrites/removes an existing one), but must still be a
+    # candidate for the OTHER addon fields (posture/mount).
+    300: {"mount": 42, "bytes1": 0x00000004, "bytes2": 0x00000003, "emote": 9, "auras": "5555"},
 }
 
 
@@ -86,7 +91,7 @@ class TestCandidateRows(unittest.TestCase):
         with _patched_content():
             rows = environment_creature_flavor.candidate_rows(world)
         # Exactly one row per creature_template_addon candidate, not two.
-        self.assertEqual(len(rows), 2)
+        self.assertEqual(len(rows), 3)
         self.assertTrue(all(row[0] == "creature_template_addon" for row in rows))
         _table, _entry, payload = rows[0]
         self.assertIn("bytes1", payload)
@@ -99,6 +104,20 @@ class TestCandidateRows(unittest.TestCase):
             rows = environment_creature_flavor.candidate_rows(world)
         for _table, _entry, payload in rows:
             self.assertNotIn("auras", payload)
+
+    def test_aura_candidates_restricted_to_rows_with_empty_existing_auras(self):
+        # Fix 4: aura shuffle only ever ADDS a cosmetic aura -- entry 300 in
+        # _FAKE_ADDONS already has a real, non-empty auras value and must
+        # never be offered as an aura candidate, even though it's still a
+        # valid candidate for other addon fields.
+        world = _fake_world(aura=True)
+        with _patched_content():
+            rows = environment_creature_flavor.candidate_rows(world)
+        rows_by_entry = {entry: payload for _t, entry, payload in rows}
+        self.assertIn("auras", rows_by_entry[100])
+        self.assertIn("auras", rows_by_entry[200])
+        self.assertNotIn("auras", rows_by_entry[300])
+        self.assertNotIn("_aura_mode", rows_by_entry[300])
 
 
 class TestMutateEquipment(unittest.TestCase):
