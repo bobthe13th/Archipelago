@@ -184,9 +184,10 @@ class WoWWorld(World):
         the player's own YAML) must be pulled back out of that dict inside
         generate_early(), via a `hasattr(self.multiworld,
         "re_gen_passthrough")` check (real precedent:
-        worlds/dark_souls_3's own OnPlayerBeforeSendChatMessage-adjacent
-        pattern -- see this milestone's plan Global Constraints for the
-        exact citation), the same way worlds/dark_souls_3 and
+        worlds/dark_souls_3's own `hasattr(self.multiworld,
+        "re_gen_passthrough")` check, worlds/dark_souls_3/__init__.py
+        lines 111-114 -- see this milestone's plan Global Constraints for
+        the exact citation), the same way worlds/dark_souls_3 and
         worlds/timespinner already do for their own resolved values.
 
         Real investigation (2026-09-17, this milestone) found NOTHING in
