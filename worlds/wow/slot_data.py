@@ -220,7 +220,7 @@ def _add_ap_logic_tree_data(world, data: dict) -> None:
             continue
 
         sphere_number = int(sphere_key)
-        for location_name, item_name in sphere_value.items():
+        for location_name in sphere_value:
             location = own_locations_by_name.get(location_name)
             if location is None:
                 continue  # another player's location in this playthrough, not ours
