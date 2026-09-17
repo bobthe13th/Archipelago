@@ -92,6 +92,7 @@ def build_slot_data(world) -> dict:
     data: dict = {}
     _add_instance_clear_mode(world, data)
     _add_ap_item_display_data(world, data)
+    _add_ap_logic_tree_data(world, data)
     _add_vendor_check_repeat_behavior(world, data)
     _add_loot_slot_check_repeat_behavior(world, data)
     _add_holidaysanity_stacking(world, data)
@@ -173,6 +174,68 @@ def _add_ap_item_display_data(world, data: dict) -> None:
             "flags": int(item.classification),
         }
     data["ap_item_display"] = display
+
+
+def _add_ap_logic_tree_data(world, data: dict) -> None:
+    """M6.2.7: for every one of this world's OWN locations that appears in
+    the real multiworld playthrough (multiworld.spoiler.playthrough,
+    populated by Main.py's create_playthrough() call BEFORE fill_slot_data()
+    ever runs -- see this milestone's plan Global Constraints for the exact
+    ordering proof), records that location's real sphere number and the
+    real, honest superset of every progression item placed in strictly
+    earlier spheres. This is real AP-computed reachability data (a sphere
+    boundary IS "first reachable using only items collected in earlier
+    spheres" by definition), not a fabricated per-location requirement
+    formula -- this project's WoW rules (rules.py) are Python closures with
+    no exportable structured form, so a minimal per-location gate list does
+    not exist anywhere in this system. Single-AP-slot-per-realm (confirmed:
+    every real generation here has multiworld.players == 1), so
+    playthrough's location-name keys carry no player-name suffix
+    (BaseClasses.get_name_string_for_object returns bare location.name when
+    players == 1) and match this world's own location.name directly, with
+    no cross-player disambiguation ever needed."""
+    playthrough = world.multiworld.spoiler.playthrough
+    if not playthrough:
+        data["ap_logic_tree"] = {}
+        return
+
+    own_locations_by_name = {
+        location.name: location
+        for location in world.multiworld.get_locations(world.player)
+        if location.address is not None
+    }
+
+    # Sort sphere keys numerically ("0", "1", "2", ... "10", not lexically
+    # "0", "1", "10", "2") so gate_items accumulates in real sphere order.
+    sphere_keys = sorted(playthrough.keys(), key=int)
+
+    tree: dict[str, dict] = {}
+    items_before_this_sphere: list[str] = []
+    for sphere_key in sphere_keys:
+        sphere_value = playthrough[sphere_key]
+        if isinstance(sphere_value, list):
+            # Sphere "0": precollected progression items, not tied to any
+            # location -- these gate every later sphere's locations.
+            items_before_this_sphere = list(sphere_value)
+            continue
+
+        sphere_number = int(sphere_key)
+        for location_name, item_name in sphere_value.items():
+            location = own_locations_by_name.get(location_name)
+            if location is None:
+                continue  # another player's location in this playthrough, not ours
+            tree[str(location.address)] = {
+                "sphere": sphere_number,
+                "gate_items": list(items_before_this_sphere),
+            }
+
+        # Items placed IN this sphere become available gates for the NEXT
+        # sphere onward -- accumulate after processing this sphere's own
+        # locations, never before (a location's own gate_items must never
+        # include the very item placed at itself).
+        items_before_this_sphere = items_before_this_sphere + list(sphere_value.values())
+
+    data["ap_logic_tree"] = tree
 
 
 def _add_vendor_check_repeat_behavior(world, data: dict) -> None:
