@@ -170,6 +170,51 @@ class WoWWorld(World):
     def fill_slot_data(self):
         return slot_data.build_slot_data(self)
 
+    def interpret_slot_data(self, slot_data: dict) -> dict:
+        """M6.2.8: Universal Tracker's real, standard per-world hook (see
+        e.g. worlds/messenger, worlds/dark_souls_3, worlds/timespinner for
+        real precedent already in this exact checkout -- there is no
+        base-class default and no separate UT tracker-world fork anywhere
+        in this repo). UT calls this after connecting, then stores
+        whatever this returns as
+        self.multiworld.re_gen_passthrough[self.game] before re-running
+        this world's own generate_early()/create_regions()/set_rules() on
+        a freshly-constructed local instance -- any value this world would
+        otherwise re-roll via self.random (rather than read straight from
+        the player's own YAML) must be pulled back out of that dict inside
+        generate_early(), via a `hasattr(self.multiworld,
+        "re_gen_passthrough")` check (real precedent:
+        worlds/dark_souls_3's own `hasattr(self.multiworld,
+        "re_gen_passthrough")` check, worlds/dark_souls_3/__init__.py
+        lines 111-114 -- see this milestone's plan Global Constraints for
+        the exact citation), the same way worlds/dark_souls_3 and
+        worlds/timespinner already do for their own resolved values.
+
+        Real investigation (2026-09-17, this milestone) found NOTHING in
+        this apworld currently needs that treatment -- see this
+        milestone's plan Global Constraints for the full, source-cited
+        reasoning covering class/race gating, death_knight_slot, Zone
+        Leveler track selection, Pipeline B (M5.0/M5.1.0/M5.1.1/
+        M5.6.0-M5.6.4, all real and committed, verified zero reachability
+        impact by direct grep of rules.py/locations.py/items.py), and the
+        still-unbuilt autobalance-preset option. This method is therefore
+        a real, honest no-op today, exactly matching several other real
+        apworlds already in this checkout (worlds/messenger,
+        worlds/tunic, worlds/yugioh06, worlds/osrs all do the same bare
+        `return slot_data` for the identical reason). It stops being a
+        no-op the moment a future milestone (M5.2 faction/reputation
+        shuffle, the still-unbuilt autobalance option, or a deliberate
+        future Pipeline B category that breaks the silo rule on purpose)
+        resolves a genuinely reachability-affecting value at generation
+        time that isn't already a plain YAML option -- see
+        docs/testing/m6.2.8-manual-verification-checklist.md's own
+        "Future extension contract" section for the exact steps to add
+        it then, and test/test_universal_tracker.py's
+        TestPipelineBSiloRuleHolds for the regression guard that will
+        catch a silent silo-rule violation before this reasoning goes
+        stale."""
+        return slot_data
+
     def pre_output(self) -> None:
         world_seed = derive_world_seed(str(self.multiworld.seed_name), self.player_name)
         self._pipeline_b_world_seed = world_seed

@@ -419,3 +419,45 @@ class TestAddWorldSeed(unittest.TestCase):
         data = {}
         slot_data_module._add_world_seed(world, data)
         self.assertIsNone(data["world_seed"])
+
+
+class TestAddApLogicTreeData(unittest.TestCase):
+    def test_add_ap_logic_tree_data_basic(self) -> None:
+        from worlds.wow.slot_data import _add_ap_logic_tree_data
+
+        # Create fake location objects
+        loc_a = _FakeLocation("Ragefire Chasm Quest Complete", 1000001, _FakeItem("Item A", player=1, classification=ItemClassification.progression))
+        loc_b = _FakeLocation("Deadmines Quest Complete", 1000002, _FakeItem("Item B", player=1, classification=ItemClassification.progression))
+
+        # Build a minimal fake playthrough: sphere 0 has one precollected
+        # progression item; sphere 1 places "Item A" at a real location this
+        # world owns; sphere 2 places "Item B" at a second real location.
+        world = SimpleNamespace(
+            player=1,
+            multiworld=SimpleNamespace(
+                get_locations=lambda player: [loc_a, loc_b],
+                spoiler=SimpleNamespace(
+                    playthrough={
+                        "0": ["Precollected Item"],
+                        "1": {"Ragefire Chasm Quest Complete": "Item A"},
+                        "2": {"Deadmines Quest Complete": "Item B"},
+                    }
+                ),
+            ),
+        )
+
+        data: dict = {}
+        _add_ap_logic_tree_data(world, data)
+
+        self.assertIn("ap_logic_tree", data)
+        tree = data["ap_logic_tree"]
+
+        # Verify entry for Ragefire Chasm Quest Complete
+        entry_a = tree[str(loc_a.address)]
+        self.assertEqual(entry_a["sphere"], 1)
+        self.assertEqual(entry_a["gate_items"], ["Precollected Item"])
+
+        # Verify entry for Deadmines Quest Complete
+        entry_b = tree[str(loc_b.address)]
+        self.assertEqual(entry_b["sphere"], 2)
+        self.assertEqual(sorted(entry_b["gate_items"]), sorted(["Precollected Item", "Item A"]))
