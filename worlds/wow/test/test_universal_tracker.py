@@ -4,6 +4,7 @@ interpret_slot_data is a plain per-world method UT calls by duck-typing
 (confirmed real via 10 other in-repo apworld implementations -- see this
 milestone's plan Global Constraints) -- there is no base-class hook or
 separate UT tracker-world fork anywhere in this checkout."""
+import pathlib
 import unittest
 
 from . import bases
@@ -37,3 +38,47 @@ class TestInterpretSlotData(bases.WoWTestBase):
         world = self.multiworld.worlds[self.player]
         real_slot_data = world.fill_slot_data()
         self.assertEqual(world.interpret_slot_data(real_slot_data), real_slot_data)
+
+
+class TestPipelineBSiloRuleHolds(unittest.TestCase):
+    """M6.2.8: interpret_slot_data's own no-op reasoning (Task 1) depends
+    entirely on the real, current fact that this apworld's reachability
+    logic (rules.py/locations.py/items.py) never consumes Pipeline B's
+    mutation output -- the master spec's "silo rule." This is a durable
+    regression guard, not a one-time investigation note: if a future
+    change makes any of these three files reference Pipeline B's mutation
+    machinery, this test fails loudly, forcing that change's author to
+    also revisit interpret_slot_data's own reasoning and this milestone's
+    manual verification checklist -- rather than silently reopening a
+    UT-desync risk this milestone closed."""
+
+    _WOW_DIR = pathlib.Path(__file__).resolve().parent.parent
+    _REACHABILITY_FILES = ("rules.py", "locations.py", "items.py")
+    _PIPELINE_B_MARKERS = (
+        "mutation_pipeline",
+        "_pipeline_b_result",
+        "_pipeline_b_day_night",
+        "mobs_spawns",
+        "mobs_level",
+        "day_night",
+        "environment_weather",
+        "environment_creature_flavor",
+        "environment_gameobject_visuals",
+        "environment_model_scale_name",
+    )
+
+    def test_reachability_logic_never_references_pipeline_b_mutation_output(self) -> None:
+        for filename in self._REACHABILITY_FILES:
+            source = (self._WOW_DIR / filename).read_text(encoding="utf-8")
+            for marker in self._PIPELINE_B_MARKERS:
+                self.assertNotIn(
+                    marker, source,
+                    f"{filename} now references Pipeline B marker {marker!r} -- this breaks the "
+                    "silo-rule assumption WoWWorld.interpret_slot_data's own no-op reasoning depends "
+                    "on (M6.2.8 plan Global Constraints). If this is a deliberate, reviewed change "
+                    "(e.g. M5.2 faction/reputation shuffle landing with real reachability impact), "
+                    "update interpret_slot_data's docstring, add the real slot_data mirroring per "
+                    "docs/testing/m6.2.8-manual-verification-checklist.md's Future Extension "
+                    "Contract, and update this test's own marker list/reasoning to match -- do not "
+                    "just widen or delete this assertion."
+                )
